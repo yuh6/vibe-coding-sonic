@@ -12,18 +12,53 @@ import libraryRoutes from './routes/library.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import { attachUser } from './middleware/userAuth.js';
+import { requireAdmin } from './middleware/adminAuth.js';
 import { isSunoConfigured } from './services/sunoClient.js';
 import { isLlmConfigured } from './services/llm/index.js';
 import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
+import { getSetting } from './config/runtimeConfig.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
 const isProd = process.env.NODE_ENV === 'production';
 
-// 生产环境 CORS 收紧到同源（前端由 Express 自己托管）；开发环境放开给 Vite
-app.use(cors(isProd ? { origin: process.env.APP_ORIGIN || false, credentials: true } : { credentials: true, origin: true }));
-app.use(express.json());
+function parseCsv(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isLoopbackOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.');
+  } catch {
+    return false;
+  }
+}
+
+function isCorsOriginAllowed(origin) {
+  if (!origin) return true;
+  const configured = parseCsv(getSetting('CORS_ORIGINS'));
+  if (configured.includes('*') || configured.includes(origin)) return true;
+  if (!isProd && isLoopbackOrigin(origin)) return true;
+  return Boolean(process.env.APP_ORIGIN && origin === process.env.APP_ORIGIN);
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      callback(null, isCorsOriginAllowed(origin));
+    },
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  })
+);
+app.use(express.json({ limit: '128kb' }));
 app.use(attachUser);
 
 app.get('/api/health', (_req, res) => {
@@ -42,9 +77,8 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
-
-app.use('/api/config', configRoutes);
-app.use('/api/library', libraryRoutes);
+app.use('/api/config', requireAdmin, configRoutes);
+app.use('/api/library', requireAdmin, libraryRoutes);
 
 app.use('/api/mbti', mbtiRoutes);
 app.use('/api/project', projectRoutes);
@@ -59,8 +93,8 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`[server] http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[server] http://${HOST}:${PORT}`);
   console.log(`[server] TTAPI Suno: ${isSunoConfigured() ? 'enabled' : 'fallback mode'}`);
   const llm = resolveLlmConfig();
   console.log(`[server] LLM: ${isLlmConfigured() ? `${llm.label} (${llm.providerId})` : 'template mode'}`);

@@ -10,6 +10,34 @@ import {
 import { pickTrack } from './libraryStore.js';
 
 const jobs = new Map();
+const JOB_TTL_MS = positiveNumber(process.env.MUSIC_JOB_TTL_MS, 30 * 60 * 1000);
+const MAX_JOBS = positiveNumber(process.env.MUSIC_MAX_JOBS, 100);
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function cleanupJobs(now = Date.now()) {
+  for (const [id, job] of jobs) {
+    if (now - job.createdAt > JOB_TTL_MS) {
+      jobs.delete(id);
+    }
+  }
+
+  if (jobs.size <= MAX_JOBS) return;
+
+  const oldest = [...jobs.entries()]
+    .sort(([, a], [, b]) => a.createdAt - b.createdAt)
+    .slice(0, jobs.size - MAX_JOBS);
+
+  for (const [id] of oldest) {
+    jobs.delete(id);
+  }
+}
+
+const cleanupTimer = setInterval(cleanupJobs, Math.min(JOB_TTL_MS, 60_000));
+cleanupTimer.unref?.();
 
 function masterTracks({ url, title = 'Master' }) {
   return url ? [{ id: 'master', name: title || 'Master', type: 'master', url }] : [];
@@ -88,6 +116,7 @@ export function createMusicJob({
   forceFallback = false,
   splitStems = true,
 }) {
+  cleanupJobs();
   const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style });
   const jobId = uuidv4();
   const useSuno = isSunoConfigured() && !forceFallback;
@@ -137,6 +166,7 @@ export function getJob(jobId) {
 }
 
 export async function refreshJob(jobId) {
+  cleanupJobs();
   const job = jobs.get(jobId);
   if (!job) return null;
 

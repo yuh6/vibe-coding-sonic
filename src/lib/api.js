@@ -1,8 +1,32 @@
 const API_BASE = '';
+const ADMIN_TOKEN_KEY = 'vibe-coding-sonic-admin-token';
+
+export function getStoredAdminToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+}
+
+export function setStoredAdminToken(token) {
+  const normalized = String(token || '').trim();
+  if (normalized) {
+    localStorage.setItem(ADMIN_TOKEN_KEY, normalized);
+  } else {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+}
+
+function shouldAttachAdminToken(path) {
+  return path.startsWith('/api/config') || path.startsWith('/api/library');
+}
 
 async function request(path, options = {}) {
+  const method = options.method || 'GET';
+  const token = shouldAttachAdminToken(path) ? getStoredAdminToken() : '';
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'X-Admin-Token': token } : {}),
+      ...options.headers,
+    },
     credentials: 'same-origin',
     ...options,
   });

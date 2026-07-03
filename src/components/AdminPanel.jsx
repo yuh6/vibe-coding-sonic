@@ -7,6 +7,8 @@ import {
   getLibrary,
   addLibraryTrack,
   deleteLibraryTrack,
+  getStoredAdminToken,
+  setStoredAdminToken,
 } from '../lib/api';
 
 const PROVIDER_KEY_MAP = {
@@ -28,16 +30,16 @@ const MODE_LABELS = { focus: '🎯 专注', spark: '💡 头脑风暴', sprint: 
 function SecretInput({ label, placeholder, value, onChange, hint }) {
   return (
     <div>
-      <label className="mb-1 block font-mono text-[10px] tracking-widest text-white/45">{label}</label>
+      <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">{label}</label>
       <input
         type="password"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none"
+        className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
       />
-      {hint && <p className="mt-1 text-[10px] text-white/35">{hint}</p>}
+      {hint && <p className="mt-1 text-[10px] text-faint">{hint}</p>}
     </div>
   );
 }
@@ -52,8 +54,11 @@ export default function AdminPanel() {
   const [libMode, setLibMode] = useState('focus');
   const [newTrack, setNewTrack] = useState({ title: '', url: '' });
   const [toast, setToast] = useState('');
+  const [authToken, setAuthToken] = useState(getStoredAdminToken());
+  const [loadError, setLoadError] = useState('');
 
   const refresh = async () => {
+    setLoadError('');
     const [keys, st, prov, lib] = await Promise.all([
       getConfigKeys(),
       getConfigStatus(),
@@ -67,7 +72,10 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    refresh().catch((err) => setToast(`加载失败: ${err.message}`));
+    refresh().catch((err) => {
+      setLoadError(err.message);
+      setToast(`加载失败: ${err.message}`);
+    });
   }, []);
 
   const showToast = (msg) => {
@@ -83,6 +91,9 @@ export default function AdminPanel() {
       const patch = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v !== undefined && v !== '')
       );
+      if (providerKeyName && patch[providerKeyName] && !patch.LLM_PROVIDER) {
+        patch.LLM_PROVIDER = currentProvider;
+      }
       if (!Object.keys(patch).length) {
         showToast('没有修改');
         return;
@@ -117,8 +128,37 @@ export default function AdminPanel() {
     }
   };
 
+  const handleUnlock = async () => {
+    setStoredAdminToken(authToken);
+    try {
+      await refresh();
+      showToast('已解锁');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  };
+
   if (!settings) {
-    return <div className="glass rounded-2xl p-8 text-center text-white/40">加载中...</div>;
+    return (
+      <div className="glass mx-auto max-w-xl rounded-2xl p-6">
+        <span className="deck-label">管理后台</span>
+        <p className="mt-3 text-sm text-subtle">{loadError || '加载中...'}</p>
+        <div className="mt-4 flex gap-2">
+          <input
+            type="password"
+            value={authToken}
+            onChange={(e) => setAuthToken(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+            placeholder="ADMIN_TOKEN"
+            autoComplete="off"
+            className="bg-input flex-1 rounded-xl px-3 py-2 font-mono text-xs"
+          />
+          <button type="button" onClick={handleUnlock} className="pad px-4 text-sm">
+            解锁
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const tracks = library?.[libMode] || [];
@@ -126,7 +166,7 @@ export default function AdminPanel() {
   return (
     <div className="space-y-4">
       {toast && (
-        <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl border border-white/20 bg-black/80 px-4 py-2 text-sm backdrop-blur">
+        <div className="toast-bar fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl px-4 py-2 text-sm">
           {toast}
         </div>
       )}
@@ -135,21 +175,21 @@ export default function AdminPanel() {
       <div className="glass rounded-2xl p-4">
         <span className="deck-label">系统状态</span>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+          <div className="rounded-xl border border-theme bg-surface p-3">
             <div className="flex items-center gap-2">
               <span className="led-dot" style={{ color: status?.ttapi?.active ? '#4ade80' : '#f59e0b' }} />
-              <span className="font-display text-sm font-semibold">TTAPI Suno</span>
+              <span className="font-display text-sm font-semibold text-theme">TTAPI Suno</span>
             </div>
-            <p className="mt-1 text-[11px] text-white/45">
+            <p className="mt-1 text-[11px] text-subtle">
               {status?.ttapi?.active ? `已连接 · ${status.ttapi.modelVersion}` : '未配置，走兜底曲目'}
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+          <div className="rounded-xl border border-theme bg-surface p-3">
             <div className="flex items-center gap-2">
               <span className="led-dot" style={{ color: status?.llm?.active ? '#4ade80' : '#f59e0b' }} />
-              <span className="font-display text-sm font-semibold">LLM</span>
+              <span className="font-display text-sm font-semibold text-theme">LLM</span>
             </div>
-            <p className="mt-1 text-[11px] text-white/45">
+            <p className="mt-1 text-[11px] text-subtle">
               {status?.llm?.active ? `${status.llm.label}` : '未配置，走关键词模板'}
             </p>
           </div>
@@ -169,7 +209,7 @@ export default function AdminPanel() {
           />
 
           <div>
-            <label className="mb-1 block font-mono text-[10px] tracking-widest text-white/45">
+            <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
               LLM 供应商
             </label>
             <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
@@ -178,7 +218,7 @@ export default function AdminPanel() {
                   key={p.id}
                   type="button"
                   onClick={() => setForm({ ...form, LLM_PROVIDER: p.id })}
-                  className={`pad px-2 py-2 text-[11px] ${currentProvider === p.id ? 'pad-active text-white' : 'text-white/55'}`}
+                  className={`pad px-2 py-2 text-[11px] ${currentProvider === p.id ? 'pad-active' : ''}`}
                 >
                   {p.label}
                 </button>
@@ -197,7 +237,7 @@ export default function AdminPanel() {
 
           {currentProvider === 'custom' && (
             <div>
-              <label className="mb-1 block font-mono text-[10px] tracking-widest text-white/45">
+              <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
                 LLM_API_BASE
               </label>
               <input
@@ -205,13 +245,13 @@ export default function AdminPanel() {
                 value={form.LLM_API_BASE ?? settings.LLM_API_BASE?.value ?? ''}
                 onChange={(e) => setForm({ ...form, LLM_API_BASE: e.target.value })}
                 placeholder="https://api.openai.com/v1"
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none"
+                className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
               />
             </div>
           )}
 
           <div>
-            <label className="mb-1 block font-mono text-[10px] tracking-widest text-white/45">
+            <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
               LLM_MODEL（留空用默认）
             </label>
             <input
@@ -219,11 +259,11 @@ export default function AdminPanel() {
               value={form.LLM_MODEL ?? settings.LLM_MODEL?.value ?? ''}
               onChange={(e) => setForm({ ...form, LLM_MODEL: e.target.value })}
               placeholder="如 gpt-4o-mini / claude-3-5-haiku-latest"
-              className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none"
+              className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-white/60">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
             <input
               type="checkbox"
               checked={(form.USE_FALLBACK_ONLY ?? settings.USE_FALLBACK_ONLY?.value) === 'true'}
@@ -242,7 +282,7 @@ export default function AdminPanel() {
           >
             保存配置
           </button>
-          <p className="text-[10px] text-white/35">
+          <p className="text-[10px] text-faint">
             保存到 server/data/runtime-config.json（已 gitignore），优先级高于 .env，立即生效无需重启。
           </p>
         </div>
@@ -258,32 +298,32 @@ export default function AdminPanel() {
               key={m}
               type="button"
               onClick={() => setLibMode(m)}
-              className={`pad flex-1 py-2 text-xs ${libMode === m ? 'pad-active text-white' : 'text-white/50'}`}
+              className={`pad flex-1 py-2 text-xs ${libMode === m ? 'pad-active' : ''}`}
             >
               {MODE_LABELS[m]}
-              <span className="ml-1 text-white/40">({library?.[m]?.length || 0})</span>
+              <span className="ml-1 text-faint">({library?.[m]?.length || 0})</span>
             </button>
           ))}
         </div>
 
         <div className="mt-3 space-y-1.5">
           {tracks.length === 0 && (
-            <p className="py-4 text-center text-xs text-white/35">该模式下暂无曲目</p>
+            <p className="py-4 text-center text-xs text-faint">该模式下暂无曲目</p>
           )}
           {tracks.map((track) => (
             <div
               key={track.id}
-              className="flex items-center gap-2 rounded-xl border border-white/5 bg-black/30 px-3 py-2"
+              className="flex items-center gap-2 rounded-xl border border-theme bg-input px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-medium">{track.title}</div>
-                <div className="truncate font-mono text-[10px] text-white/35">{track.url}</div>
+                <div className="truncate text-xs font-medium text-theme">{track.title}</div>
+                <div className="truncate font-mono text-[10px] text-faint">{track.url}</div>
               </div>
               <audio src={track.url} controls preload="none" className="h-8 w-40" />
               <button
                 type="button"
                 onClick={() => handleDeleteTrack(track.id)}
-                className="pad flex h-8 w-8 flex-none items-center justify-center text-sm text-red-300"
+                className="pad flex h-8 w-8 flex-none items-center justify-center text-sm text-red-500"
                 aria-label="删除曲目"
               >
                 ✕
@@ -298,14 +338,14 @@ export default function AdminPanel() {
             value={newTrack.title}
             onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })}
             placeholder="曲目名称"
-            className="w-32 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none"
+            className="bg-input w-32 rounded-xl px-3 py-2 text-xs"
           />
           <input
             type="text"
             value={newTrack.url}
             onChange={(e) => setNewTrack({ ...newTrack, url: e.target.value })}
             placeholder="MP3 URL 或 /samples/xxx.mp3"
-            className="flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none"
+            className="bg-input flex-1 rounded-xl px-3 py-2 font-mono text-xs"
           />
           <button
             type="button"
@@ -316,7 +356,7 @@ export default function AdminPanel() {
             添加
           </button>
         </div>
-        <p className="mt-2 text-[10px] text-white/35">
+        <p className="mt-2 text-[10px] text-faint">
           本地文件放入 public/samples/ 后填 /samples/文件名.mp3；赛前用 Suno 批量生成后在此登记。
         </p>
       </div>

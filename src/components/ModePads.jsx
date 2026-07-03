@@ -26,13 +26,11 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
               <span className="text-2xl">{m.emoji}</span>
               <span
                 className="mt-1 font-display text-sm font-bold"
-                style={{ color: active ? color : 'rgba(255,255,255,0.75)' }}
+                style={{ color: active ? color : undefined }}
               >
                 {m.label}
               </span>
-              {active && (
-                <span className="led-dot mt-1.5" style={{ color }} />
-              )}
+              {active && <span className="led-dot mt-1.5" style={{ color }} />}
             </button>
           );
         })}
@@ -40,7 +38,7 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
       <button
         type="button"
         onClick={onPanic}
-        className="pad panic-pulse mt-2 w-full py-3 font-display text-sm font-bold text-red-300"
+        className="pad panic-pulse mt-2 w-full py-3 font-display text-sm font-bold text-red-500"
         style={{ '--pad-glow': 'rgba(239,68,68,0.5)', borderColor: 'rgba(239,68,68,0.4)' }}
       >
         我们落后了!

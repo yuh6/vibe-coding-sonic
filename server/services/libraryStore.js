@@ -1,32 +1,69 @@
 /**
- * 预生成音乐库 — 兜底曲目的读写，持久化到 fallback-manifest.json。
+ * 预生成音乐库 — 默认曲目来自 fallback-manifest.json，运行时修改写入 gitignored 文件。
  */
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { randomUUID } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const MANIFEST_PATH = join(__dirname, '../data/fallback-manifest.json');
+const DEFAULT_MANIFEST_PATH = join(__dirname, '../data/fallback-manifest.json');
+const LIBRARY_PATH = join(__dirname, '../data/runtime-library.json');
 
 const MODES = ['focus', 'spark', 'sprint', 'charge'];
 
 let manifest = load();
 
+function emptyManifest() {
+  return { focus: [], spark: [], sprint: [], charge: [] };
+}
+
+function normalizeManifest(raw) {
+  const next = emptyManifest();
+  for (const mode of MODES) {
+    next[mode] = Array.isArray(raw?.[mode]) ? raw[mode] : [];
+  }
+  return next;
+}
+
 function load() {
+  const path = existsSync(LIBRARY_PATH) ? LIBRARY_PATH : DEFAULT_MANIFEST_PATH;
   try {
-    return JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'));
+    return normalizeManifest(JSON.parse(readFileSync(path, 'utf-8')));
   } catch {
-    return { focus: [], spark: [], sprint: [], charge: [] };
+    return emptyManifest();
   }
 }
 
 function persist() {
-  writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+  mkdirSync(dirname(LIBRARY_PATH), { recursive: true });
+  const tmpPath = `${LIBRARY_PATH}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(manifest, null, 2));
+  renameSync(tmpPath, LIBRARY_PATH);
+}
+
+function validateTrackUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) {
+    throw new Error('url is required');
+  }
+
+  if (url.startsWith('/samples/')) return url;
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return url;
+    }
+  } catch {
+    // handled below
+  }
+
+  throw new Error('url must be an http(s) URL or /samples/... path');
 }
 
 export function getLibrary() {
-  return manifest;
+  return structuredClone(manifest);
 }
 
 export function getTracks(mode) {
@@ -39,10 +76,9 @@ export function addTrack({ mode, title, url }) {
   if (!MODES.includes(key)) {
     throw new Error(`Invalid mode: ${mode}`);
   }
-  if (!url) {
-    throw new Error('url is required');
-  }
-  const track = { id: `${key}-${randomUUID().slice(0, 8)}`, title: title || url, url };
+  const safeUrl = validateTrackUrl(url);
+  const safeTitle = String(title || safeUrl).trim().slice(0, 120);
+  const track = { id: `${key}-${randomUUID().slice(0, 8)}`, title: safeTitle, url: safeUrl };
   manifest[key] = [...(manifest[key] || []), track];
   persist();
   return track;

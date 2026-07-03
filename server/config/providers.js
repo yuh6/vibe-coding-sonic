@@ -183,7 +183,7 @@ export function resolveLlmConfig() {
 }
 
 export function resolveLlmRuntime() {
-  const providerId = env('LLM_PROVIDER', '');
+  const providerId = env('LLM_PROVIDER', 'openai');
   const preset = LLM_PRESETS[providerId];
 
   if (!preset) {

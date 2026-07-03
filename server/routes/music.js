@@ -8,11 +8,22 @@ import {
 import { composePrompt } from '../services/promptComposer.js';
 import { isSunoConfigured } from '../services/sunoClient.js';
 import { requireUser } from '../middleware/userAuth.js';
+import { createRateLimit } from '../middleware/rateLimit.js';
 import { consumeQuota, getQuota, refundQuota, saveTrack } from '../services/quotaService.js';
 
 const router = Router();
+const paidGenerateLimit = createRateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.MUSIC_GENERATE_RATE_LIMIT || 10),
+  keyPrefix: 'music-generate',
+});
 
-router.post('/generate', (req, res) => {
+function limitPaidGeneration(req, res, next) {
+  if (req.body?.previewOnly) return next();
+  return paidGenerateLimit(req, res, next);
+}
+
+router.post('/generate', limitPaidGeneration, (req, res) => {
   try {
     const {
       mbti,

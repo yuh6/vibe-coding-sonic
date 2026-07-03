@@ -11,9 +11,9 @@ export default function StyleFaders({ style, onStyleChange }) {
       <div className="mt-3 space-y-3">
         {STYLE_AXES.map((axis) => (
           <div key={axis.key}>
-            <div className="mb-1 flex items-center justify-between font-mono text-[9px] tracking-widest text-white/40">
+            <div className="mb-1 flex items-center justify-between font-mono text-[9px] tracking-widest text-faint">
               <span>{axis.leftLabel}</span>
-              <span className="text-white/60">{style[axis.key]}</span>
+              <span className="text-muted">{style[axis.key]}</span>
               <span>{axis.rightLabel}</span>
             </div>
             <input

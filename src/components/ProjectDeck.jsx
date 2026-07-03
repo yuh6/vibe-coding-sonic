@@ -101,7 +101,7 @@ export default function ProjectDeck({
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Project Input</span>
         {analysisSource && (
-          <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[9px] text-white/50">
+          <span className="rounded bg-chip px-1.5 py-0.5 font-mono text-[9px] text-subtle">
             via {analysisSource}
           </span>
         )}
@@ -113,7 +113,7 @@ export default function ProjectDeck({
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`pad flex-1 py-2 text-xs ${tab === t.id ? 'pad-active' : 'text-white/50'}`}
+            className={`pad flex-1 py-2 text-xs ${tab === t.id ? 'pad-active' : ''}`}
           >
             {t.label}
           </button>
@@ -127,14 +127,14 @@ export default function ProjectDeck({
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder="项目名称"
-            className="mb-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+            className="bg-input mb-2 w-full rounded-xl px-3 py-2 text-sm"
           />
           <textarea
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
             placeholder="一句话描述你在做什么..."
             rows={2}
-            className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+            className="bg-input w-full resize-none rounded-xl px-3 py-2 text-sm"
           />
           <div className="mt-2 flex flex-wrap gap-1.5">
             {PRESETS.map((preset) => (
@@ -142,7 +142,7 @@ export default function ProjectDeck({
                 key={preset.name}
                 type="button"
                 onClick={() => onApplyPreset(preset)}
-                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/60 transition hover:bg-white/10 hover:text-white"
+                className="btn-ghost rounded-full px-2.5 py-1 text-[11px]"
               >
                 {preset.name}
               </button>
@@ -166,11 +166,11 @@ export default function ProjectDeck({
             type="button"
             onClick={() => folderRef.current?.click()}
             disabled={busy}
-            className="pad w-full py-6 text-sm text-white/70 disabled:opacity-50"
+            className="pad w-full py-6 text-sm text-muted disabled:opacity-50"
           >
             <span className="mb-1 block text-3xl">📁</span>
             {busy ? '解析中...' : '点击选择项目文件夹'}
-            <span className="mt-1 block text-[10px] text-white/40">
+            <span className="mt-1 block text-[10px] text-subtle">
               自动读取 README / package.json 提取项目主题
             </span>
           </button>
@@ -185,7 +185,7 @@ export default function ProjectDeck({
             onChange={(e) => setGithubUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleGithub()}
             placeholder="https://github.com/owner/repo"
-            className="flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none"
+            className="bg-input flex-1 rounded-xl px-3 py-2 font-mono text-xs"
           />
           <button
             type="button"
@@ -198,7 +198,7 @@ export default function ProjectDeck({
         </div>
       )}
 
-      {message && <p className="mt-2 text-[11px] text-white/45">{message}</p>}
+      {message && <p className="mt-2 text-[11px] text-subtle">{message}</p>}
     </div>
   );
 }

@@ -14,14 +14,14 @@ export default function Timeline({ phases, currentPhase }) {
             <div
               key={phase.name}
               className={`pad min-w-[120px] flex-none px-3 py-2.5 text-center ${active ? 'pad-active' : ''}`}
-              style={active ? { '--pad-glow': 'rgba(255,255,255,0.3)' } : undefined}
+              style={active ? { '--pad-glow': 'rgba(99, 102, 241, 0.25)' } : undefined}
             >
               <div className="text-lg">{modeInfo?.emoji}</div>
-              <div className="mt-0.5 text-xs font-medium">{phase.name}</div>
-              <div className="font-mono text-[10px] text-white/40">
+              <div className="mt-0.5 text-xs font-medium text-theme">{phase.name}</div>
+              <div className="font-mono text-[10px] text-faint">
                 {phase.start}–{phase.end}
               </div>
-              {active && <div className="led-dot mx-auto mt-1.5 text-emerald-400" />}
+              {active && <div className="led-dot mx-auto mt-1.5 text-emerald-500" />}
             </div>
           );
         })}

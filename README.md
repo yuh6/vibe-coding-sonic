@@ -11,7 +11,7 @@ npm run dev
 
 | 地址 | 用途 |
 |------|------|
-| http://localhost:5173 | DJ 控制台 |
+| http://localhost:5173 | DJ 控制台（右上角 ☀️/🌙 切换深浅色） |
 | http://localhost:5173/#/admin | 管理后台（API Key + 音乐库） |
 | http://localhost:3001/api/health | 后端健康检查 |
 
@@ -43,6 +43,7 @@ npm run dev
 4. 点「保存配置」→ **立即生效，无需重启**
 
 配置写入 `server/data/runtime-config.json`（已 gitignore），优先级高于 `.env`。
+管理接口和真实音乐生成默认只允许本机访问；局域网或公网使用时请在 `.env` 设置 `ADMIN_TOKEN`，后台会提示输入。
 
 ### 方式二：环境变量
 
@@ -66,6 +67,9 @@ GET  https://api.ttapi.io/suno/v2/fetch?jobId=...  →  audioUrl
 | `TTAPI_KEY` | 必填才走实时生成 |
 | `TTAPI_SUNO_MV` | 模型版本，默认 `chirp-v5` |
 | `USE_FALLBACK_ONLY` | `true` = 彩排模式，只用兜底曲 |
+| `MUSIC_GENERATE_RATE_LIMIT` | 每 IP 每分钟真实生成次数，默认 `5` |
+| `MUSIC_JOB_TTL_MS` | 内存任务保留时间，默认 `1800000` |
+| `MUSIC_MAX_JOBS` | 内存任务上限，默认 `100` |
 
 ## LLM 项目分析
 
@@ -89,7 +93,8 @@ GET  https://api.ttapi.io/suno/v2/fetch?jobId=...  →  audioUrl
 
 ## 兜底音乐库
 
-- 数据文件：`server/data/fallback-manifest.json`
+- 默认数据：`server/data/fallback-manifest.json`
+- 运行时增删写入：`server/data/runtime-library.json`（已 gitignore）
 - 管理后台可按模式（focus / spark / sprint / charge）增删曲目
 - 本地文件放 `public/samples/`，URL 填 `/samples/xxx.mp3`
 - 赛前用 Suno 批量生成好听的曲，在后台登记
@@ -111,10 +116,10 @@ curl -X POST http://localhost:3001/api/project/analyze-github \
   -d '{"url":"https://github.com/owner/repo"}'
 
 # 配置状态
-curl http://localhost:3001/api/config/status
+curl -H 'X-Admin-Token: <ADMIN_TOKEN>' http://localhost:3001/api/config/status
 
 # 音乐库
-curl http://localhost:3001/api/library
+curl -H 'X-Admin-Token: <ADMIN_TOKEN>' http://localhost:3001/api/library
 ```
 
 完整 API 见 [vibe-coding-sonic.md](vibe-coding-sonic.md) §4.2。
@@ -136,7 +141,7 @@ NODE_ENV=production npm start
 # 单端口 3001 同时服务 API + 静态前端
 ```
 
-现场 demo 优先本地跑 + 局域网 IP 分享。
+服务默认监听 `127.0.0.1`。局域网分享时设置 `HOST=0.0.0.0` 和 `ADMIN_TOKEN`，必要时再配置 `CORS_ORIGINS`。
 
 ## 项目结构
 

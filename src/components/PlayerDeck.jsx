@@ -26,40 +26,37 @@ export default function PlayerDeck({
   generating,
 }) {
   const busy = status === 'processing' || status === 'splitting';
-  const statusColor =
-    busy ? '#facc15' : playing ? '#4ade80' : 'rgba(255,255,255,0.35)';
+  const statusColor = busy ? '#facc15' : playing ? '#4ade80' : undefined;
 
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Main Deck</span>
-        <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest" style={{ color: statusColor }}>
-          <span className={`led-dot ${busy ? 'animate-pulse' : ''}`} style={{ color: statusColor }} />
+        <div
+          className={`flex items-center gap-2 font-mono text-[10px] tracking-widest ${!statusColor ? 'text-faint' : ''}`}
+          style={statusColor ? { color: statusColor } : undefined}
+        >
+          <span
+            className={`led-dot ${busy ? 'animate-pulse' : ''}`}
+            style={{ color: statusColor || 'currentColor' }}
+          />
           {STATUS_LABEL[status] || status}
-          {fallback && <span className="text-amber-400/80">· CACHED</span>}
+          {fallback && <span className="text-amber-500">· CACHED</span>}
         </div>
       </div>
 
-      {/* LED 面板 */}
       <div className="mb-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-center">
-          <div className="font-mono text-[9px] tracking-widest text-white/35">BPM</div>
-          <div className="led-display text-2xl font-bold" style={{ color: theme.glow }}>
-            {bpm || '--'}
+        {['BPM', 'TYPE', 'MODE'].map((label, i) => (
+          <div key={label} className="rounded-xl border border-theme bg-led-panel px-3 py-2 text-center">
+            <div className="font-mono text-[9px] tracking-widest text-faint">{label}</div>
+            <div
+              className={`led-display text-2xl font-bold ${i === 2 ? 'uppercase' : ''}`}
+              style={{ color: theme.glow }}
+            >
+              {i === 0 ? bpm || '--' : i === 1 ? mbti : mode}
+            </div>
           </div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-center">
-          <div className="font-mono text-[9px] tracking-widest text-white/35">TYPE</div>
-          <div className="led-display text-2xl font-bold" style={{ color: theme.glow }}>
-            {mbti}
-          </div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-center">
-          <div className="font-mono text-[9px] tracking-widest text-white/35">MODE</div>
-          <div className="led-display text-2xl font-bold uppercase" style={{ color: theme.glow }}>
-            {mode}
-          </div>
-        </div>
+        ))}
       </div>
 
       <div className="mb-3">
@@ -67,20 +64,19 @@ export default function PlayerDeck({
       </div>
 
       <div className="mb-3 flex items-center gap-3">
-        {/* 转盘 */}
         <div
-          className={`relative flex h-16 w-16 flex-none items-center justify-center rounded-full border-4 border-black/60 bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg ${
+          className={`vinyl-disc relative flex h-16 w-16 flex-none items-center justify-center rounded-full shadow-lg ${
             playing ? 'spin-vinyl' : ''
           }`}
           style={{ boxShadow: `0 0 20px ${theme.accent}44` }}
           aria-hidden="true"
         >
           <div className="h-4 w-4 rounded-full" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute top-1 h-2 w-0.5 bg-white/60" />
+          <div className="absolute top-1 h-2 w-0.5 bg-chip" />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-base font-semibold">
+          <div className="truncate font-display text-base font-semibold text-theme">
             {currentTitle || '等待播放'}
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -102,7 +98,7 @@ export default function PlayerDeck({
               {muted ? '🔇' : '🔊'}
             </button>
             <div className="ml-1 flex-1">
-              <div className="mb-0.5 font-mono text-[9px] tracking-widest text-white/35">VOLUME</div>
+              <div className="mb-0.5 font-mono text-[9px] tracking-widest text-faint">VOLUME</div>
               <input
                 type="range"
                 min="0"
@@ -127,10 +123,9 @@ export default function PlayerDeck({
         type="button"
         onClick={onGenerate}
         disabled={generating}
-        className="w-full rounded-xl py-3.5 font-display text-sm font-bold tracking-wider transition active:scale-[0.98] disabled:opacity-50"
+        className="w-full rounded-xl py-3.5 font-display text-sm font-bold tracking-wider text-white transition active:scale-[0.98] disabled:opacity-50"
         style={{
           background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
-          color: '#fff',
           boxShadow: `0 4px 24px ${theme.accent}55`,
         }}
       >

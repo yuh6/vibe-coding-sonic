@@ -8,15 +8,15 @@ function AxisFader({ axis, value, onChange, theme }) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
-        <span className={`font-display font-bold ${value < 50 ? 'text-white' : 'text-white/30'}`}>
+        <span className={`font-display font-bold ${value < 50 ? 'text-active' : 'text-inactive'}`}>
           {axis.left}
-          <span className="ml-1 text-[9px] font-normal text-white/40">{axis.leftLabel}</span>
+          <span className="ml-1 text-[9px] font-normal text-subtle">{axis.leftLabel}</span>
         </span>
-        <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-white/60">
+        <span className="rounded bg-chip px-1.5 py-0.5 font-mono text-[10px] text-muted">
           {leaning} {strength}%
         </span>
-        <span className={`font-display font-bold ${value >= 50 ? 'text-white' : 'text-white/30'}`}>
-          <span className="mr-1 text-[9px] font-normal text-white/40">{axis.rightLabel}</span>
+        <span className={`font-display font-bold ${value >= 50 ? 'text-active' : 'text-inactive'}`}>
+          <span className="mr-1 text-[9px] font-normal text-subtle">{axis.rightLabel}</span>
           {axis.right}
         </span>
       </div>
@@ -61,17 +61,13 @@ export default function MBTIRemixDeck({ axes, onAxesChange, theme }) {
     <div className="glass rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">MBTI Remix</span>
-        <button
-          type="button"
-          onClick={() => setShowGrid((s) => !s)}
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
-        >
+        <button type="button" onClick={() => setShowGrid((s) => !s)} className="btn-ghost rounded-lg px-2.5 py-1 text-[10px]">
           {showGrid ? '收起' : '快速选择'}
         </button>
       </div>
 
       <div
-        className="led-display mb-4 rounded-xl border border-white/10 bg-black/50 py-3 text-center text-4xl font-bold"
+        className="led-display mb-4 rounded-xl border border-theme bg-led-panel py-3 text-center text-4xl font-bold"
         style={{ color: theme.glow }}
       >
         {currentType}
@@ -88,7 +84,7 @@ export default function MBTIRemixDeck({ axes, onAxesChange, theme }) {
                 type="button"
                 onClick={() => handleQuickPick(type)}
                 className={`pad py-1.5 font-display text-xs font-semibold ${active ? 'pad-active' : ''}`}
-                style={active ? { '--pad-glow': `${t.accent}66`, color: t.glow } : { color: 'rgba(255,255,255,0.6)' }}
+                style={active ? { '--pad-glow': `${t.accent}66`, color: t.glow } : undefined}
               >
                 {type}
               </button>

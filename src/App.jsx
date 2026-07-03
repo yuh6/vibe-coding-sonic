@@ -9,7 +9,9 @@ import Timeline from './components/Timeline';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
 import AuthPanel from './components/AuthPanel';
+import ThemeToggle from './components/ThemeToggle';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
+import { useColorMode } from './hooks/useColorMode';
 import {
   analyzeProject,
   analyzeGithub,
@@ -62,6 +64,7 @@ export default function App() {
 
   const mbti = mbtiFromAxes(axes);
   const theme = getTheme(mbti);
+  const { isDark, toggle: toggleColorMode } = useColorMode();
   const player = usePlayer();
   const poll = useMusicPoll();
   const analyzeTimer = useRef(null);
@@ -282,15 +285,16 @@ export default function App() {
     setAnalysisSource(`github · ${analysis.source || ''}`);
   };
 
+  const pageBg = isDark
+    ? `radial-gradient(ellipse at 20% 0%, ${theme.primary} 0%, transparent 55%),
+       radial-gradient(ellipse at 80% 100%, ${theme.accent}26 0%, transparent 50%),
+       var(--page-bg)`
+    : `radial-gradient(ellipse at 20% 0%, ${theme.accent}22 0%, transparent 50%),
+       radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
+       var(--page-bg)`;
+
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background: `radial-gradient(ellipse at 20% 0%, ${theme.primary} 0%, transparent 55%),
-          radial-gradient(ellipse at 80% 100%, ${theme.accent}26 0%, transparent 50%),
-          #020617`,
-      }}
-    >
+    <div className="min-h-screen transition-colors duration-300" style={{ background: pageBg }}>
       <div className="mx-auto max-w-7xl px-4 py-6">
         {notice && (
           <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl border border-amber-400/40 bg-black/85 px-4 py-2 text-sm text-amber-200 backdrop-blur">
@@ -300,7 +304,7 @@ export default function App() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-black/50 bg-gradient-to-br from-slate-700 to-slate-900 ${
+              className={`vinyl-disc flex h-10 w-10 items-center justify-center rounded-full ${
                 player.playing ? 'spin-vinyl' : ''
               }`}
               style={{ boxShadow: `0 0 16px ${theme.accent}55` }}
@@ -308,10 +312,10 @@ export default function App() {
               <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.accent }} />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+              <h1 className="font-display text-xl font-bold tracking-tight text-theme sm:text-2xl">
                 Vibe Coding 有歌声
               </h1>
-              <p className="text-[11px] text-white/40">MBTI × 项目 × 节奏 · AI DJ 控制台</p>
+              <p className="text-[11px] text-subtle">MBTI × 项目 × 节奏 · AI DJ 控制台</p>
             </div>
           </div>
 
@@ -339,26 +343,27 @@ export default function App() {
               }}
             />
             {health && (
-              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 font-mono text-[10px]">
+              <div className="status-pill flex items-center gap-3 rounded-full px-3 py-1.5 font-mono text-[10px]">
                 <span className="flex items-center gap-1.5">
                   <span className="led-dot" style={{ color: health.ttapi ? '#4ade80' : '#f59e0b' }} />
-                  <span className="text-white/55">TTAPI</span>
+                  <span className="text-muted">TTAPI</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="led-dot" style={{ color: health.llm ? '#4ade80' : '#f59e0b' }} />
-                  <span className="text-white/55">LLM</span>
+                  <span className="text-muted">LLM</span>
                 </span>
               </div>
             )}
+            <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
               href={isMixer ? '#/' : '#/mixer'}
-              className="pad px-3.5 py-2 text-xs text-white/70 no-underline"
+              className="pad px-3.5 py-2 text-xs text-muted no-underline"
             >
               {isMixer ? '🎛 DJ 台' : '🎚 调音台'}
             </a>
             <a
               href={isAdmin ? '#/' : '#/admin'}
-              className="pad px-3.5 py-2 text-xs text-white/70 no-underline"
+              className="pad px-3.5 py-2 text-xs text-muted no-underline"
             >
               {isAdmin ? '🎛 返回控制台' : '⚙️ 管理后台'}
             </a>
