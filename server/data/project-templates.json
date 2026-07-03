@@ -1,0 +1,66 @@
+[
+  {
+    "id": "game",
+    "keywords": ["游戏", "game", "像素", "pixel", "竞技", "sport"],
+    "themes": ["competitive", "strategic", "retro pixel"],
+    "mood": ["intense", "nostalgic", "focused"],
+    "instruments": ["synthesizer", "drum machine", "8bit chiptune"],
+    "avoid": ["vocals", "ballad"]
+  },
+  {
+    "id": "zen",
+    "keywords": ["佛", "禅", "冥想", "mindful", "spiritual", "哲学"],
+    "themes": ["zen", "ethereal", "contemplative"],
+    "mood": ["peaceful", "serene", "spiritual"],
+    "instruments": ["piano", "singing bowl", "ambient pads"],
+    "avoid": ["vocals", "aggressive drums"]
+  },
+  {
+    "id": "outdoor",
+    "keywords": ["户外", "徒步", "旅行", "hike", "nature", "探索"],
+    "themes": ["outdoor adventure", "exploration", "nature"],
+    "mood": ["uplifting", "free", "refreshing"],
+    "instruments": ["acoustic guitar", "light percussion", "flute"],
+    "avoid": ["vocals", "heavy metal"]
+  },
+  {
+    "id": "fintech",
+    "keywords": ["金融", "支付", "finance", "bank", "交易", "crypto"],
+    "themes": ["precision", "trust", "modern fintech"],
+    "mood": ["confident", "clean", "professional"],
+    "instruments": ["minimal synth", "subtle bass", "digital textures"],
+    "avoid": ["vocals", "chaotic"]
+  },
+  {
+    "id": "social",
+    "keywords": ["社交", "社区", "social", "chat", "连接", "match"],
+    "themes": ["connection", "warm community", "inclusive"],
+    "mood": ["friendly", "welcoming", "bright"],
+    "instruments": ["pop synth", "soft drums", "warm pads"],
+    "avoid": ["vocals", "dark ambient"]
+  },
+  {
+    "id": "ai",
+    "keywords": ["AI", "人工智能", "机器学习", "LLM", "agent", "智能"],
+    "themes": ["futuristic AI", "digital intelligence", "neural"],
+    "mood": ["innovative", "mysterious", "cutting-edge"],
+    "instruments": ["glitch synth", "arpeggiator", "ambient tech"],
+    "avoid": ["vocals", "acoustic folk"]
+  },
+  {
+    "id": "health",
+    "keywords": ["健康", "医疗", "fitness", "wellness", "运动", "康复"],
+    "themes": ["wellness", "vitality", "balance"],
+    "mood": ["calm", "motivating", "clean"],
+    "instruments": ["soft piano", "light beats", "organic pads"],
+    "avoid": ["vocals", "harsh distortion"]
+  },
+  {
+    "id": "default",
+    "keywords": [],
+    "themes": ["creative hackathon", "innovation", "collaboration"],
+    "mood": ["focused", "energetic", "optimistic"],
+    "instruments": ["electronic synth", "modern drums", "ambient layers"],
+    "avoid": ["vocals", "lyrics"]
+  }
+]

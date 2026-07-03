@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(24px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.deck-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── DJ 推子 ── */
+.fader {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+.fader::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--fader-from, #6366f1), var(--fader-to, #a5b4fc));
+  box-shadow: 0 0 8px var(--fader-glow, rgba(99, 102, 241, 0.5)), inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -11px;
+  width: 14px;
+  height: 28px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 45%, #475569 50%, #cbd5e1 55%, #f8fafc 100%);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 12px var(--fader-glow, rgba(99, 102, 241, 0.35));
+}
+.fader::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--fader-from, #6366f1), var(--fader-to, #a5b4fc));
+}
+.fader::-moz-range-thumb {
+  width: 14px;
+  height: 28px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 45%, #475569 50%, #cbd5e1 55%, #f8fafc 100%);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+}
+
+/* ── LED 数码显示 ── */
+.led-display {
+  font-family: 'Space Grotesk', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 12px currentColor, 0 0 32px currentColor;
+}
+
+.led-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  box-shadow: 0 0 6px currentColor, 0 0 14px currentColor;
+}
+
+/* ── Pad 按钮 ── */
+.pad {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+.pad:active {
+  transform: scale(0.96);
+}
+.pad-active {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 20px var(--pad-glow, rgba(255, 255, 255, 0.25)), inset 0 0 24px rgba(255, 255, 255, 0.06);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.panic-pulse {
+  animation: pulse-ring 1.6s cubic-bezier(0.66, 0, 0, 1) infinite;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.spin-vinyl {
+  animation: spin-slow 4s linear infinite;
+}
+
+.layer-mbti { color: rgb(165, 180, 252); }
+.layer-project { color: rgb(110, 231, 183); }
+.layer-mode { color: rgb(252, 211, 77); }
+.layer-console { color: rgb(240, 171, 252); }

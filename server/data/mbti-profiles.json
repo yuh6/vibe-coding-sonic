@@ -1,0 +1,146 @@
+{
+  "INTJ": {
+    "traits": "战略、独立、深邃",
+    "genres": "Dark Ambient, Minimal Techno",
+    "styleKeywords": "deep, electronic, minimal, architectural",
+    "promptBase": "dark ambient minimal techno with deep synthesizer pads",
+    "bpmMin": 90,
+    "bpmMax": 110,
+    "theme": { "primary": "#1e1b4b", "accent": "#6366f1", "glow": "#818cf8" }
+  },
+  "INTP": {
+    "traits": "好奇、分析、自由",
+    "genres": "IDM, Glitch, Experimental",
+    "styleKeywords": "experimental, ambient, glitch, exploratory",
+    "promptBase": "experimental IDM with glitch textures and ambient layers",
+    "bpmMin": 80,
+    "bpmMax": 100,
+    "theme": { "primary": "#0f172a", "accent": "#22d3ee", "glow": "#67e8f9" }
+  },
+  "ENTJ": {
+    "traits": "领导、果断、高效",
+    "genres": "Cinematic, Epic Orchestral",
+    "styleKeywords": "epic, driving drums, powerful, commanding",
+    "promptBase": "cinematic epic orchestral with powerful driving drums",
+    "bpmMin": 120,
+    "bpmMax": 140,
+    "theme": { "primary": "#1c1917", "accent": "#dc2626", "glow": "#f87171" }
+  },
+  "ENTP": {
+    "traits": "机智、创新、挑战",
+    "genres": "Electro Funk, Future Bass",
+    "styleKeywords": "playful, electronic, funk, innovative",
+    "promptBase": "electro funk with future bass elements and playful synths",
+    "bpmMin": 110,
+    "bpmMax": 130,
+    "theme": { "primary": "#172554", "accent": "#f59e0b", "glow": "#fbbf24" }
+  },
+  "INFJ": {
+    "traits": "洞察、理想、温暖",
+    "genres": "Neo-Classical, Ambient Piano",
+    "styleKeywords": "ethereal, piano, strings, healing",
+    "promptBase": "neo-classical ambient piano with ethereal strings",
+    "bpmMin": 70,
+    "bpmMax": 90,
+    "theme": { "primary": "#134e4a", "accent": "#2dd4bf", "glow": "#5eead4" }
+  },
+  "INFP": {
+    "traits": "梦幻、创造、感性",
+    "genres": "Dream Pop, Indie Folk",
+    "styleKeywords": "dreamy, folk, natural, poetic",
+    "promptBase": "dream pop indie folk with natural acoustic textures",
+    "bpmMin": 80,
+    "bpmMax": 100,
+    "theme": { "primary": "#3b0764", "accent": "#c084fc", "glow": "#e9d5ff" }
+  },
+  "ENFJ": {
+    "traits": "热情、鼓舞、连接",
+    "genres": "Indie Pop, Tropical House",
+    "styleKeywords": "bright, warm, uplifting, inclusive",
+    "promptBase": "bright indie pop with tropical house warmth",
+    "bpmMin": 100,
+    "bpmMax": 120,
+    "theme": { "primary": "#713f12", "accent": "#f97316", "glow": "#fdba74" }
+  },
+  "ENFP": {
+    "traits": "活力、乐观、自由",
+    "genres": "Pop, Indie Rock, Funk",
+    "styleKeywords": "upbeat, bright, energetic, sunny",
+    "promptBase": "upbeat indie pop with bright energetic synths",
+    "bpmMin": 110,
+    "bpmMax": 130,
+    "theme": { "primary": "#7c2d12", "accent": "#fb923c", "glow": "#fed7aa" }
+  },
+  "ISTJ": {
+    "traits": "可靠、有序、稳重",
+    "genres": "Lo-fi Hip Hop, Downtempo",
+    "styleKeywords": "steady, structured, lo-fi, industrial calm",
+    "promptBase": "lo-fi hip hop downtempo with steady clear rhythm",
+    "bpmMin": 90,
+    "bpmMax": 110,
+    "theme": { "primary": "#1e293b", "accent": "#94a3b8", "glow": "#cbd5e1" }
+  },
+  "ISFJ": {
+    "traits": "温暖、细致、守护",
+    "genres": "Acoustic, Folk, Lullaby",
+    "styleKeywords": "soft, acoustic, pastoral, cozy",
+    "promptBase": "soft acoustic folk with pastoral warmth",
+    "bpmMin": 70,
+    "bpmMax": 90,
+    "theme": { "primary": "#365314", "accent": "#84cc16", "glow": "#bef264" }
+  },
+  "ESTJ": {
+    "traits": "高效、组织、务实",
+    "genres": "House, Tech House, Driving",
+    "styleKeywords": "driving, structured, house, efficient",
+    "promptBase": "tech house with driving structured rhythm",
+    "bpmMin": 110,
+    "bpmMax": 130,
+    "theme": { "primary": "#1e3a5f", "accent": "#3b82f6", "glow": "#93c5fd" }
+  },
+  "ESFJ": {
+    "traits": "友善、协作、和谐",
+    "genres": "Pop, Soul, Motown",
+    "styleKeywords": "warm pop, soulful, harmonious, group energy",
+    "promptBase": "warm soul pop with harmonious ensemble feel",
+    "bpmMin": 100,
+    "bpmMax": 120,
+    "theme": { "primary": "#831843", "accent": "#ec4899", "glow": "#f9a8d4" }
+  },
+  "ISTP": {
+    "traits": "实用、冷静、灵活",
+    "genres": "Tech Minimal, Industrial",
+    "styleKeywords": "cold, electronic, mechanical, precise",
+    "promptBase": "tech minimal industrial with precise mechanical beats",
+    "bpmMin": 100,
+    "bpmMax": 120,
+    "theme": { "primary": "#0c0a09", "accent": "#78716c", "glow": "#a8a29e" }
+  },
+  "ISFP": {
+    "traits": "敏感、艺术、自由",
+    "genres": "Lo-fi, Chillhop, Art Pop",
+    "styleKeywords": "soft, artistic, chillhop, expressive",
+    "promptBase": "chillhop art pop with soft expressive textures",
+    "bpmMin": 80,
+    "bpmMax": 100,
+    "theme": { "primary": "#4a044e", "accent": "#e879f9", "glow": "#f0abfc" }
+  },
+  "ESTP": {
+    "traits": "大胆、行动、刺激",
+    "genres": "EDM, Drum & Bass, Trap",
+    "styleKeywords": "high energy, bass, adrenaline, bold",
+    "promptBase": "high energy EDM drum and bass with heavy bass",
+    "bpmMin": 120,
+    "bpmMax": 140,
+    "theme": { "primary": "#450a0a", "accent": "#ef4444", "glow": "#fca5a5" }
+  },
+  "ESFP": {
+    "traits": "热情、表演、享受",
+    "genres": "Dance Pop, Reggaeton, Latin",
+    "styleKeywords": "dance, party, latin, celebratory",
+    "promptBase": "dance pop with latin party rhythms",
+    "bpmMin": 110,
+    "bpmMax": 130,
+    "theme": { "primary": "#7f1d1d", "accent": "#f43f5e", "glow": "#fb7185" }
+  }
+}
