@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Readable } from 'stream';
 import {
   createMusicJob,
   refreshJob,
@@ -20,7 +21,12 @@ function protectPaidGeneration(req, res, next) {
   return requireAdmin(req, res, next);
 }
 
-router.post('/generate', protectPaidGeneration, paidGenerateLimit, (req, res) => {
+function limitPaidGeneration(req, res, next) {
+  if (req.body?.previewOnly) return next();
+  return paidGenerateLimit(req, res, next);
+}
+
+router.post('/generate', protectPaidGeneration, limitPaidGeneration, (req, res) => {
   try {
     const {
       mbti,
@@ -82,6 +88,36 @@ router.get('/status/:id', async (req, res) => {
   } catch (err) {
     console.error('[music/status]', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 音频代理：调音台需要用 fetch 拿到原始音频数据做 Web Audio 解码，
+// 远程音源（TTAPI CDN / soundhelix 等）没有 CORS 头，统一走这里中转
+router.get('/proxy', async (req, res) => {
+  const { url } = req.query;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'invalid url' });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return res.status(400).json({ error: 'only http/https allowed' });
+  }
+
+  try {
+    const upstream = await fetch(parsed, { redirect: 'follow' });
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: `upstream ${upstream.status}` });
+    }
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
+    const len = upstream.headers.get('content-length');
+    if (len) res.setHeader('Content-Length', len);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    Readable.fromWeb(upstream.body).pipe(res);
+  } catch (err) {
+    console.error('[music/proxy]', err);
+    res.status(502).json({ error: err.message });
   }
 });
 

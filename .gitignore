@@ -6,3 +6,4 @@ dist
 server/data/runtime-config.json
 server/data/runtime-library.json
 graphify-out
+.playwright-cli

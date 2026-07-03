@@ -7,6 +7,8 @@ import {
   getLibrary,
   addLibraryTrack,
   deleteLibraryTrack,
+  getStoredAdminToken,
+  setStoredAdminToken,
 } from '../lib/api';
 
 const PROVIDER_KEY_MAP = {
@@ -52,8 +54,11 @@ export default function AdminPanel() {
   const [libMode, setLibMode] = useState('focus');
   const [newTrack, setNewTrack] = useState({ title: '', url: '' });
   const [toast, setToast] = useState('');
+  const [authToken, setAuthToken] = useState(getStoredAdminToken());
+  const [loadError, setLoadError] = useState('');
 
   const refresh = async () => {
+    setLoadError('');
     const [keys, st, prov, lib] = await Promise.all([
       getConfigKeys(),
       getConfigStatus(),
@@ -67,7 +72,10 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    refresh().catch((err) => setToast(`加载失败: ${err.message}`));
+    refresh().catch((err) => {
+      setLoadError(err.message);
+      setToast(`加载失败: ${err.message}`);
+    });
   }, []);
 
   const showToast = (msg) => {
@@ -83,6 +91,9 @@ export default function AdminPanel() {
       const patch = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v !== undefined && v !== '')
       );
+      if (providerKeyName && patch[providerKeyName] && !patch.LLM_PROVIDER) {
+        patch.LLM_PROVIDER = currentProvider;
+      }
       if (!Object.keys(patch).length) {
         showToast('没有修改');
         return;
@@ -117,8 +128,37 @@ export default function AdminPanel() {
     }
   };
 
+  const handleUnlock = async () => {
+    setStoredAdminToken(authToken);
+    try {
+      await refresh();
+      showToast('已解锁');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  };
+
   if (!settings) {
-    return <div className="glass rounded-2xl p-8 text-center text-subtle">加载中...</div>;
+    return (
+      <div className="glass mx-auto max-w-xl rounded-2xl p-6">
+        <span className="deck-label">管理后台</span>
+        <p className="mt-3 text-sm text-subtle">{loadError || '加载中...'}</p>
+        <div className="mt-4 flex gap-2">
+          <input
+            type="password"
+            value={authToken}
+            onChange={(e) => setAuthToken(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+            placeholder="ADMIN_TOKEN"
+            autoComplete="off"
+            className="bg-input flex-1 rounded-xl px-3 py-2 font-mono text-xs"
+          />
+          <button type="button" onClick={handleUnlock} className="pad px-4 text-sm">
+            解锁
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const tracks = library?.[libMode] || [];

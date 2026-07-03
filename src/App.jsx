@@ -7,6 +7,7 @@ import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import AdminPanel from './components/AdminPanel';
+import MixerPage from './components/mixer/MixerPage';
 import ThemeToggle from './components/ThemeToggle';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
@@ -35,6 +36,7 @@ function useHashRoute() {
 export default function App() {
   const hash = useHashRoute();
   const isAdmin = hash === '#/admin';
+  const isMixer = hash === '#/mixer';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -237,6 +239,12 @@ export default function App() {
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
+              href={isMixer ? '#/' : '#/mixer'}
+              className="pad px-3.5 py-2 text-xs text-muted no-underline"
+            >
+              {isMixer ? '🎛 DJ 台' : '🎚 调音台'}
+            </a>
+            <a
               href={isAdmin ? '#/' : '#/admin'}
               className="pad px-3.5 py-2 text-xs text-muted no-underline"
             >
@@ -247,6 +255,8 @@ export default function App() {
 
         {isAdmin ? (
           <AdminPanel />
+        ) : isMixer ? (
+          <MixerPage />
         ) : (
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}
