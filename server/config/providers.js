@@ -6,6 +6,7 @@
 export const TTAPI_DEFAULTS = {
   baseUrl: 'https://api.ttapi.io',
   musicPath: '/suno/v1/music',
+  stemsAllPath: '/suno/v1/stems-all',
   fetchPath: '/suno/v2/fetch',
   modelVersion: 'chirp-v5',
 };
@@ -255,6 +256,7 @@ export function resolveTtapiRuntime() {
     apiKey,
     modelVersion: env('TTAPI_SUNO_MV', TTAPI_DEFAULTS.modelVersion),
     musicPath: TTAPI_DEFAULTS.musicPath,
+    stemsAllPath: TTAPI_DEFAULTS.stemsAllPath,
     fetchPath: TTAPI_DEFAULTS.fetchPath,
   };
 }

@@ -24,14 +24,20 @@ export function useMusicPoll() {
       stopPolling();
       setJobId(id);
       setStatus('processing');
+      setAudioUrl(null);
+      setMeta(null);
 
       const poll = async () => {
         try {
           const data = await getMusicStatus(id);
           setMeta(data);
-          if (data.status === 'completed' && data.audioUrl) {
-            setAudioUrl(data.audioUrl);
-            setStatus('completed');
+          if (data.audioUrl) {
+            setAudioUrl((prev) => (prev === data.audioUrl ? prev : data.audioUrl));
+          }
+          if (data.status) {
+            setStatus(data.status);
+          }
+          if (data.status === 'completed') {
             stopPolling();
           } else if (data.status === 'failed') {
             setStatus('failed');

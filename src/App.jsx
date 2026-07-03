@@ -7,6 +7,7 @@ import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import AdminPanel from './components/AdminPanel';
+import MixerPage from './components/mixer/MixerPage';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import {
   analyzeProject,
@@ -33,6 +34,7 @@ function useHashRoute() {
 export default function App() {
   const hash = useHashRoute();
   const isAdmin = hash === '#/admin';
+  const isMixer = hash === '#/mixer';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -48,6 +50,7 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [schedule, setSchedule] = useState(null);
   const [currentPhase, setCurrentPhase] = useState(null);
+  const [mixerImport, setMixerImport] = useState(null);
 
   const mbti = mbtiFromAxes(axes);
   const theme = getTheme(mbti);
@@ -56,6 +59,7 @@ export default function App() {
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);
   const skipAnalyzeRef = useRef(false);
+  const autoRoutedJobRef = useRef(null);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => {});
@@ -134,6 +138,30 @@ export default function App() {
     }
   }, [poll.audioUrl]);
 
+  useEffect(() => {
+    const tracks = Array.isArray(poll.meta?.tracks)
+      ? poll.meta.tracks.filter((track) => track?.url)
+      : [];
+    if (!poll.jobId || tracks.length === 0) return;
+
+    const title = poll.meta?.title || poll.meta?.fallbackTitle || `${mbti} · ${mode}`;
+    setMixerImport({
+      jobId: poll.jobId,
+      title,
+      status: poll.status,
+      stemStatus: poll.meta?.stemStatus,
+      stemProgress: poll.meta?.stemProgress,
+      stemError: poll.meta?.stemError,
+      fallback: Boolean(poll.meta?.fallback),
+      tracks,
+    });
+
+    if (!poll.meta?.fallback && autoRoutedJobRef.current !== poll.jobId) {
+      autoRoutedJobRef.current = poll.jobId;
+      window.location.hash = '#/mixer';
+    }
+  }, [poll.jobId, poll.status, poll.meta, mbti, mode]);
+
   const handleGenerate = async (opts = {}) => {
     const nextMode = opts.mode || mode;
     setGenerating(true);
@@ -157,6 +185,17 @@ export default function App() {
         setPromptData(fb);
         setFallback(true);
         if (fb.url) player.playUrl(fb.url, { title: fb.title, loop: true });
+        if (fb.tracks?.length) {
+          const jobId = `fallback-${Date.now()}`;
+          setMixerImport({
+            jobId,
+            title: fb.title || `${mbti} · ${nextMode}`,
+            status: 'completed',
+            stemStatus: 'skipped',
+            fallback: true,
+            tracks: fb.tracks,
+          });
+        }
       } catch (fbErr) {
         console.error('[fallback]', fbErr);
       }
@@ -232,6 +271,12 @@ export default function App() {
               </div>
             )}
             <a
+              href={isMixer ? '#/' : '#/mixer'}
+              className="pad px-3.5 py-2 text-xs text-white/70 no-underline"
+            >
+              {isMixer ? '🎛 DJ 台' : '🎚 调音台'}
+            </a>
+            <a
               href={isAdmin ? '#/' : '#/admin'}
               className="pad px-3.5 py-2 text-xs text-white/70 no-underline"
             >
@@ -242,6 +287,8 @@ export default function App() {
 
         {isAdmin ? (
           <AdminPanel />
+        ) : isMixer ? (
+          <MixerPage incomingMix={mixerImport} />
         ) : (
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}

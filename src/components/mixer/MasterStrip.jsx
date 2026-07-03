@@ -1,0 +1,37 @@
+import LevelMeter from './LevelMeter';
+
+export default function MasterStrip({ engine, master, onUpdate }) {
+  return (
+    <div className="glass flex w-[128px] flex-none flex-col items-center gap-2 rounded-xl border-2 border-white/15 px-2 py-3">
+      <span className="font-display text-[11px] font-bold text-emerald-300">MASTER</span>
+
+      <div className="flex min-h-[132px] flex-1 items-stretch justify-center self-stretch">
+        <LevelMeter getLevel={() => engine.getMasterLevel()} className="h-full w-3" />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onUpdate({ limiter: !master.limiter })}
+        className={`w-full rounded-md py-1 font-mono text-[9px] font-bold transition ${
+          master.limiter ? 'bg-emerald-500 text-white' : 'btn-ghost'
+        }`}
+        title="Limiter"
+      >
+        LIMIT
+      </button>
+
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value={master.volume}
+        onChange={(event) => onUpdate({ volume: Number(event.target.value) })}
+        className="fader w-full"
+        style={{ '--fader-from': '#4ade80', '--fader-to': '#a3e635', '--fader-glow': 'rgba(74,222,128,0.4)' }}
+        aria-label="Master volume"
+      />
+      <span className="font-mono text-[9px] text-white/45">{Math.round(master.volume * 100)}%</span>
+    </div>
+  );
+}

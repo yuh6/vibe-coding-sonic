@@ -37,10 +37,10 @@ export function previewPrompt({ mbti, axes, mode, projectAnalysis, style }) {
   });
 }
 
-export function generateMusic({ mbti, axes, mode, projectAnalysis, style, forceFallback = false }) {
+export function generateMusic({ mbti, axes, mode, projectAnalysis, style, forceFallback = false, splitStems = true }) {
   return request('/api/music/generate', {
     method: 'POST',
-    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, forceFallback }),
+    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, forceFallback, splitStems }),
   });
 }
 

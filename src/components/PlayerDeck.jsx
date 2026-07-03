@@ -3,6 +3,7 @@ import AudioVisualizer from './AudioVisualizer';
 const STATUS_LABEL = {
   idle: 'STANDBY',
   processing: 'GENERATING',
+  splitting: 'SPLITTING STEMS',
   completed: 'ON AIR',
   failed: 'ERROR',
 };
@@ -24,15 +25,16 @@ export default function PlayerDeck({
   onGenerate,
   generating,
 }) {
+  const busy = status === 'processing' || status === 'splitting';
   const statusColor =
-    status === 'processing' ? '#facc15' : playing ? '#4ade80' : 'rgba(255,255,255,0.35)';
+    busy ? '#facc15' : playing ? '#4ade80' : 'rgba(255,255,255,0.35)';
 
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Main Deck</span>
         <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest" style={{ color: statusColor }}>
-          <span className={`led-dot ${status === 'processing' ? 'animate-pulse' : ''}`} style={{ color: statusColor }} />
+          <span className={`led-dot ${busy ? 'animate-pulse' : ''}`} style={{ color: statusColor }} />
           {STATUS_LABEL[status] || status}
           {fallback && <span className="text-amber-400/80">· CACHED</span>}
         </div>
