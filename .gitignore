@@ -4,4 +4,5 @@ dist
 .DS_Store
 *.log
 server/data/runtime-config.json
+server/data/runtime-library.json
 graphify-out

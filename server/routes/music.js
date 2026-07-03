@@ -5,10 +5,22 @@ import {
   getFallbackTrack,
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
+import { requireAdmin } from '../middleware/adminAuth.js';
+import { createRateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
+const paidGenerateLimit = createRateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.MUSIC_GENERATE_RATE_LIMIT || 5),
+  keyPrefix: 'music-generate',
+});
 
-router.post('/generate', (req, res) => {
+function protectPaidGeneration(req, res, next) {
+  if (req.body?.previewOnly) return next();
+  return requireAdmin(req, res, next);
+}
+
+router.post('/generate', protectPaidGeneration, paidGenerateLimit, (req, res) => {
   try {
     const {
       mbti,

@@ -11,7 +11,20 @@
       rel="stylesheet"
     />
   </head>
-  <body class="bg-slate-950 text-white antialiased">
+  <body class="antialiased">
+    <script>
+      (function () {
+        var t = localStorage.getItem('vibe-color-mode');
+        var mode;
+        if (t === 'light' || t === 'dark') {
+          mode = t;
+        } else {
+          mode = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', mode);
+        document.documentElement.style.colorScheme = mode;
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

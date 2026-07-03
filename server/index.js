@@ -12,14 +12,48 @@ import libraryRoutes from './routes/library.js';
 import { isSunoConfigured } from './services/sunoClient.js';
 import { isLlmConfigured } from './services/llm/index.js';
 import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
+import { getSetting } from './config/runtimeConfig.js';
+import { requireAdmin } from './middleware/adminAuth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
 const isProd = process.env.NODE_ENV === 'production';
 
-app.use(cors());
-app.use(express.json());
+function parseCsv(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isLoopbackOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.');
+  } catch {
+    return false;
+  }
+}
+
+function isCorsOriginAllowed(origin) {
+  if (!origin) return true;
+
+  const configured = parseCsv(getSetting('CORS_ORIGINS'));
+  if (configured.includes('*') || configured.includes(origin)) return true;
+
+  return !isProd && isLoopbackOrigin(origin);
+}
+
+app.use(cors({
+  origin(origin, callback) {
+    callback(null, isCorsOriginAllowed(origin));
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+}));
+app.use(express.json({ limit: '128kb' }));
 
 app.get('/api/health', (_req, res) => {
   const llm = resolveLlmConfig();
@@ -35,8 +69,8 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.use('/api/config', configRoutes);
-app.use('/api/library', libraryRoutes);
+app.use('/api/config', requireAdmin, configRoutes);
+app.use('/api/library', requireAdmin, libraryRoutes);
 
 app.use('/api/mbti', mbtiRoutes);
 app.use('/api/project', projectRoutes);
@@ -51,8 +85,8 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`[server] http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[server] http://${HOST}:${PORT}`);
   console.log(`[server] TTAPI Suno: ${isSunoConfigured() ? 'enabled' : 'fallback mode'}`);
   const llm = resolveLlmConfig();
   console.log(`[server] LLM: ${isLlmConfigured() ? `${llm.label} (${llm.providerId})` : 'template mode'}`);

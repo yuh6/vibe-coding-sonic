@@ -1,13 +1,45 @@
 const API_BASE = '';
+const ADMIN_TOKEN_KEY = 'vibe-coding-sonic-admin-token';
+
+export function getStoredAdminToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+}
+
+export function setStoredAdminToken(token) {
+  const normalized = String(token || '').trim();
+  if (normalized) {
+    localStorage.setItem(ADMIN_TOKEN_KEY, normalized);
+  } else {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+}
+
+function shouldAttachAdminToken(path, method = 'GET') {
+  const upperMethod = method.toUpperCase();
+  return (
+    path.startsWith('/api/config') ||
+    path.startsWith('/api/library') ||
+    (path === '/api/music/generate' && upperMethod === 'POST')
+  );
+}
 
 async function request(path, options = {}) {
+  const method = options.method || 'GET';
+  const token = shouldAttachAdminToken(path, method) ? getStoredAdminToken() : '';
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'X-Admin-Token': token } : {}),
+      ...options.headers,
+    },
     ...options,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed: ${res.status}`);
+    const err = new Error(data.error || `Request failed: ${res.status}`);
+    err.status = res.status;
+    err.code = data.code;
+    throw err;
   }
   return data;
 }

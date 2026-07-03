@@ -2,7 +2,7 @@
  * Runtime config store — 管理后台保存的配置，优先级高于环境变量。
  * 持久化到 server/data/runtime-config.json（已 gitignore）。
  */
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -45,6 +45,13 @@ function load() {
   }
 }
 
+function persistConfig() {
+  mkdirSync(dirname(CONFIG_PATH), { recursive: true });
+  const tmpPath = `${CONFIG_PATH}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(cache, null, 2));
+  renameSync(tmpPath, CONFIG_PATH);
+}
+
 export function getSetting(key, fallback = '') {
   const value = cache[key] ?? process.env[key];
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
@@ -61,7 +68,7 @@ export function updateSettings(patch) {
     }
     applied[key] = true;
   }
-  writeFileSync(CONFIG_PATH, JSON.stringify(cache, null, 2));
+  persistConfig();
   return Object.keys(applied);
 }
 

@@ -11,7 +11,7 @@ npm run dev
 
 | 地址 | 用途 |
 |------|------|
-| http://localhost:5173 | DJ 控制台 |
+| http://localhost:5173 | DJ 控制台（右上角 ☀️/🌙 切换深浅色） |
 | http://localhost:5173/#/admin | 管理后台（API Key + 音乐库） |
 | http://localhost:3001/api/health | 后端健康检查 |
 
