@@ -8,15 +8,19 @@ import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
+import AuthPanel from './components/AuthPanel';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import {
   analyzeProject,
   analyzeGithub,
+  authMe,
   generateMusic,
   getDemoSchedule,
   getFallback,
   getHealth,
+  getMyProfile,
   previewPrompt,
+  saveMyProfile,
   syncSchedule,
 } from './lib/api';
 import { useMusicPoll, usePlayer } from './hooks/usePlayer';
@@ -51,6 +55,10 @@ export default function App() {
   const [schedule, setSchedule] = useState(null);
   const [currentPhase, setCurrentPhase] = useState(null);
   const [mixerImport, setMixerImport] = useState(null);
+  const [user, setUser] = useState(null);
+  const [quota, setQuota] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [notice, setNotice] = useState('');
 
   const mbti = mbtiFromAxes(axes);
   const theme = getTheme(mbti);
@@ -58,13 +66,49 @@ export default function App() {
   const poll = useMusicPoll();
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);
+  const profileTimer = useRef(null);
+  const profileLoadedRef = useRef(false);
   const skipAnalyzeRef = useRef(false);
   const autoRoutedJobRef = useRef(null);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => {});
     getDemoSchedule().then(setSchedule).catch(() => {});
+    // 恢复登录态 + 应用个人档案
+    authMe()
+      .then((data) => {
+        setUser(data.user);
+        setQuota(data.quota);
+        return getMyProfile();
+      })
+      .then((data) => {
+        const profile = data?.profile;
+        if (profile?.axes) setAxes(profile.axes);
+        if (profile?.style) setStyle((s) => ({ ...s, ...profile.style }));
+        if (profile?.mode) setMode(profile.mode);
+        profileLoadedRef.current = true;
+      })
+      .catch(() => {
+        profileLoadedRef.current = true;
+      });
   }, []);
+
+  // 档案自动保存（防抖，登录后才生效）
+  useEffect(() => {
+    if (!user || !profileLoadedRef.current) return;
+    clearTimeout(profileTimer.current);
+    profileTimer.current = setTimeout(() => {
+      saveMyProfile({ axes, style, mode }).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(profileTimer.current);
+  }, [user, axes, style, mode]);
+
+  // 顶部提示条自动消失
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     if (!schedule?.phases) return;
@@ -177,9 +221,18 @@ export default function App() {
         forceFallback: opts.forceFallback,
       });
       setPromptData(job);
+      if (job.quota) setQuota(job.quota);
+      if (job.quotaNotice) setNotice(job.quotaNotice);
       poll.startPolling(job.jobId);
     } catch (err) {
       console.error('[generate]', err);
+      if (err.status === 401) {
+        setAuthOpen(true);
+        setNotice('登录后即可生成专属音乐');
+        setGenerating(false);
+        poll.setStatus('idle');
+        return;
+      }
       try {
         const fb = await getFallback({ mode: nextMode, mbti });
         setPromptData(fb);
@@ -239,6 +292,11 @@ export default function App() {
       }}
     >
       <div className="mx-auto max-w-7xl px-4 py-6">
+        {notice && (
+          <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl border border-amber-400/40 bg-black/85 px-4 py-2 text-sm text-amber-200 backdrop-blur">
+            {notice}
+          </div>
+        )}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
@@ -258,6 +316,28 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <AuthPanel
+              user={user}
+              quota={quota}
+              open={authOpen}
+              onOpenChange={setAuthOpen}
+              onAuth={(data) => {
+                setUser(data.user);
+                setQuota(data.quota);
+                getMyProfile()
+                  .then((res) => {
+                    const profile = res?.profile;
+                    if (profile?.axes) setAxes(profile.axes);
+                    if (profile?.style) setStyle((s) => ({ ...s, ...profile.style }));
+                    if (profile?.mode) setMode(profile.mode);
+                  })
+                  .catch(() => {});
+              }}
+              onLogout={() => {
+                setUser(null);
+                setQuota(null);
+              }}
+            />
             {health && (
               <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 font-mono text-[10px]">
                 <span className="flex items-center gap-1.5">

@@ -55,7 +55,7 @@ export default function MixerPage({ incomingMix = null }) {
             </div>
           </div>
         )}
-        <SourcePanel onAdd={mixer.addTrack} loading={mixer.loading} />
+        <SourcePanel onAdd={mixer.addTrack} onAddMany={mixer.addTracks} loading={mixer.loading} />
         <VersionPanel
           getMixState={mixer.getMixState}
           onRestore={mixer.applySnapshot}

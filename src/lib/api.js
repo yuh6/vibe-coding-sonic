@@ -3,11 +3,15 @@ const API_BASE = '';
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
+    credentials: 'same-origin',
     ...options,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed: ${res.status}`);
+    const err = new Error(data.error || `Request failed: ${res.status}`);
+    err.status = res.status;
+    err.code = data.code;
+    throw err;
   }
   return data;
 }
@@ -62,6 +66,45 @@ export function syncSchedule(phases) {
 
 export function getDemoSchedule() {
   return request('/api/schedule/demo');
+}
+
+// ── 用户系统 ──
+
+export function authRegister({ email, password, name }) {
+  return request('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name }),
+  });
+}
+
+export function authLogin({ email, password }) {
+  return request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function authLogout() {
+  return request('/api/auth/logout', { method: 'POST' });
+}
+
+export function authMe() {
+  return request('/api/auth/me');
+}
+
+export function getMyProfile() {
+  return request('/api/user/profile');
+}
+
+export function saveMyProfile({ axes, style, mode }) {
+  return request('/api/user/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ axes, style, mode }),
+  });
+}
+
+export function getMyTracks() {
+  return request('/api/user/tracks');
 }
 
 // ── 管理后台 ──

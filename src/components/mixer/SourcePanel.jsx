@@ -1,14 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { getLibrary } from '../../lib/api';
+import { getLibrary, getMyTracks } from '../../lib/api';
 
-export default function SourcePanel({ onAdd, loading }) {
+export default function SourcePanel({ onAdd, onAddMany, loading }) {
   const [library, setLibrary] = useState(null);
+  const [myTracks, setMyTracks] = useState(null);
   const [url, setUrl] = useState('');
   const fileRef = useRef(null);
 
   useEffect(() => {
     getLibrary().then(setLibrary).catch(() => {});
+    getMyTracks()
+      .then((data) => setMyTracks(data.tracks || []))
+      .catch(() => setMyTracks(null)); // 未登录时隐藏该区块
   }, []);
+
+  const loadSavedTrack = (saved) => {
+    const items = (saved.tracks?.length ? saved.tracks : [{ name: saved.title, url: saved.audioUrl }])
+      .filter((track) => track?.url)
+      .map((track) => ({ name: track.name || saved.title, url: track.url, type: track.type || 'stem' }));
+    if (items.length === 0) return;
+    if (onAddMany) onAddMany(items, { replace: false });
+    else items.forEach(onAdd);
+  };
 
   const handleFiles = (event) => {
     for (const file of event.target.files) {
@@ -30,6 +43,28 @@ export default function SourcePanel({ onAdd, loading }) {
       <span className="deck-label">Source</span>
 
       <div className="mt-3 space-y-3">
+        {myTracks && myTracks.length > 0 && (
+          <div>
+            <div className="mb-1.5 font-mono text-[10px] tracking-widest text-white/35">MY TRACKS</div>
+            <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+              {myTracks.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => loadSavedTrack(track)}
+                  className="btn-ghost flex items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[11px] disabled:opacity-40"
+                >
+                  <span className="truncate">{track.title || `${track.mbti} · ${track.mode}`}</span>
+                  <span className="ml-2 shrink-0 font-mono text-[9px] text-white/35">
+                    {track.fallback ? 'cached' : `${track.tracks?.length || 1} trk`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <div className="mb-1.5 font-mono text-[10px] tracking-widest text-white/35">LIBRARY</div>
           <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">

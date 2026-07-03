@@ -1,8 +1,27 @@
-# AI 音乐引擎 · 设计文档 v2
+# AI 音乐引擎 · 设计文档 v3
 
 > vibe-coding-sonic 核心模块
 
+## v3 修订说明（对照代码评审后的修正）
+
+
+| #   | 修正                                                            | 原因                                                            |
+| --- | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | §1.2 MBTI 轴命名与方向对齐代码（`ie/ns/tf/jp`，0=左极 I/N/T/J）              | v2 的 `SN` 轴方向与 `src/lib/mbti.js` 相反，照做会把「直觉」理解成「实感」           |
+| 2   | §2 七阶段体系明确**替换**现有 Focus/Spark/Sprint/Charge 四模式              | 避免两套阶段真源并存；迁移涉及 `promptComposer`、`ModePads`、fallback manifest |
+| 3   | §9.1 删除虚构的 SunoGenerator，改为复用 `server/services/sunoClient.js` | v2 的 header/端点/请求体与真实 TTAPI 客户端全不一致                           |
+| 4   | §2.3 weirdness/styleInfluence 标记为**待确认**参数                    | v2 设计了这两个参数但请求体从未发送；TTAPI 是否支持需先验证                            |
+| 5   | §9.3 交叉淡入改用 Web Audio（复用 `src/audio/mixerEngine.js` 增益链路）     | 双 `<audio>` + 50ms 步进调音量有阶梯噪声，且会造成第三套音频栈                      |
+| 6   | §8.7 感知层 v1 砍到三个信号：日程时间 / 手动切换 / 跳歌计数                         | Git 提交轮询、情绪推断、中文关键词解析留到 v2+；显式反馈改为按钮                          |
+| 7   | §11 删除服务端 player 接口（play/pause 是纯前端动作）                        | 播放发生在浏览器，服务端只负责编排决策                                           |
+| 8   | 新增：生成完成后可选触发 stems 分离，产物直接进 `/#/mixer` 调音台                    | `sunoClient` 已实现 `stems-all`，这是编排引擎与调音台的连接点                   |
+| 9   | §10 存储层与多用户系统共用 SQLite，核心表挂 `user_id`                         | 见 `docs/multi-user-architecture.md`                           |
+| 10  | 新增：音频落盘要求——TTAPI CDN URL 会过期，生成成功后必须转存                        | 24h 音乐流依赖本地/对象存储缓存                                            |
+
+
 ---
+
+
 
 ## 架构总览
 
@@ -50,7 +69,11 @@
 
 ---
 
+
+
 ## 1. MBTI 模块
+
+
 
 ### 1.1 滑块设计
 
@@ -60,7 +83,7 @@
 I ◄─────────┼─────────► E
 0          50         100
 
-S ◄─────────┼─────────► N
+N ◄─────────┼─────────► S
 0          50         100
 
 T ◄─────────┼─────────► F
@@ -70,47 +93,58 @@ J ◄─────────┼─────────► P
 0          50         100
 ```
 
+
+
 ### 1.2 类型判定规则
 
+与代码保持一致（`src/lib/mbti.js` 的 `AXES` / `mbtiFromAxes`）：轴 key 为 `ie/ns/tf/jp`，**0 = 左极（I/N/T/J），100 = 右极（E/S/F/P）**。注意 `ns` 轴 0 是 N 不是 S。
+
 ```javascript
-function resolveMBTI(sliders) {
+function resolveMBTI(axes) {
   return {
     type: [
-      sliders.IE < 50 ? 'I' : 'E',
-      sliders.SN < 50 ? 'S' : 'N',
-      sliders.TF < 50 ? 'T' : 'F',
-      sliders.JP < 50 ? 'J' : 'P',
+      axes.ie < 50 ? 'I' : 'E',
+      axes.ns < 50 ? 'N' : 'S',   // 注意：0=N，与滑块 UI 一致
+      axes.tf < 50 ? 'T' : 'F',
+      axes.jp < 50 ? 'J' : 'P',
     ].join(''),
     // 每个维度的强度（0-1），用于 prompt 权重
     intensity: {
-      IE: Math.abs(sliders.IE - 50) / 50,   // 0=中间态, 1=极端
-      SN: Math.abs(sliders.SN - 50) / 50,
-      TF: Math.abs(sliders.TF - 50) / 50,
-      JP: Math.abs(sliders.JP - 50) / 50,
+      ie: Math.abs(axes.ie - 50) / 50,   // 0=中间态, 1=极端
+      ns: Math.abs(axes.ns - 50) / 50,
+      tf: Math.abs(axes.tf - 50) / 50,
+      jp: Math.abs(axes.jp - 50) / 50,
     },
   };
 }
 ```
 
+
+
 ### 1.3 视觉映射
 
 四个维度组合成最终颜色：
 
-| 维度 | 映射规则 |
-|------|---------|
-| 基底色 | NT=🟣紫, NF=🟢绿, SJ=🔵蓝, SP=🟡黄 |
-| I/E → 明暗 | I 偏暗（低明度），E 偏亮（高明度） |
-| S/N → 饱和度 | S 偏灰（低饱和），N 偏鲜艳（高饱和） |
-| T/F → 色温 | T 偏冷色，F 偏暖色 |
-| J/P → 纹理 | J 偏几何/规则纹理，P 偏有机/流体纹理 |
+
+| 维度        | 映射规则                           |
+| --------- | ------------------------------ |
+| 基底色       | NT=🟣紫, NF=🟢绿, SJ=🔵蓝, SP=🟡黄 |
+| I/E → 明暗  | I 偏暗（低明度），E 偏亮（高明度）            |
+| S/N → 饱和度 | S 偏灰（低饱和），N 偏鲜艳（高饱和）           |
+| T/F → 色温  | T 偏冷色，F 偏暖色                    |
+| J/P → 纹理  | J 偏几何/规则纹理，P 偏有机/流体纹理          |
+
 
 **颜色计算公式**：
+
 ```
 base = 氛围色（紫/绿/蓝/黄）
 lightness = 40% + (IE值 / 100) × 30%    // I→40%暗, E→70%亮
 saturation = 40% + (SN值 / 100) × 40%    // S→40%灰, N→80%艳
 warmth = TF值 / 100                       // T→冷调偏移, F→暖调偏移
 ```
+
+
 
 ### 1.4 MBTI → Prompt 映射逻辑
 
@@ -126,19 +160,29 @@ MBTI 类型 + 维度强度 → 查询 mbti-prompts.js → 获取基础 prompt
 
 ---
 
+
+
 ## 2. 项目阶段模块
+
+> **迁移说明（v3）**：七阶段体系替换现有的 Focus/Spark/Sprint/Charge 四模式。需要同步修改：`server/services/promptComposer.js`（mode 预设）、`server/data/mbti-profiles.json`、`server/data/fallback-manifest.json`（按 mode 分类的兜底曲库）、前端 `ModePads.jsx`。旧四模式映射：Focus→focus，Spark→brainstorm，Sprint→sprint，Charge→charge。
+
+
 
 ### 2.1 预设阶段
 
-| 阶段 ID | 名称 | BPM 修正 | 风格倾向 | 触发方式 |
-|---------|------|---------|---------|---------|
-| `brainstorm` | 头脑风暴 | +5 | playful, varied, surprising | 手动 / 日程 |
-| `focus` | 专注构思 | -10 | ambient, minimal, steady | 手动 / 日程 |
-| `sprint` | 代码冲刺 | +20 | driving, urgent, high energy | 手动 / 偏差 |
-| `charge` | 战鼓催阵 | +15 | epic, powerful, heroic | 手动 / 日程 |
-| `behind` | 落后了 | +25 | urgent, tense, pushing | 手动 |
-| `break` | 休息一下 | -20 | chill, relaxed, mellow | 手动 |
-| `celebrate` | 完成了！ | +10 | triumphant, joyful, euphoric | 手动 |
+
+| 阶段 ID        | 名称   | BPM 修正 | 风格倾向                         | 触发方式    |
+| ------------ | ---- | ------ | ---------------------------- | ------- |
+| `brainstorm` | 头脑风暴 | +5     | playful, varied, surprising  | 手动 / 日程 |
+| `focus`      | 专注构思 | -10    | ambient, minimal, steady     | 手动 / 日程 |
+| `sprint`     | 代码冲刺 | +20    | driving, urgent, high energy | 手动 / 偏差 |
+| `charge`     | 战鼓催阵 | +15    | epic, powerful, heroic       | 手动 / 日程 |
+| `behind`     | 落后了  | +25    | urgent, tense, pushing       | 手动      |
+| `break`      | 休息一下 | -20    | chill, relaxed, mellow       | 手动      |
+| `celebrate`  | 完成了！ | +10    | triumphant, joyful, euphoric | 手动      |
+
+
+
 
 ### 2.2 自动切换逻辑
 
@@ -152,15 +196,19 @@ MBTI 类型 + 维度强度 → 查询 mbti-prompts.js → 获取基础 prompt
 用户手动切换 → 覆盖自动判断
 ```
 
+
+
 ### 2.3 阶段 → 音乐参数映射
+
+> ⚠️ **weirdness / styleInfluence 为待确认参数**：现有 TTAPI 请求体（`sunoClient.js`）只支持 `custom/instrumental/mv/title/tags/prompt/negative_tags`。实现前先验证 TTAPI 是否透传这两个 Suno V5 参数；不支持则从预设中删除，不要留假旋钮。
 
 ```javascript
 const PHASE_PRESETS = {
   brainstorm: {
     bpmOffset: +5,
     styleTags: 'playful, varied, dynamic, surprising, moderate energy',
-    weirdness: 60,        // V5 参数：偏高，更多变化
-    styleInfluence: 50,   // V5 参数：中等，允许 AI 发挥
+    weirdness: 60,        // V5 参数：偏高，更多变化（待确认）
+    styleInfluence: 50,   // V5 参数：中等，允许 AI 发挥（待确认）
   },
   focus: {
     bpmOffset: -10,
@@ -203,7 +251,11 @@ const PHASE_PRESETS = {
 
 ---
 
+
+
 ## 3. 项目内容解析器（可选）
+
+
 
 ### 3.1 流程
 
@@ -218,6 +270,8 @@ LLM 分析 → 输出结构化 JSON
     ↓
 注入 prompt 构造器
 ```
+
+
 
 ### 3.2 LLM 分析 Prompt
 
@@ -244,6 +298,8 @@ LLM 分析 → 输出结构化 JSON
 - avoid 用 Suno 能识别的风格名
 ```
 
+
+
 ### 3.3 缓存
 
 - 同一文件夹只解析一次，结果存 SQLite
@@ -251,7 +307,11 @@ LLM 分析 → 输出结构化 JSON
 
 ---
 
+
+
 ## 4. 人声模块
+
+
 
 ### 4.1 开关
 
@@ -261,9 +321,12 @@ LLM 分析 → 输出结构化 JSON
   ON  → 调用歌词生成模块，生成带歌词的音乐
 ```
 
+
+
 ### 4.2 歌词生成模块
 
 **输入变量**：
+
 - MBTI 类型 + 强度
 - 项目阶段
 - 项目内容（可选）
@@ -274,7 +337,7 @@ LLM 分析 → 输出结构化 JSON
 ```
 构建歌词生成 prompt
     ↓
-调用 LLM（GPT-4 / Claude）
+调用 LLM
     ↓
 输出结构化歌词（含结构标签）
     ↓
@@ -282,6 +345,8 @@ LLM 分析 → 输出结构化 JSON
     ↓
 发送到 Suno（Custom Mode + 歌词）
 ```
+
+
 
 ### 4.3 歌词生成 Prompt 模板
 
@@ -317,20 +382,28 @@ LLM 分析 → 输出结构化 JSON
 ...
 ```
 
+
+
 ### 4.4 人声类型推荐（按 MBTI）
 
-| MBTI 维度 | 推荐人声 |
-|-----------|---------|
-| I + T | Whispered, Spoken Word, Low-key Male/Female |
-| I + F | Breathy, Ethereal, Intimate, Soft |
-| E + T | Confident, Spoken, Narration |
-| E + F | Powerful, Soulful, Belting, Diva |
-| N | Ethereal, Robotic, Vocaloid |
-| S | Natural, Raw, Acoustic-friendly |
+
+| MBTI 维度 | 推荐人声                                        |
+| ------- | ------------------------------------------- |
+| I + T   | Whispered, Spoken Word, Low-key Male/Female |
+| I + F   | Breathy, Ethereal, Intimate, Soft           |
+| E + T   | Confident, Spoken, Narration                |
+| E + F   | Powerful, Soulful, Belting, Diva            |
+| N       | Ethereal, Robotic, Vocaloid                 |
+| S       | Natural, Raw, Acoustic-friendly             |
+
 
 ---
 
+
+
 ## 5. 风格选择模块（可选）
+
+
 
 ### 5.1 预设风格列表
 
@@ -361,6 +434,8 @@ const POPULAR_STYLES = [
 ];
 ```
 
+
+
 ### 5.2 风格优先级
 
 ```
@@ -372,14 +447,21 @@ const POPULAR_STYLES = [
 
 ---
 
+
+
 ## 6. 备注模块（可选）
+
+
 
 ### 6.1 自由文本输入
 
 用户可以输入任意自然语言描述，例如：
+
 - "想要有点赛博朋克的感觉"
 - "不要太吵，适合深夜 coding"
 - "参考《银翼杀手》的配乐风格"
+
+
 
 ### 6.2 AI 解析
 
@@ -397,7 +479,11 @@ const POPULAR_STYLES = [
 
 ---
 
+
+
 ## 7. 组装器 (Assembler)
+
+
 
 ### 7.1 核心职责
 
@@ -441,6 +527,8 @@ const POPULAR_STYLES = [
 │  Exclude: [排除项]                       │
 └──────────────────────────────────────────┘
 ```
+
+
 
 ### 7.3 Prompt 组装规则
 
@@ -488,9 +576,13 @@ function assemblePrompt({ mbti, phase, project, style, notes, vocals }) {
 
 ---
 
+
+
 ## 8. 编排引擎 (Arranger) 🎧
 
 > 24 小时持续音乐流的大脑。不是一首一首生成，而是编排一场完整的演出。
+
+
 
 ### 8.1 设计理念
 
@@ -522,6 +614,8 @@ function assemblePrompt({ mbti, phase, project, style, notes, vocals }) {
 │  跨度：3-5 分钟（一首歌的长度）                         │
 └─────────────────────────────────────────────────────┘
 ```
+
+
 
 ### 8.3 宏观弧线 (Macro Arc)
 
@@ -556,6 +650,8 @@ const MACRO_ARC = {
   celebrate:  { energy: [60, 90],  duration: 0.10, label: '收官庆祝' },
 };
 ```
+
+
 
 ### 8.4 阶段内编排 (Phase Arrangement)
 
@@ -599,15 +695,19 @@ function generatePhaseSequence(phase, trackCount, phaseDuration) {
 
 **不同阶段的波形**：
 
-| 阶段 | 波形 | 说明 |
-|------|------|------|
-| brainstorm | `/\/\/\` | 高频起伏，刺激灵感 |
-| focus | `----__----` | 平稳为主，偶尔微波 |
-| sprint | `_/‾‾\_` | 快速爬升→维持→缓冲 |
-| charge | `_/‾‾‾‾\` | 持续爬升到高潮 |
-| bottleneck | `--_--_--` | 低能量中寻找小突破 |
-| rest | `\____/` | 先降后升，留白 |
-| celebrate | `/‾‾‾‾‾` | 持续高位，庆典感 |
+
+| 阶段         | 波形           | 说明         |
+| ---------- | ------------ | ---------- |
+| brainstorm | `/\/\/\`     | 高频起伏，刺激灵感  |
+| focus      | `----__----` | 平稳为主，偶尔微波  |
+| sprint     | `_/‾‾\_`     | 快速爬升→维持→缓冲 |
+| charge     | `_/‾‾‾‾\`    | 持续爬升到高潮    |
+| bottleneck | `--_--_--`   | 低能量中寻找小突破  |
+| rest       | `\____/`     | 先降后升，留白    |
+| celebrate  | `/‾‾‾‾‾`     | 持续高位，庆典感   |
+
+
+
 
 ### 8.5 曲库池 (Track Pool)
 
@@ -622,13 +722,15 @@ function generatePhaseSequence(phase, trackCount, phaseDuration) {
 
 **生成节奏**：
 
-| 时机 | 触发条件 | 生成数量 | 说明 |
-|------|---------|---------|------|
-| 冷启动 | 用户点击开始 | 2-3 首 | 只生成当前阶段的 |
-| 后台补货 | 当前阶段剩余 ≤2 首 | 1-2 首 | 同阶段不同变体 |
-| 阶段预热 | 距离下一阶段 ≤2 首 | 2-3 首 | 提前为下阶段准备 |
-| 惊喜注入 | 每 10-15 首 | 1 首 | 风格偏移的意外曲目 |
-| 花费预警 | 余额 < $2 | 暂停生成 | 只用已有曲库循环 |
+
+| 时机   | 触发条件        | 生成数量  | 说明        |
+| ---- | ----------- | ----- | --------- |
+| 冷启动  | 用户点击开始      | 2-3 首 | 只生成当前阶段的  |
+| 后台补货 | 当前阶段剩余 ≤2 首 | 1-2 首 | 同阶段不同变体   |
+| 阶段预热 | 距离下一阶段 ≤2 首 | 2-3 首 | 提前为下阶段准备  |
+| 惊喜注入 | 每 10-15 首   | 1 首   | 风格偏移的意外曲目 |
+| 花费预警 | 余额 < $2     | 暂停生成  | 只用已有曲库循环  |
+
 
 ```javascript
 const TRACK_POOL_SCHEMA = {
@@ -650,20 +752,25 @@ const TRACK_POOL_SCHEMA = {
 
 **变体生成矩阵**（以 Sprint 阶段为例，按需逐首生成）：
 
-| 序号 | 流派变体 | 乐器侧重 | 能量 | 情绪 | 生成时机 |
-|------|---------|---------|------|------|---------|
-| 1 | Techno | Synth Bass + Drum Machine | 80 | driving | 冷启动 |
-| 2 | DnB | Breakbeats + Reese Bass | 90 | urgent | 冷启动 |
-| 3 | Industrial Techno | Metallic + Distorted | 85 | intense | 补货 |
-| 4 | Electro House | Pumping Bass + Synth Stabs | 88 | energetic | 补货 |
-| 5 | Trance | Arpeggiated Synths + Pads | 82 | euphoric | 补货 |
+
+| 序号  | 流派变体              | 乐器侧重                       | 能量  | 情绪        | 生成时机 |
+| --- | ----------------- | -------------------------- | --- | --------- | ---- |
+| 1   | Techno            | Synth Bass + Drum Machine  | 80  | driving   | 冷启动  |
+| 2   | DnB               | Breakbeats + Reese Bass    | 90  | urgent    | 冷启动  |
+| 3   | Industrial Techno | Metallic + Distorted       | 85  | intense   | 补货   |
+| 4   | Electro House     | Pumping Bass + Synth Stabs | 88  | energetic | 补货   |
+| 5   | Trance            | Arpeggiated Synths + Pads  | 82  | euphoric  | 补货   |
+
 
 **防重复规则**：
+
 ```
 连续 3 首不重复同一主风格
 连续 5 首不重复同一乐器组合
 同一首歌间隔 ≥4 首再重复播放
 ```
+
+
 
 ### 8.6 单曲决策 (Track Decision)
 
@@ -738,111 +845,48 @@ class Arranger {
 }
 ```
 
+
+
 ### 8.7 感知层 (Sensing)
 
-实时感知用户状态，动态调整编排：
+> **v3 收敛**：v1 只做三个确定性信号，不做情绪推断。Git 提交频率轮询、交互模式情绪分析（anxious/displeased 等）在 24h 黑客松里校准不出来，误判会让音乐乱跳，全部推迟到 v2+。用户显式反馈**用按钮而不是文本解析**——「太吵了 / 来点劲的 / 换一首 / 这首不错」四个按钮，意图零歧义。
 
 ```javascript
 class SensingLayer {
   constructor(schedule, session) {
-    this.schedule = schedule;     // 黑客松日程
-    this.session = session;       // 当前会话状态
-    this.userMood = 'neutral';    // 用户情绪推断
-    this.commitFrequency = 0;     // 提交频率（次/小时）
-    this.stallDuration = 0;       // 卡住时长（分钟）
+    this.schedule = schedule;   // 黑客松日程
+    this.session = session;     // 当前会话状态
   }
 
-  // 感知输入源
-  signals = {
-    time: () => this.getTimeSignal(),           // 当前时间 vs 日程
-    commits: () => this.getCommitSignal(),       // Git 提交频率
-    interaction: () => this.getInteractionSignal(), // 用户交互频率
-    phase: () => this.getPhaseSignal(),          // 手动阶段切换
-    explicit: () => this.getExplicitSignal(),    // 用户显式调节（"太吵了"）
-  };
+  // v1 仅三个信号源
+  // 1. 日程时间：当前时间落在日程的哪个阶段
+  // 2. 手动切换：用户点击阶段按钮，覆盖自动判断
+  // 3. 跳歌计数：最近 30 分钟跳歌 ≥3 次 → 降低当前风格权重
 
-  // 综合判断当前应该是什么阶段
   getCurrentPhase() {
-    const timePhase = this.signals.time();
-    const manualPhase = this.signals.phase();
-    return manualPhase || timePhase; // 手动覆盖自动
+    return this.session.manualPhase || this.getTimePhase();
   }
 
-  // 目标能量（0-100）
   getTargetEnergy() {
-    let base = this.arcBaseEnergy();        // 宏观弧线基础能量
-    
-    // 感知修正
-    if (this.commitFrequency > 5) base += 10;  // 提交频繁 → 加速
-    if (this.stallDuration > 30) base -= 15;    // 卡住超30分钟 → 降温
-    if (this.userMood === 'frustrated') base -= 10; // 用户烦躁 → 柔和
-    if (this.userMood === 'energized') base += 10;  // 用户兴奋 → 推高
-    
+    let base = this.arcBaseEnergy();          // 宏观弧线基础能量
+    base += this.session.feedbackDelta || 0;  // 按钮反馈的累计修正（衰减）
     return clamp(base, 0, 100);
   }
 
-  // Git 提交频率感知（轮询 git log）
-  getCommitSignal() {
-    // 每 5 分钟检查一次
-    // 命令: git log --since="1 hour ago" --oneline | wc -l
-    const commitsPerHour = this.lastCommitCheck || 0;
-    if (commitsPerHour >= 8) return 'sprint';      // 高频提交 → 冲刺
-    if (commitsPerHour >= 3) return 'productive';   // 正常节奏
-    if (commitsPerHour === 0) {
-      // 检查卡住时长
-      this.stallDuration += 5;
-      if (this.stallDuration > 60) return 'stuck';  // 超1小时无提交
-    } else {
-      this.stallDuration = 0;                        // 有提交 → 重置卡住计时
-    }
-    return 'idle';
-  }
-
-  // 用户情绪推断（基于交互模式）
-  getInteractionSignal() {
-    const recentActions = this.session.getRecentActions(30); // 最近30分钟
-    const switchCount = recentActions.filter(a => a.type === 'phase_switch').length;
-    const skipCount = recentActions.filter(a => a.type === 'track_skip').length;
-    const volumeChange = recentActions.filter(a => a.type === 'volume_change');
-
-    // 频繁切阶段 → 焦虑/找不到方向
-    if (switchCount >= 3) return 'anxious';
-
-    // 频繁跳歌 → 对当前音乐不满意
-    if (skipCount >= 3) return 'displeased';
-
-    // 长时间不操作 → 深度专注
-    if (recentActions.length === 0) return 'focused';
-
-    // 手动调大音量 → 想要更多刺激
-    const lastVol = volumeChange[volumeChange.length - 1];
-    if (lastVol && lastVol.value > 0.7) return 'energized';
-
-    return 'neutral';
-  }
-
-  // 用户显式反馈
-  getExplicitSignal() {
-    const lastCommand = this.session.getLastCommand();
-    if (!lastCommand) return null;
-
-    const commands = {
-      '太吵':    { action: 'lower_energy', delta: -20 },
-      '太安静':  { action: 'raise_energy', delta: +20 },
-      '来点刺激': { action: 'raise_energy', delta: +15, style: 'high-energy' },
-      '安静点':  { action: 'lower_energy', delta: -15, style: 'ambient' },
-      '换首':    { action: 'skip' },
-      '这首不错': { action: 'like', boost: 0.3 },
-      '不好听':   { action: 'dislike', penalty: 0.5 },
+  // 按钮反馈 → 直接、确定的修正
+  applyFeedback(action) {
+    const effects = {
+      too_loud:   { energyDelta: -20 },
+      more_drive: { energyDelta: +15 },
+      skip:       { skipCurrent: true },
+      like:       { boostCurrentStyle: 0.3 },
     };
-
-    for (const [keyword, effect] of Object.entries(commands)) {
-      if (lastCommand.includes(keyword)) return effect;
-    }
-    return null;
+    return effects[action] || null;
   }
 }
 ```
+
+
 
 ### 8.8 情绪起伏 (Mood Pacing)
 
@@ -877,6 +921,8 @@ const SERENDIPITY_RULES = {
   adaptive: true,          // 根据用户反应调整频率
 };
 ```
+
+
 
 ### 8.9 编排状态机
 
@@ -917,6 +963,8 @@ const SERENDIPITY_RULES = {
      ↓ (回到 PLAYING)
 ```
 
+
+
 ### 8.10 费用预估
 
 ```
@@ -943,61 +991,34 @@ const SERENDIPITY_RULES = {
 
 ---
 
+
+
 ## 9. 生成器 (Generator)
+
+
 
 ### 9.1 TTAPI Suno 客户端
 
-```javascript
-class SunoGenerator {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
-    this.baseUrl = 'https://api.ttapi.io/suno/v1';
-  }
+> **v3 修正**：不再新写客户端，**直接复用** `server/services/sunoClient.js`。真实接口与 v2 设想不同：header 是 `TT-API-KEY`；提交端点 `POST {baseUrl}/suno/v1/music`，请求体 `{ custom, instrumental, mv, title, tags, prompt, negative_tags }`；轮询 `GET {baseUrl}/suno/v2/fetch?jobId=...`，状态值为 `SUCCESS/FAILED/ON_QUEUE/PROCESSING`。
 
-  // 提交生成任务
-  async submit({ style, lyrics, instrumental, weirdness, styleInfluence, exclude }) {
-    const body = {
-      customMode: !instrumental,
-      instrumental,
-      style,
-      ...(lyrics && { lyrics }),
-      model: 'chirp-v4-5',
-    };
+现有能力（编排引擎直接调用）：
 
-    const res = await fetch(`${this.baseUrl}/music`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'TTAPI-KEY': this.apiKey,
-      },
-      body: JSON.stringify(body),
-    });
 
-    const data = await res.json();
-    return { taskId: data.id, pollUrl: data.poll_url };
-  }
+| 函数                                          | 作用                                     |
+| ------------------------------------------- | -------------------------------------- |
+| `submitGeneration({ prompt, title, tags })` | 提交生成，返回 `taskId`                       |
+| `pollGeneration(taskId)`                    | 轮询，completed 时带 `audioUrl` / `musicId` |
+| `submitStemSeparation({ musicId })`         | 提交 stems 分离（stems-all）                 |
+| `pollStemSeparation(taskId)`                | 轮询分离结果，返回分轨列表                          |
 
-  // 轮询结果
-  async poll(taskId) {
-    const res = await fetch(`${this.baseUrl}/music/${taskId}`, {
-      headers: { 'TTAPI-KEY': this.apiKey },
-    });
-    return res.json();
-  }
 
-  // 等待完成（带超时）
-  async waitForCompletion(taskId, timeoutMs = 120000) {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const result = await this.poll(taskId);
-      if (result.status === 'succeeded') return result;
-      if (result.status === 'failed') throw new Error(result.error);
-      await sleep(3000); // 3秒轮询一次
-    }
-    throw new Error('Generation timeout');
-  }
-}
-```
+需要为编排引擎补充的：
+
+1. **歌词/自定义模式**：`custom: true` + `lyrics` 字段（人声模式用，需按 TTAPI 文档扩展 body）
+2. **音频落盘**：`pollGeneration` 成功后立即下载 mp3 转存（本地 `cache/` 或对象存储），`track_pool.audio_local` 才有值——TTAPI CDN URL 会过期，24h 流必须落地
+3. **stems 联动**：生成完成 → 可选触发 `submitStemSeparation` → 分轨结果注入 `/#/mixer` 调音台（此链路已在 `musicOrchestrator.js` 实现）
+
+
 
 ### 9.2 生成调度 (Generation Scheduler)
 
@@ -1066,59 +1087,48 @@ class GenerationScheduler {
 }
 ```
 
+
+
 ### 9.3 交叉淡入 (Crossfade)
 
+> **v3 修正**：不用双 `<audio>` + 定时器步进调音量（50ms 步进有阶梯噪声，且与调音台形成第三套音频栈）。**复用** `src/audio/mixerEngine.js` **的 Web Audio 链路**：交叉淡入 = 两条轨的 GainNode ramp，采样级平滑。
+
 ```javascript
-class CrossfadePlayer {
-  constructor() {
-    this.audioA = new Audio();  // 当前播放
-    this.audioB = new Audio();  // 下一首预加载
-    this.active = 'A';         // 当前活跃音频元素
-    this.fadeDuration = 3000;  // 淡入淡出时长 3 秒
+// 基于 mixerEngine 的 AudioContext，两首歌 = 两个 source + 各自 gain
+class CrossfadeDeck {
+  constructor(engine) {
+    this.engine = engine;          // 复用调音台的 AudioContext + master 总线
+    this.current = null;           // { source, gain }
+    this.next = null;
+    this.fadeSec = 3;
   }
 
-  // 预加载下一首
-  preload(url) {
-    const inactive = this.active === 'A' ? this.audioB : this.audioA;
-    inactive.src = url;
-    inactive.load();
+  async preload(url) {
+    // fetch + decodeAudioData，提前解码好（走 /api/music/proxy 解决 CORS）
+    this.next = await this.engine.prepareBuffer(url);
   }
 
-  // 交叉淡入切换
-  async transition() {
-    const current = this.active === 'A' ? this.audioA : this.audioB;
-    const next = this.active === 'A' ? this.audioB : this.audioA;
+  transition() {
+    if (!this.next) return false;  // 未就绪 → 当前曲目继续 loop
+    const t = this.engine.ctx.currentTime;
 
-    if (!next.src || next.readyState < 2) {
-      // 下一首未就绪 → loop 当前段
-      current.loop = true;
-      return false;
-    }
+    this.next.gain.gain.setValueAtTime(0, t);
+    this.next.source.start(t);
+    this.next.gain.gain.linearRampToValueAtTime(1, t + this.fadeSec);   // 下一首淡入
 
-    // 同时播放两轨
-    next.currentTime = 0;
-    next.volume = 0;
-    next.play();
+    this.current.gain.gain.setValueAtTime(1, t);
+    this.current.gain.gain.linearRampToValueAtTime(0, t + this.fadeSec); // 当前淡出
+    this.current.source.stop(t + this.fadeSec + 0.1);
 
-    // 3 秒交叉淡入淡出
-    const steps = 60; // 60 帧 ≈ 50ms/帧
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      current.volume = 1 - t;      // 当前轨淡出
-      next.volume = t;              // 下一轨淡入
-      await sleep(this.fadeDuration / steps);
-    }
-
-    current.pause();
-    current.volume = 1;
-    next.volume = 1;
-    this.active = this.active === 'A' ? 'B' : 'A';
+    this.current = this.next;
+    this.next = null;
     return true;
   }
 }
 ```
 
 **触发时机**：
+
 ```
 当前曲目播放到 85% → 检查缓冲池
   有下一首 → preload → 到 95% 时触发 crossfade
@@ -1127,7 +1137,13 @@ class CrossfadePlayer {
 
 ---
 
+
+
 ## 10. 存储层
+
+> **v3 修订**：与多用户系统（`docs/multi-user-architecture.md`）共用同一个 SQLite 数据库。`sessions` 挂 `user_id`，`track_pool` / `play_history` 经 session 归属到用户。音频文件不能只存 URL——TTAPI CDN 会过期，`audio_local` 由生成器落盘后回填。
+
+
 
 ### 10.1 SQLite Schema
 
@@ -1184,6 +1200,8 @@ CREATE TABLE project_cache (
 
 ---
 
+
+
 ## 11. API 接口
 
 ```
@@ -1203,10 +1221,10 @@ GET    /api/arranger/history            # 播放历史
 GET    /api/arranger/pool-status        # 曲库池状态（已生成/缓冲/费用）
 GET    /api/arranger/energy-curve       # 宏观能量曲线
 
-POST   /api/player/play/:id             # 播放指定曲目
-POST   /api/player/pause                # 暂停
-POST   /api/player/next                 # 手动跳到下一首
-POST   /api/player/prev                 # 上一首
+# v3 修正：播放发生在浏览器（Web Audio），服务端没有播放器。
+# play/pause/音量是纯前端动作，不设服务端接口。
+# 唯一需要服务端的是「下一首选哪首」→ 已由 /api/arranger/* 覆盖：
+#   跳歌 = POST /api/arranger/feedback { action: 'skip' } → 返回下一首曲目信息
 
 GET    /api/history                     # 历史生成记录
 DELETE /api/history/:id                 # 删除记录
@@ -1223,7 +1241,11 @@ WS     /ws/events                       # 实时推送
 
 ---
 
+
+
 ## 12. 前端 UI 模块
+
+
 
 ### 12.1 组件清单
 
@@ -1264,6 +1286,8 @@ App
     └── FallbackToggle (降级开关)
 ```
 
+
+
 ### 12.2 交互流程
 
 ```
@@ -1288,16 +1312,24 @@ App
 
 ---
 
+
+
 ## 13. 部署方案
 
+
+
 ### 13.1 开发环境
+
 ```
 前端: Vite dev server (localhost:5173)
 后端: Express (localhost:3001)
 数据库: SQLite (本地文件)
 ```
 
+
+
 ### 13.2 黑客松部署
+
 ```
 方案 A: 局域网
   - 后端部署在本地 Mac
@@ -1309,3 +1341,4 @@ App
   - 后端: Railway / Render (免费额度)
   - 数据库: SQLite (随后端部署)
 ```
+

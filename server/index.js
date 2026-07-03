@@ -9,6 +9,9 @@ import musicRoutes from './routes/music.js';
 import scheduleRoutes from './routes/schedule.js';
 import configRoutes from './routes/config.js';
 import libraryRoutes from './routes/library.js';
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/user.js';
+import { attachUser } from './middleware/userAuth.js';
 import { isSunoConfigured } from './services/sunoClient.js';
 import { isLlmConfigured } from './services/llm/index.js';
 import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
@@ -18,8 +21,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
 
-app.use(cors());
+// 生产环境 CORS 收紧到同源（前端由 Express 自己托管）；开发环境放开给 Vite
+app.use(cors(isProd ? { origin: process.env.APP_ORIGIN || false, credentials: true } : { credentials: true, origin: true }));
 app.use(express.json());
+app.use(attachUser);
 
 app.get('/api/health', (_req, res) => {
   const llm = resolveLlmConfig();
@@ -34,6 +39,9 @@ app.get('/api/health', (_req, res) => {
     fallbackOnly: process.env.USE_FALLBACK_ONLY === 'true',
   });
 });
+
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 
 app.use('/api/config', configRoutes);
 app.use('/api/library', libraryRoutes);

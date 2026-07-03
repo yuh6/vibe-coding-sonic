@@ -6,6 +6,9 @@ import {
   getFallbackTrack,
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
+import { isSunoConfigured } from '../services/sunoClient.js';
+import { requireUser } from '../middleware/userAuth.js';
+import { consumeQuota, getQuota, refundQuota, saveTrack } from '../services/quotaService.js';
 
 const router = Router();
 
@@ -26,12 +29,43 @@ router.post('/generate', (req, res) => {
       return res.status(400).json({ error: 'mbti or axes is required' });
     }
 
+    // prompt 预览免费且公开
     if (previewOnly) {
       const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style });
       return res.json({ preview: true, ...composed });
     }
 
-    const job = createMusicJob({ mbti, axes, mode, projectAnalysis, style, forceFallback, splitStems });
+    // 付费生成需要登录
+    if (!req.user) {
+      return res.status(401).json({ error: '请先登录后再生成音乐', code: 'UNAUTHORIZED' });
+    }
+
+    // 只有真实走 TTAPI 才消耗配额；兜底曲库不限量
+    let useFallback = forceFallback;
+    let quotaNotice = null;
+    let quotaCharged = false;
+    if (!useFallback && isSunoConfigured()) {
+      const quota = consumeQuota(req.user.id);
+      if (!quota.ok) {
+        useFallback = true;
+        quotaNotice = quota.error;
+      } else {
+        quotaCharged = true;
+      }
+    }
+
+    const job = createMusicJob({
+      mbti,
+      axes,
+      mode,
+      projectAnalysis,
+      style,
+      forceFallback: useFallback,
+      splitStems,
+    });
+    job.userId = req.user.id;
+    job.quotaCharged = quotaCharged;
+
     res.json({
       jobId: job.id,
       status: job.status,
@@ -42,6 +76,8 @@ router.post('/generate', (req, res) => {
       mbti: job.mbti,
       profile: job.profile,
       splitStems: job.splitStems,
+      quota: getQuota(req.user.id),
+      quotaNotice,
     });
   } catch (err) {
     console.error('[music/generate]', err);
@@ -54,6 +90,35 @@ router.get('/status/:id', async (req, res) => {
     const job = await refreshJob(req.params.id);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // 生成完成后归档到用户曲库（只存一次）
+    if (job.status === 'completed' && job.userId && !job.savedToLibrary) {
+      job.savedToLibrary = true;
+      // TTAPI 生成失败落到兜底：退还这次配额
+      if (job.fallback && job.quotaCharged) {
+        job.quotaCharged = false;
+        try {
+          refundQuota(job.userId);
+        } catch (err) {
+          console.error('[music/status] refundQuota failed:', err.message);
+        }
+      }
+      try {
+        saveTrack({
+          jobId: job.id,
+          userId: job.userId,
+          title: job.title || job.fallbackTitle || `${job.mbti} · ${job.mode}`,
+          mbti: job.mbti,
+          mode: job.mode,
+          prompt: job.fullPrompt,
+          audioUrl: job.audioUrl,
+          tracks: job.tracks,
+          fallback: job.fallback,
+        });
+      } catch (err) {
+        console.error('[music/status] saveTrack failed:', err.message);
+      }
     }
 
     res.json({
@@ -91,7 +156,8 @@ router.get('/fallback', (req, res) => {
   res.json(track);
 });
 
-router.get('/proxy', async (req, res) => {
+// 音频代理需登录：防止被当作公网开放代理滥用
+router.get('/proxy', requireUser, async (req, res) => {
   const { url } = req.query;
   let parsed;
   try {
