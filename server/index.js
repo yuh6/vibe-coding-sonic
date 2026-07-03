@@ -11,12 +11,15 @@ import configRoutes from './routes/config.js';
 import libraryRoutes from './routes/library.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
+import sessionRoutes from './routes/session.js';
+import arrangerRoutes from './routes/arranger.js';
 import { attachUser } from './middleware/userAuth.js';
 import { requireAdmin } from './middleware/adminAuth.js';
 import { isSunoConfigured } from './services/sunoClient.js';
 import { isLlmConfigured } from './services/llm/index.js';
 import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
 import { getSetting } from './config/runtimeConfig.js';
+import { attachWsEvents } from './ws/events.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -84,6 +87,11 @@ app.use('/api/mbti', mbtiRoutes);
 app.use('/api/project', projectRoutes);
 app.use('/api/music', musicRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/session', sessionRoutes);
+app.use('/api/arranger', arrangerRoutes);
+
+// 编排引擎生成音频的本地缓存（TTAPI CDN URL 会过期，§9.1 落盘后从这里提供）
+app.use('/audio-cache', express.static(join(__dirname, 'data/audio-cache')));
 
 if (isProd) {
   const distPath = join(__dirname, '../dist');
@@ -93,9 +101,12 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`[server] http://${HOST}:${PORT}`);
   console.log(`[server] TTAPI Suno: ${isSunoConfigured() ? 'enabled' : 'fallback mode'}`);
   const llm = resolveLlmConfig();
   console.log(`[server] LLM: ${isLlmConfigured() ? `${llm.label} (${llm.providerId})` : 'template mode'}`);
+  console.log(`[server] WS /ws/events: enabled`);
 });
+
+attachWsEvents(server);

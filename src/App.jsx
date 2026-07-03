@@ -6,6 +6,7 @@ import PlayerDeck from './components/PlayerDeck';
 import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
+import ArrangerPanel from './components/ArrangerPanel';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
 import AuthPanel from './components/AuthPanel';
@@ -26,6 +27,7 @@ import {
   syncSchedule,
 } from './lib/api';
 import { useMusicPoll, usePlayer } from './hooks/usePlayer';
+import { useArranger } from './hooks/useArranger';
 
 function useHashRoute() {
   const [hash, setHash] = useState(window.location.hash);
@@ -44,7 +46,7 @@ export default function App() {
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
-  const [mode, setMode] = useState('Focus');
+  const [mode, setMode] = useState('focus');
   const [projectName, setProjectName] = useState('足球经理游戏');
   const [projectDesc, setProjectDesc] = useState('复古像素风格的足球经理策略游戏，强调竞技与战术');
   const [projectAnalysis, setProjectAnalysis] = useState(null);
@@ -67,6 +69,7 @@ export default function App() {
   const { isDark, toggle: toggleColorMode } = useColorMode();
   const player = usePlayer();
   const poll = useMusicPoll();
+  const arranger = useArranger();
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);
   const profileTimer = useRef(null);
@@ -266,8 +269,24 @@ export default function App() {
   };
 
   const handlePanic = () => {
-    setMode('Sprint');
-    handleGenerate({ mode: 'Sprint', forceFallback: true });
+    setMode('behind');
+    handleGenerate({ mode: 'behind', forceFallback: true });
+  };
+
+  const handleArrangerStart = () => {
+    arranger.start({ name: projectName, mbtiType: mbti, mbtiSliders: axes, schedule: schedule?.phases });
+  };
+
+  const handleArrangerStop = () => {
+    arranger.stop();
+  };
+
+  const handleArrangerPhaseChange = (nextPhase) => {
+    arranger.changePhase(nextPhase);
+  };
+
+  const handleArrangerFeedback = (action) => {
+    arranger.feedback(action);
   };
 
   const handleApplyPreset = (preset) => {
@@ -412,13 +431,21 @@ export default function App() {
               />
             </div>
 
-            {/* 右 Deck：模式 + Prompt 监视器 */}
+            {/* 右 Deck：模式 + Prompt 监视器 + 编排引擎 */}
             <div className="space-y-4 lg:col-span-3">
               <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
               <PromptCard
                 layers={promptData?.layers}
                 fullPrompt={promptData?.fullPrompt}
                 loading={promptLoading}
+              />
+              <ArrangerPanel
+                arranger={arranger}
+                theme={theme}
+                onStart={handleArrangerStart}
+                onStop={handleArrangerStop}
+                onPhaseChange={handleArrangerPhaseChange}
+                onFeedback={handleArrangerFeedback}
               />
             </div>
 

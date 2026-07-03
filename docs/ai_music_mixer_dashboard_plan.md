@@ -1,5 +1,12 @@
 # AI 即时生成音乐调音台前端方案
 
+> ⚠️ **文档状态：构想方案，技术选型仅供参考，与当前代码不一致。**
+> 本文 §7/§14 推荐的 Next.js + TypeScript + Zustand + wavesurfer.js + PostgreSQL + Redis
+> 是撰写时的产品构想，**实际项目采用 Vite + React（纯 JS）+ SQLite（better-sqlite3）+ Howler**，
+> 也没有引入 wavesurfer.js/Zustand。已实现的调音台代码见 `src/components/mixer/`、
+> `src/audio/mixerEngine.js`、`src/hooks/useMixer.js`。阅读本文时请把它当"方向参考"，
+> 不要按文中依赖清单去安装或期待项目已具备这些能力。
+
 ## 1. 项目定位
 
 本项目不是传统 DJ 软件，也不是完整 DAW，而是一个：

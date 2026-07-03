@@ -5,12 +5,70 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const profiles = JSON.parse(readFileSync(join(__dirname, '../data/mbti-profiles.json'), 'utf-8'));
 
-const MODE_MODIFIERS = {
-  Focus: { bpmDelta: -10, style: 'ambient concentration, reduced percussion, smooth flowing', label: '专注' },
-  Spark: { bpmDelta: 5, style: 'playful brainstorming energy, surprising variations', label: '头脑风暴' },
-  Sprint: { bpmDelta: 20, style: 'urgent driving rhythm, intense momentum, deadline pressure', label: '冲刺' },
-  Charge: { bpmDelta: 15, style: 'epic cinematic climax, powerful drums, heroic energy', label: '战鼓' },
+// 七阶段体系（v3 替换原 Focus/Spark/Sprint/Charge 四模式）。
+// 旧模式映射：Focus→focus，Spark→brainstorm，Sprint→sprint，Charge→charge。
+// weirdnessConstraint / styleWeight 已用真实 TTAPI Key 验证为可用的 Suno V5 参数。
+const PHASE_PRESETS = {
+  brainstorm: {
+    bpmDelta: 5,
+    style: 'playful, varied, dynamic, surprising, moderate energy brainstorming',
+    label: '头脑风暴',
+    weirdnessConstraint: 60,
+    styleWeight: 50,
+  },
+  focus: {
+    bpmDelta: -10,
+    style: 'ambient, minimal, spacious, steady, low energy concentration',
+    label: '专注构思',
+    weirdnessConstraint: 40,
+    styleWeight: 70,
+  },
+  sprint: {
+    bpmDelta: 20,
+    style: 'driving, urgent, high energy, relentless, propulsive',
+    label: '代码冲刺',
+    weirdnessConstraint: 45,
+    styleWeight: 75,
+  },
+  charge: {
+    bpmDelta: 15,
+    style: 'epic, powerful, heroic, building to climax',
+    label: '战鼓催阵',
+    weirdnessConstraint: 50,
+    styleWeight: 65,
+  },
+  behind: {
+    bpmDelta: 25,
+    style: 'urgent, tense, pushing, countdown, high stakes',
+    label: '落后了',
+    weirdnessConstraint: 45,
+    styleWeight: 70,
+  },
+  break: {
+    bpmDelta: -20,
+    style: 'chill, relaxed, mellow, easygoing, soft',
+    label: '休息一下',
+    weirdnessConstraint: 55,
+    styleWeight: 60,
+  },
+  celebrate: {
+    bpmDelta: 10,
+    style: 'triumphant, joyful, euphoric, confetti, celebration',
+    label: '完成了！',
+    weirdnessConstraint: 55,
+    styleWeight: 60,
+  },
 };
+
+// 兼容旧四模式调用方（如遗留缓存/外部脚本仍传 Focus/Spark/Sprint/Charge）
+const LEGACY_PHASE_MAP = { Focus: 'focus', Spark: 'brainstorm', Sprint: 'sprint', Charge: 'charge' };
+
+function resolvePhaseId(phase) {
+  if (PHASE_PRESETS[phase]) return phase;
+  const mapped = LEGACY_PHASE_MAP[phase];
+  if (mapped && PHASE_PRESETS[mapped]) return mapped;
+  return 'focus';
+}
 
 // MBTI 四轴 remix：value 0-100，0 = 左极（I/N/T/J），100 = 右极（E/S/F/P）
 const AXIS_DESCRIPTORS = {
@@ -82,29 +140,30 @@ function buildProjectLayer(projectAnalysis) {
   return parts.slice(0, 6).join(', ');
 }
 
-export function composePrompt({ mbti, axes, mode = 'Focus', projectAnalysis, style }) {
+export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, style }) {
   const resolvedMbti = axes ? mbtiFromAxes(axes) : mbti;
   const profile = profiles[resolvedMbti];
   if (!profile) {
     throw new Error(`Unknown MBTI type: ${resolvedMbti}`);
   }
 
-  const modeModifier = MODE_MODIFIERS[mode] || MODE_MODIFIERS.Focus;
+  const phase = resolvePhaseId(mode);
+  const phasePreset = PHASE_PRESETS[phase];
   const styleAdj = buildStyleAdjustments(style);
   const remixDescriptors = buildRemixDescriptors(axes);
 
   const baseBpm = (profile.bpmMin + profile.bpmMax) / 2;
-  const bpm = clampBpm(baseBpm + modeModifier.bpmDelta + styleAdj.bpmDelta);
+  const bpm = clampBpm(baseBpm + phasePreset.bpmDelta + styleAdj.bpmDelta);
 
   const mbtiLayer = `${profile.promptBase}, ${profile.styleKeywords}`;
   const projectLayer = buildProjectLayer(projectAnalysis);
-  const modeLayer = `${modeModifier.style}, ${bpm} BPM`;
+  const modeLayer = `${phasePreset.style}, ${bpm} BPM`;
   const consoleParts = [...remixDescriptors, ...styleAdj.keywords];
   const consoleLayer = consoleParts.join(', ');
 
   const fullPrompt = [
     profile.promptBase,
-    modeModifier.style,
+    phasePreset.style,
     projectLayer,
     consoleLayer,
     `${bpm} BPM`,
@@ -124,7 +183,9 @@ export function composePrompt({ mbti, axes, mode = 'Focus', projectAnalysis, sty
       console: consoleLayer,
     },
     bpm,
-    mode,
+    mode: phase,
+    weirdnessConstraint: phasePreset.weirdnessConstraint,
+    styleWeight: phasePreset.styleWeight,
     mbti: resolvedMbti,
     profile: {
       traits: profile.traits,
@@ -142,4 +203,4 @@ export function listMbtiTypes() {
   return Object.keys(profiles);
 }
 
-export { MODE_MODIFIERS };
+export { PHASE_PRESETS };

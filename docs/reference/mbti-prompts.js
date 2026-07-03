@@ -1,4 +1,8 @@
 /**
+ * ⚠️ 未接入代码：本文件全仓库搜索无任何 import 引用，仅作素材参考存放于 docs/reference/。
+ * 服务端实际生效的模式修饰词在 server/services/promptComposer.js 的 MODE_MODIFIERS
+ * （Focus/Spark/Sprint/Charge 四模式），与本文件的设计不是同一套，不要假设两者已同步。
+ *
  * MBTI × 模式 → Suno Prompt 数据库 v2
  *
  * 基于 Suno V5 最佳实践重构：

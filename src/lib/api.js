@@ -166,3 +166,75 @@ export function addLibraryTrack({ mode, title, url }) {
 export function deleteLibraryTrack(mode, id) {
   return request(`/api/library/${mode}/${id}`, { method: 'DELETE' });
 }
+
+// ── 编排引擎 (Arranger) ──
+
+export function createArrangerSession({ name, mbtiType, mbtiSliders, schedule, budgetLimit }) {
+  return request('/api/session', {
+    method: 'POST',
+    body: JSON.stringify({ name, mbtiType, mbtiSliders, schedule, budgetLimit }),
+  });
+}
+
+export function getArrangerSession(sessionId) {
+  return request(`/api/session/${sessionId}`);
+}
+
+export function updateArrangerSchedule(sessionId, schedule) {
+  return request(`/api/session/${sessionId}/schedule`, {
+    method: 'PUT',
+    body: JSON.stringify({ schedule }),
+  });
+}
+
+export function startArranger(sessionId) {
+  return request('/api/arranger/start', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export function advanceArranger(sessionId) {
+  return request('/api/arranger/advance', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export function stopArranger(sessionId) {
+  return request('/api/arranger/stop', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export function setArrangerPhase(sessionId, phase) {
+  return request(`/api/arranger/phase/${phase}`, {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export function sendArrangerFeedback(sessionId, action) {
+  return request('/api/arranger/feedback', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId, action }),
+  });
+}
+
+export function getArrangerNowPlaying(sessionId) {
+  return request(`/api/arranger/now-playing?sessionId=${encodeURIComponent(sessionId)}`);
+}
+
+export function getArrangerHistory(sessionId, limit = 20) {
+  return request(`/api/arranger/history?sessionId=${encodeURIComponent(sessionId)}&limit=${limit}`);
+}
+
+export function getArrangerPoolStatus(sessionId) {
+  return request(`/api/arranger/pool-status?sessionId=${encodeURIComponent(sessionId)}`);
+}
+
+export function getArrangerEnergyCurve() {
+  return request('/api/arranger/energy-curve');
+}
+

@@ -5,11 +5,15 @@ export const MBTI_TYPES = [
   'ISTP', 'ISFP', 'ESTP', 'ESFP',
 ];
 
+// 七阶段体系（v3 替换原 Focus/Spark/Sprint/Charge 四模式）
 export const MODES = [
-  { id: 'Focus', label: '专注', emoji: '🎯', desc: 'Lo-fi · 沉浸开发' },
-  { id: 'Spark', label: '头脑风暴', emoji: '💡', desc: '欢快 · 选题讨论' },
-  { id: 'Sprint', label: '冲刺', emoji: '⚡', desc: '高 BPM · 赶工' },
-  { id: 'Charge', label: '战鼓', emoji: '🔥', desc: '史诗 · 上台前' },
+  { id: 'brainstorm', label: '头脑风暴', emoji: '💡', desc: '欢快 · 选题讨论' },
+  { id: 'focus', label: '专注构思', emoji: '🎯', desc: 'Lo-fi · 沉浸开发' },
+  { id: 'sprint', label: '代码冲刺', emoji: '⚡', desc: '高 BPM · 赶工' },
+  { id: 'charge', label: '战鼓催阵', emoji: '🔥', desc: '史诗 · 上台前' },
+  { id: 'behind', label: '落后了', emoji: '⏰', desc: '紧迫 · 追赶进度' },
+  { id: 'break', label: '休息一下', emoji: '☕', desc: '放松 · 短暂充电' },
+  { id: 'celebrate', label: '完成了！', emoji: '🎉', desc: '狂欢 · 庆祝胜利' },
 ];
 
 export const MBTI_THEMES = {
