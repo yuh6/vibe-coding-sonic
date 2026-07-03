@@ -1,8 +1,12 @@
 /**
+ * ⚠️ 未接入代码：本文件全仓库搜索无任何 import 引用，仅作素材参考存放于 docs/reference/。
+ * 服务端实际消费的是 server/data/mbti-profiles.json（更简化的版本，无本文件的分类粒度）。
+ * 如需真正启用，应在 server/services/promptComposer.js 中接入，而不是想当然认为它已生效。
+ *
  * Suno 音乐风格关键词库
  *
  * 来源：Suno V5 官方文档 + 社区实测 + 手册附录
- * 用途：MBTI prompt 构造时的风格选择参考
+ * 用途：MBTI prompt 构造时的风格选择参考（设计中，尚未被 promptComposer.js 使用）
  *
  * 分类：
  *   1. 电子/舞曲

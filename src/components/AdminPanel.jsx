@@ -24,8 +24,16 @@ const PROVIDER_KEY_MAP = {
   'cli-kimi': 'KIMI_API_KEY',
 };
 
-const MODES = ['focus', 'spark', 'sprint', 'charge'];
-const MODE_LABELS = { focus: '🎯 专注', spark: '💡 头脑风暴', sprint: '⚡ 冲刺', charge: '🔥 战鼓' };
+const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
+const MODE_LABELS = {
+  brainstorm: '💡 头脑风暴',
+  focus: '🎯 专注构思',
+  sprint: '⚡ 代码冲刺',
+  charge: '🔥 战鼓催阵',
+  behind: '⏰ 落后了',
+  break: '☕ 休息一下',
+  celebrate: '🎉 完成了！',
+};
 
 function SecretInput({ label, placeholder, value, onChange, hint }) {
   return (
@@ -292,13 +300,13 @@ export default function AdminPanel() {
       <div className="glass rounded-2xl p-4">
         <span className="deck-label">预生成音乐库</span>
 
-        <div className="mt-3 flex gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {MODES.map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setLibMode(m)}
-              className={`pad flex-1 py-2 text-xs ${libMode === m ? 'pad-active' : ''}`}
+              className={`pad px-2 py-2 text-xs ${libMode === m ? 'pad-active' : ''}`}
             >
               {MODE_LABELS[m]}
               <span className="ml-1 text-faint">({library?.[m]?.length || 0})</span>

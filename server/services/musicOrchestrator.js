@@ -146,6 +146,8 @@ export function createMusicJob({
       prompt: composed.fullPrompt,
       title: `${composed.mbti}-${composed.mode}`,
       tags: composed.layers?.mbti || '',
+      weirdnessConstraint: composed.weirdnessConstraint,
+      styleWeight: composed.styleWeight,
     })
       .then(({ taskId }) => {
         job.sunoTaskId = taskId;
@@ -163,6 +165,15 @@ export function createMusicJob({
 
 export function getJob(jobId) {
   return jobs.get(jobId) || null;
+}
+
+export function userOwnsJobUrl(userId, url) {
+  for (const job of jobs.values()) {
+    if (job.userId !== userId) continue;
+    if (job.audioUrl === url) return true;
+    if ((job.tracks || []).some((track) => track?.url === url)) return true;
+  }
+  return false;
 }
 
 export async function refreshJob(jobId) {

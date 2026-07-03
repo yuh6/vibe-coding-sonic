@@ -1,28 +1,51 @@
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'crypto';
+import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
 import { db } from '../db.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
+const MAX_EMAIL_LENGTH = 254;
+const MAX_NAME_LENGTH = 80;
+const MAX_PASSWORD_LENGTH = 128;
+const DUMMY_PASSWORD_HASH = `${'0'.repeat(32)}:${'0'.repeat(128)}`;
+const scryptAsync = promisify(scrypt);
 export const SESSION_COOKIE = 'vibe_session';
 
-function hashPassword(password) {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
+function normalizeEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (normalized.length > MAX_EMAIL_LENGTH) throw new Error('邮箱过长');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error('邮箱格式不正确');
+  return normalized;
 }
 
-function verifyPassword(password, stored) {
+function normalizePassword(password, { forLogin = false } = {}) {
+  const normalized = String(password || '');
+  if (!forLogin && normalized.length < 8) throw new Error('密码至少 8 位');
+  if (normalized.length > MAX_PASSWORD_LENGTH) throw new Error(`密码最多 ${MAX_PASSWORD_LENGTH} 位`);
+  return normalized;
+}
+
+function normalizeName(name, fallback) {
+  return (String(name || '').trim() || fallback).slice(0, MAX_NAME_LENGTH);
+}
+
+async function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = await scryptAsync(password, salt, 64);
+  return `${salt}:${hash.toString('hex')}`;
+}
+
+async function verifyPassword(password, stored) {
   const [salt, hash] = String(stored).split(':');
   if (!salt || !hash) return false;
-  const candidate = scryptSync(password, salt, 64);
+  const candidate = await scryptAsync(password, salt, 64);
   const expected = Buffer.from(hash, 'hex');
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 
-export function registerUser({ email, password, name }) {
-  const normalized = String(email || '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error('邮箱格式不正确');
-  if (!password || password.length < 8) throw new Error('密码至少 8 位');
-  const displayName = String(name || '').trim() || normalized.split('@')[0];
+export async function registerUser({ email, password, name }) {
+  const normalized = normalizeEmail(email);
+  const normalizedPassword = normalizePassword(password);
+  const displayName = normalizeName(name, normalized.split('@')[0]);
 
   const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(normalized);
   if (exists) throw new Error('该邮箱已注册');
@@ -30,7 +53,7 @@ export function registerUser({ email, password, name }) {
   const user = {
     id: randomUUID(),
     email: normalized,
-    password_hash: hashPassword(password),
+    password_hash: await hashPassword(normalizedPassword),
     name: displayName,
     created_at: Date.now(),
   };
@@ -40,15 +63,16 @@ export function registerUser({ email, password, name }) {
   return { id: user.id, email: user.email, name: user.name, role: 'user' };
 }
 
-export function loginUser({ email, password }) {
-  const normalized = String(email || '').trim().toLowerCase();
+export async function loginUser({ email, password }) {
+  const normalized = normalizeEmail(email);
+  const normalizedPassword = normalizePassword(password, { forLogin: true });
   const row = db.prepare('SELECT * FROM users WHERE email = ?').get(normalized);
   // 用户不存在时也做一次哈希，避免时间侧信道暴露邮箱是否注册
   if (!row) {
-    verifyPassword(password || '', 'x:0000');
+    await verifyPassword(normalizedPassword, DUMMY_PASSWORD_HASH);
     throw new Error('邮箱或密码错误');
   }
-  if (!verifyPassword(password || '', row.password_hash)) throw new Error('邮箱或密码错误');
+  if (!(await verifyPassword(normalizedPassword, row.password_hash))) throw new Error('邮箱或密码错误');
   return { id: row.id, email: row.email, name: row.name, role: row.role };
 }
 

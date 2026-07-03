@@ -8,7 +8,7 @@ router.get('/types', (_req, res) => {
 });
 
 router.post('/profile', (req, res) => {
-  const { mbti, mode = 'Focus', projectAnalysis } = req.body || {};
+  const { mbti, mode = 'focus', projectAnalysis } = req.body || {};
   if (!mbti) {
     return res.status(400).json({ error: 'mbti is required' });
   }

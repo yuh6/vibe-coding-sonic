@@ -6,5 +6,7 @@ dist
 server/data/runtime-config.json
 server/data/runtime-library.json
 server/data/app.db*
+server/data/audio-cache/*
+!server/data/audio-cache/.gitkeep
 graphify-out
 .playwright-cli

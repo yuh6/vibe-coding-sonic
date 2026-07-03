@@ -82,6 +82,24 @@ export function listTracks(userId, limit = 50) {
     }));
 }
 
+export function userOwnsTrackUrl(userId, url) {
+  const rows = db
+    .prepare('SELECT audio_url, tracks_json FROM tracks WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
+    .all(userId);
+
+  for (const row of rows) {
+    if (row.audio_url === url) return true;
+    try {
+      const tracks = JSON.parse(row.tracks_json || '[]');
+      if (tracks.some((track) => track?.url === url)) return true;
+    } catch {
+      // Ignore malformed legacy rows.
+    }
+  }
+
+  return false;
+}
+
 export function getProfile(userId) {
   const row = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
   if (!row) return null;

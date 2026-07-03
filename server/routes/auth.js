@@ -33,18 +33,18 @@ function issueSession(res, user) {
   return { user, quota: getQuota(user.id) };
 }
 
-router.post('/register', authRateLimit, (req, res) => {
+router.post('/register', authRateLimit, async (req, res) => {
   try {
-    const user = registerUser(req.body || {});
+    const user = await registerUser(req.body || {});
     res.json(issueSession(res, user));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-router.post('/login', authRateLimit, (req, res) => {
+router.post('/login', authRateLimit, async (req, res) => {
   try {
-    const user = loginUser(req.body || {});
+    const user = await loginUser(req.body || {});
     res.json(issueSession(res, user));
   } catch (err) {
     res.status(401).json({ error: err.message });

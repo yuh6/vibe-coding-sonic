@@ -10,12 +10,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MANIFEST_PATH = join(__dirname, '../data/fallback-manifest.json');
 const LIBRARY_PATH = join(__dirname, '../data/runtime-library.json');
 
-const MODES = ['focus', 'spark', 'sprint', 'charge'];
+// 七阶段体系（v3 替换原 focus/spark/sprint/charge 四模式）
+const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
 
 let manifest = load();
 
 function emptyManifest() {
-  return { focus: [], spark: [], sprint: [], charge: [] };
+  return { brainstorm: [], focus: [], sprint: [], charge: [], behind: [], break: [], celebrate: [] };
 }
 
 function normalizeManifest(raw) {
@@ -99,4 +100,8 @@ export function pickTrack(mode, mbti) {
   if (!tracks.length) return null;
   const index = mbti ? mbti.charCodeAt(0) % tracks.length : 0;
   return tracks[index];
+}
+
+export function libraryHasTrackUrl(url) {
+  return Object.values(manifest).some((tracks) => tracks.some((track) => track?.url === url));
 }

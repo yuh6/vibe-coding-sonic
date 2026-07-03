@@ -2,6 +2,33 @@
 
 > vibe-coding-sonic 核心模块
 
+> ✅ **文档状态：核心闭环（§2/§7/§8/§9/§10/§11）已按本文实现，详见下方「实施进度」表。**
+> 2026-07-03 完成开发：七阶段体系替换了原 Focus/Spark/Sprint/Charge 四模式，
+> 编排引擎（Arranger/曲库池/宏观弧线/感知层）、生成调度器、Web Audio 交叉淡入、
+> SQLite 编排表、`/api/arranger/*` + `/api/session/*` REST 接口、`/ws/events`
+> WebSocket 推送均已落地并完成功能自测。剩余缺口（歌词/风格选择 UI/备注解析/
+> project_cache）见表中「❌ 未实现」标注，非本次开发范围。
+
+## 实施进度对照
+
+| 模块 | 设计章节 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| MBTI 滑块 + 类型判定 | §1 | ✅ 已实现 | `src/lib/mbti.js` `AXES`/`mbtiFromAxes`，与文档一致 |
+| MBTI 视觉映射（配色） | §1.3 | ✅ 已实现 | `src/lib/mbti.js` `MBTI_THEMES` |
+| 项目阶段模块（七阶段） | §2 | ✅ 已实现 | `src/lib/mbti.js` `MODES`、`server/services/promptComposer.js` `PHASE_PRESETS`，已用七阶段（brainstorm/focus/sprint/charge/behind/break/celebrate）硬替换原四模式，旧曲库按文档映射迁移 |
+| 项目内容解析器 | §3 | ⚠️ 部分实现 | `server/routes/project.js` 有 `analyze`/`analyze-github`，走 LLM 或 `project-templates.json` 关键词回退；无 SQLite 缓存（§3.3，`project_cache` 表已建但未接入解析器） |
+| 人声/歌词生成模块 | §4 | ❌ 未实现 | 无歌词生成接口，当前请求始终 `instrumental: true` |
+| 风格选择模块 | §5 | ⚠️ 部分实现 | `docs/reference/genre-keywords.js` 素材库存在但**未被任何代码引用**，前端无风格选择 UI |
+| 备注模块（AI 解析） | §6 | ❌ 未实现 | 无备注输入与 LLM 解析链路 |
+| 组装器 (Assembler) | §7 | ⚠️ 简化实现 | `promptComposer.js` 有类似逻辑，但优先级规则、200 字符截断等均与本文不同 |
+| 编排引擎 / 曲库池 / 宏观弧线 / 感知层 | §8 | ✅ 已实现 | `server/services/arranger/`：`macroArc.js`（宏观弧线）、`phaseArrangement.js`（阶段波形）、`trackPool.js`（曲库池）、`sensingLayer.js`（感知层）、`arranger.js`（决策/打分）、`sessionStore.js`（会话运行态）、`index.js`（状态机编排）；决策逻辑、防重复规则、打分公式均与本文一致 |
+| 生成器 (TTAPI 客户端) | §9.1 | ✅ 已实现 | `server/services/sunoClient.js`，字段与本文一致 |
+| 生成调度 / 交叉淡入 | §9.2 / §9.3 | ✅ 已实现 | `server/services/arranger/generationScheduler.js`（预算门控 + 并发上限 + 音频本地缓存）；`src/audio/crossfadeDeck.js`（复用 `MixerEngine` 的 Web Audio 链路做采样级交叉淡入，取代原 Howler 双 `<audio>` 方案） |
+| 存储层（编排相关表） | §10 | ✅ 已实现 | `server/db.js` 新增 `sessions`/`track_pool`/`play_history`/`project_cache` 四表，与多用户表（见 `docs/multi-user-architecture.md`）共库 |
+| API 接口 `/api/arranger/*` | §11 | ✅ 已实现 | `server/routes/session.js`、`server/routes/arranger.js`（含 `/advance` 供前端 85% 预加载调用）、`server/ws/events.js`（`/ws/events` 手写 RFC6455 实现，因沙箱无法 `npm install ws`） |
+| 前端 UI（调音台/编排面板） | §12 | ✅ 已实现 | `src/components/ArrangerPanel.jsx`（EnergyCurve/MacroTimeline/PoolStatus/MoodIndicator + 反馈按钮）、`src/hooks/useArranger.js`（编排决策 + WebSocket + CrossfadeDeck 生命周期），已接入 `src/App.jsx` |
+
+
 ## v3 修订说明（对照代码评审后的修正）
 
 
@@ -17,6 +44,8 @@
 | 8   | 新增：生成完成后可选触发 stems 分离，产物直接进 `/#/mixer` 调音台                    | `sunoClient` 已实现 `stems-all`，这是编排引擎与调音台的连接点                   |
 | 9   | §10 存储层与多用户系统共用 SQLite，核心表挂 `user_id`                         | 见 `docs/multi-user-architecture.md`                           |
 | 10  | 新增：音频落盘要求——TTAPI CDN URL 会过期，生成成功后必须转存                        | 24h 音乐流依赖本地/对象存储缓存                                            |
+| 11  | §11 `/ws/events` 用 Node 内置 `crypto`/`net` 手写 RFC6455 最小实现，未依赖 `ws` 包 | 沙箱环境 `npm install` 无 registry 访问权限；仅实现服务端推送/心跳所需子集（无分片重组） |
+| 12  | §11 新增 `POST /api/arranger/advance`（文档原设计未列出）                     | 前端 85% 预加载需要一个「只决策不算跳歌」的端点，区别于 `feedback:skip`（会标记 `user_skipped`） |
 
 
 ---
