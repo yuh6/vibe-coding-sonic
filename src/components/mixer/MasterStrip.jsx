@@ -2,12 +2,12 @@ import LevelMeter from './LevelMeter';
 
 export default function MasterStrip({ engine, master, onUpdate }) {
   return (
-    <div className="glass flex w-[110px] shrink-0 flex-col items-center gap-2 rounded-xl border-2 px-2 py-3"
+    <div className="glass flex w-[128px] flex-none flex-col items-center gap-2 rounded-xl border-2 px-2 py-3"
       style={{ borderColor: 'var(--border-strong)' }}>
       <span className="font-display text-[11px] font-bold text-theme">MASTER</span>
 
-      <div className="flex items-end gap-1.5">
-        <LevelMeter getLevel={() => engine.getMasterLevel()} className="h-[132px] w-3" />
+      <div className="flex min-h-[132px] flex-1 items-stretch justify-center self-stretch">
+        <LevelMeter getLevel={() => engine.getMasterLevel()} className="h-full w-3" />
       </div>
 
       <button

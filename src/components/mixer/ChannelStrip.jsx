@@ -8,7 +8,7 @@ export default function ChannelStrip({ track, engine, onUpdate, onRemove }) {
   const { state } = track;
 
   return (
-    <div className="glass flex w-[110px] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-3">
+    <div className="glass flex min-w-[96px] flex-1 flex-col items-center gap-2 rounded-xl px-2 py-3">
       <div className="flex w-full items-center justify-between gap-1">
         <span
           className="truncate font-display text-[11px] font-bold"

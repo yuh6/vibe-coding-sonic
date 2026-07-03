@@ -5,6 +5,9 @@ import TransportBar from './TransportBar';
 import WaveformTrack from './WaveformTrack';
 import ChannelStrip from './ChannelStrip';
 import MasterStrip from './MasterStrip';
+import EmptyStrip from './EmptyStrip';
+
+const EMPTY_SLOTS = 8;
 
 export default function MixerPage() {
   const mixer = useMixer();
@@ -65,20 +68,26 @@ export default function MixerPage() {
           )}
         </div>
 
-        <div className="glass rounded-2xl p-4">
-          <span className="deck-label">Mixer Console</span>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {mixer.tracks.map((t) => (
-              <ChannelStrip
-                key={t.id}
-                track={t}
-                engine={mixer.engine}
-                onUpdate={(patch) => mixer.updateTrack(t.id, patch)}
-                onRemove={() => mixer.removeTrack(t.id)}
-              />
-            ))}
-            <MasterStrip engine={mixer.engine} master={mixer.master} onUpdate={mixer.updateMaster} />
-          </div>
+      </div>
+
+      {/* 底部：调音台横贯整行，空槽位补齐台面 */}
+      <div className="glass rounded-2xl p-4 lg:col-span-12">
+        <span className="deck-label">Mixer Console</span>
+        <div className="mt-3 flex items-stretch gap-2 overflow-x-auto pb-1">
+          {mixer.tracks.map((t) => (
+            <ChannelStrip
+              key={t.id}
+              track={t}
+              engine={mixer.engine}
+              onUpdate={(patch) => mixer.updateTrack(t.id, patch)}
+              onRemove={() => mixer.removeTrack(t.id)}
+            />
+          ))}
+          {Array.from({ length: Math.max(0, EMPTY_SLOTS - mixer.tracks.length) }, (_, i) => (
+            <EmptyStrip key={`empty-${i}`} index={mixer.tracks.length + i + 1} />
+          ))}
+          <div className="w-px flex-none self-stretch" style={{ background: 'var(--border-strong)' }} />
+          <MasterStrip engine={mixer.engine} master={mixer.master} onUpdate={mixer.updateMaster} />
         </div>
       </div>
     </div>
