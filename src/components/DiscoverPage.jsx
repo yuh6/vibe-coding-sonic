@@ -195,35 +195,35 @@ export default function DiscoverPage({ onPlayTrack, onRequireAuth }) {
           />
 
           {playlistDetail ? (
-        <div>
-          <button onClick={() => setPlaylistDetail(null)} className="text-xs text-white/40 mb-3 hover:text-white/60">← 返回列表</button>
-          <h3 className="text-sm font-medium text-white/80 mb-2">{playlistDetail.title}</h3>
-          <div className="space-y-1">
-            {playlistDetail.tracks?.map((t, i) => (
-              <div
-                key={t.id}
-                onClick={() => {
-                  if (t.id) recordSharedTrackPlay(t.id).catch(() => {});
-                  onPlayTrack?.({ audioUrl: t.audioUrl, title: t.title, trackId: t.id });
-                }}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer"
-              >
-                <span className="text-[11px] text-white/20 w-5 text-right">{i + 1}</span>
-                <span className="text-xs text-white/70 flex-1 truncate">{t.title}</span>
-                <span className="text-[10px] text-white/30">{t.genre}</span>
-                <span className="text-[10px] text-white/20">{t.bpm} BPM</span>
+            <div>
+              <button onClick={() => setPlaylistDetail(null)} className="text-xs text-white/40 mb-3 hover:text-white/60">← 返回列表</button>
+              <h3 className="text-sm font-medium text-white/80 mb-2">{playlistDetail.title}</h3>
+              <div className="space-y-1">
+                {playlistDetail.tracks?.map((t, i) => (
+                  <div
+                    key={t.id}
+                    onClick={() => {
+                      if (t.id) recordSharedTrackPlay(t.id).catch(() => {});
+                      onPlayTrack?.({ audioUrl: t.audioUrl, title: t.title, trackId: t.id });
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer"
+                  >
+                    <span className="text-[11px] text-white/20 w-5 text-right">{i + 1}</span>
+                    <span className="text-xs text-white/70 flex-1 truncate">{t.title}</span>
+                    <span className="text-[10px] text-white/30">{t.genre}</span>
+                    <span className="text-[10px] text-white/20">{t.bpm} BPM</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ) : playlists.length === 0 ? (
-        <div className="text-center text-white/30 text-sm py-8">
-          暂无公开播放列表<br/>
-          <span className="text-[11px]">在歌曲总库中收藏歌曲到播放列表，其他人就能发现它</span>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">{playlists.map((pl) => <PlaylistCard key={pl.id} playlist={pl} onPlay={handlePlayPlaylist} />)}</div>
-      )}
+            </div>
+          ) : playlists.length === 0 ? (
+            <div className="text-center text-white/30 text-sm py-8">
+              暂无公开播放列表<br/>
+              <span className="text-[11px]">在歌曲总库中收藏歌曲到播放列表，其他人就能发现它</span>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">{playlists.map((pl) => <PlaylistCard key={pl.id} playlist={pl} onPlay={handlePlayPlaylist} />)}</div>
+          )}
         </div>
       )}
     </div>
