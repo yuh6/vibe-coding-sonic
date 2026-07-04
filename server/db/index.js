@@ -29,8 +29,15 @@ if (DB_DIALECT === 'pg') {
   console.log('[db] Using SQLite:', process.env.DB_PATH || 'server/data/app.db');
 }
 
-// 执行迁移（创建表）
-await dal.exec(getMigrationSQL(DB_DIALECT));
+// 执行迁移（创建表），PG 使用事务保护
+const migrationSQL = getMigrationSQL(DB_DIALECT);
+if (DB_DIALECT === 'pg') {
+  // PG: 将整个迁移包裹在事务中，确保原子性
+  await dal.exec(`BEGIN; ${migrationSQL} COMMIT;`);
+} else {
+  // SQLite: exec() 本身是原子的（WAL 模式下）
+  await dal.exec(migrationSQL);
+}
 
 // 兼容旧 db.js 的导出（迁移期间）
 export { dal };

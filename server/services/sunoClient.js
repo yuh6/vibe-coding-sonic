@@ -4,6 +4,8 @@
  */
 import { resolveTtapiRuntime } from '../config/providers.js';
 
+const TTAPI_TIMEOUT_MS = 30_000; // TTAPI API 30 秒超时
+
 const AUDIO_EXT_RE = /\.(mp3|wav|m4a|aac|flac|ogg|opus)(\?|#|$)/i;
 const MEDIA_REJECT_RE = /(image|video|thumbnail|cover|large|jpeg|jpg|png|webp|gif|mp4)/i;
 const GENERIC_LABELS = new Set([
@@ -187,6 +189,7 @@ async function fetchTask(taskId) {
   const url = `${cfg.baseUrl}${cfg.fetchPath}?jobId=${encodeURIComponent(taskId)}`;
   const res = await fetch(url, {
     headers: ttapiHeaders(cfg.apiKey),
+    signal: AbortSignal.timeout(TTAPI_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -239,6 +242,7 @@ export async function submitGeneration({
   const res = await fetch(url, {
     method: 'POST',
     headers: ttapiHeaders(cfg.apiKey),
+    signal: AbortSignal.timeout(TTAPI_TIMEOUT_MS),
     body: JSON.stringify(body),
   });
 
@@ -274,6 +278,7 @@ export async function submitStemSeparation({ musicId }) {
   const res = await fetch(url, {
     method: 'POST',
     headers: ttapiHeaders(cfg.apiKey),
+    signal: AbortSignal.timeout(TTAPI_TIMEOUT_MS),
     body: JSON.stringify({
       music_id: musicId,
       isStorage: true,

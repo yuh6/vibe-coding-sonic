@@ -28,6 +28,9 @@ import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
 import { getSetting } from './config/runtimeConfig.js';
 import { attachWsEvents } from './ws/events.js';
 import { attachWsRadio } from './ws/radio.js';
+import { dal } from './db.js';
+import { cache } from './cache/index.js';
+import { cleanupLocalCache } from './storage/local.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -116,6 +119,42 @@ if (isProd) {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  404 兜底
+// ═══════════════════════════════════════════════════════════════
+
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  全局错误处理中间件（必须 4 个参数）
+// ═══════════════════════════════════════════════════════════════
+
+app.use((err, _req, res, _next) => {
+  const status = err.status || err.statusCode || 500;
+  const message = isProd ? '服务器内部错误' : (err.message || '服务器内部错误');
+  console.error('[server] Unhandled error:', err.stack || err.message || err);
+  res.status(status).json({ error: message, code: 'INTERNAL_ERROR' });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  进程级异常兜底
+// ═══════════════════════════════════════════════════════════════
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[process] unhandledRejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[process] uncaughtException:', err);
+  process.exit(1);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  启动服务器
+// ═══════════════════════════════════════════════════════════════
+
 const server = app.listen(PORT, HOST, () => {
   console.log(`[server] http://${HOST}:${PORT}`);
   console.log(`[server] TTAPI Suno: ${isSunoConfigured() ? 'enabled' : 'fallback mode'}`);
@@ -126,3 +165,32 @@ const server = app.listen(PORT, HOST, () => {
 
 attachWsEvents(server);
 attachWsRadio(server);
+
+// ═══════════════════════════════════════════════════════════════
+//  音频缓存定期清理（每小时，清除 7 天前的本地缓存文件）
+// ═══════════════════════════════════════════════════════════════
+
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 小时
+const cleanupTimer = setInterval(() => {
+  cleanupLocalCache(7 * 24 * 60 * 60 * 1000).catch((err) => {
+    console.warn('[cleanup] audio cache cleanup failed:', err.message);
+  });
+}, CLEANUP_INTERVAL_MS);
+cleanupTimer.unref?.();
+
+// ═══════════════════════════════════════════════════════════════
+//  优雅关闭
+// ═══════════════════════════════════════════════════════════════
+
+async function gracefulShutdown(signal) {
+  console.log(`[server] ${signal} received, shutting down gracefully...`);
+  server.close(() => {
+    console.log('[server] HTTP server closed');
+  });
+  try { await cache.close(); } catch {}
+  try { await dal.close(); } catch {}
+  setTimeout(() => process.exit(0), 3000);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

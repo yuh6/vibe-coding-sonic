@@ -1,15 +1,19 @@
 /**
- * S3 兼容存储实现 — 支持 Cloudflare R2 / 阿里 OSS / AWS S3 / MinIO
+ * S3 兼容存储实现 — 首选 Cloudflare R2，兼容阿里 OSS / AWS S3 / MinIO
  *
  * 环境变量：
- *   S3_ENDPOINT    — https://xxx.r2.cloudflarestorage.com
- *   S3_REGION      — auto (R2) / cn-hangzhou (OSS) / us-east-1 (AWS)
+ *   S3_ENDPOINT    — https://<account_id>.r2.cloudflarestorage.com
+ *   S3_REGION      — auto (R2 必须为 auto)
  *   S3_BUCKET      — vibe-audio
- *   S3_ACCESS_KEY  — access key
- *   S3_SECRET_KEY  — secret key
- *   S3_PUBLIC_URL  — https://audio.yourdomain.com (CDN 公开前缀)
+ *   S3_ACCESS_KEY  — R2 API Token 的 Access Key ID
+ *   S3_SECRET_KEY  — R2 API Token 的 Secret Access Key
+ *   S3_PUBLIC_URL  — https://audio.yourdomain.com (R2 自定义域名或公共访问 URL)
  */
 import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
+const UPLOAD_TIMEOUT_MS = 60_000; // 上传超时 60 秒
 
 let client = null;
 
@@ -22,7 +26,7 @@ function getClient() {
         accessKeyId: process.env.S3_ACCESS_KEY,
         secretAccessKey: process.env.S3_SECRET_KEY,
       },
-      forcePathStyle: true, // MinIO/R2 兼容
+      forcePathStyle: true, // R2/MinIO 兼容
     });
   }
   return client;
@@ -30,6 +34,22 @@ function getClient() {
 
 const BUCKET = process.env.S3_BUCKET || 'vibe-audio';
 const PUBLIC_URL = (process.env.S3_PUBLIC_URL || '').replace(/\/$/, '');
+
+/** 带重试的 S3 命令执行 */
+async function sendWithRetry(command, retries = MAX_RETRIES) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await getClient().send(command, {
+        requestTimeout: UPLOAD_TIMEOUT_MS,
+      });
+    } catch (err) {
+      if (attempt === retries) throw err;
+      const delay = RETRY_DELAY_MS * attempt;
+      console.warn(`[storage/r2] attempt ${attempt}/${retries} failed: ${err.message}, retrying in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
 
 export const s3 = {
   async upload(key, streamOrBuffer, contentType = 'audio/mpeg') {
@@ -51,11 +71,15 @@ export const s3 = {
       body = streamOrBuffer;
     }
 
-    await getClient().send(new PutObjectCommand({
+    await sendWithRetry(new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       Body: body,
       ContentType: contentType,
+      // R2 建议设置 Content-Disposition 便于浏览器下载
+      ContentDisposition: contentType.startsWith('audio/') ? 'inline' : undefined,
+      // R2 缓存控制
+      CacheControl: 'public, max-age=31536000, immutable',
     }));
 
     return PUBLIC_URL ? `${PUBLIC_URL}/${key}` : `${process.env.S3_ENDPOINT}/${BUCKET}/${key}`;
@@ -67,8 +91,10 @@ export const s3 = {
 
   async delete(key) {
     try {
-      await getClient().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
-    } catch {}
+      await sendWithRetry(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }), 2);
+    } catch {
+      // 删除失败不抛出——幂等操作
+    }
   },
 
   async exists(key) {

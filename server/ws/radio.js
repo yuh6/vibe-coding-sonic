@@ -1,10 +1,12 @@
 /**
  * /ws/radio — 电台实时推送
  * 收听者连接 /ws/radio?stationId=xxx，当电台切歌时收到 track_change 事件。
+ *
+ * 电台连接不要求强认证（公开电台可匿名收听），但验证 stationId 有效性。
  */
 import { createWsServer } from './wsServer.js';
 import { arrangerEvents } from '../services/arranger/index.js';
-import { getStationBySession, updateNowPlaying } from '../services/radioService.js';
+import { getStation, getStationBySession, updateNowPlaying } from '../services/radioService.js';
 
 // stationId -> Set<WsConnection>
 const listeners = new Map();
@@ -65,11 +67,18 @@ arrangerEvents.on('event', (event) => {
 export function attachWsRadio(httpServer) {
   createWsServer(httpServer, {
     path: '/ws/radio',
-    onConnection(conn, req) {
+    async onConnection(conn, req) {
       const url = new URL(req.url, 'http://localhost');
       const stationId = url.searchParams.get('stationId');
 
+      // 验证电台存在
       if (stationId) {
+        const station = await getStation(stationId);
+        if (!station) {
+          conn.send({ type: 'error', payload: { code: 'STATION_NOT_FOUND', message: '电台不存在' } });
+          conn.close();
+          return;
+        }
         addListener(stationId, conn);
         conn.onClose(() => removeListener(stationId, conn));
       }
