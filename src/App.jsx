@@ -12,6 +12,7 @@ import MixerPage from './components/mixer/MixerPage';
 import DiscoverPage from './components/DiscoverPage';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
+import RoomWave from './components/RoomWave';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
 import {
@@ -45,6 +46,7 @@ export default function App() {
   const isAdmin = hash === '#/admin';
   const isMixer = hash === '#/mixer';
   const isDiscover = hash === '#/discover';
+  const isRoomWave = hash === '#/roomwave';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -314,6 +316,11 @@ export default function App() {
        radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
        var(--page-bg)`;
 
+  // RoomWave 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
+  if (isRoomWave) {
+    return <RoomWave isDark={isDark} onToggleColorMode={toggleColorMode} />;
+  }
+
   return (
     <div className="min-h-screen transition-colors duration-300" style={{ background: pageBg }}>
       <div className="mx-auto max-w-7xl px-4 py-6">
@@ -376,6 +383,12 @@ export default function App() {
               </div>
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
+            <a
+              href="#/roomwave"
+              className="pad px-3.5 py-2 text-xs text-muted no-underline"
+            >
+              🌊 RoomWave
+            </a>
             <a
               href={isDiscover ? '#/' : '#/discover'}
               className="pad px-3.5 py-2 text-xs text-muted no-underline"

@@ -1,0 +1,124 @@
+/* ── RoomWave 专有样式 ──
+   仅作用于 <div class="roomwave-scope">，不影响站内其它页面。
+   等宽字体，从 Google Fonts 载入（与原 Eazo 版一致）。 */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&display=swap');
+
+.roomwave-scope {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.roomwave-scope .mono-font {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* 隐藏滚动条 */
+.roomwave-scope ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.roomwave-scope ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.roomwave-scope ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+.roomwave-scope ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 炫酷流光效果 */
+@keyframes roomwave-slow-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes roomwave-radial-wave {
+  0%, 100% { transform: scaleY(0.45); opacity: 0.35; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+.roomwave-scope .radial-wave-bar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: var(--wave-height);
+  border-radius: 999px;
+  transform-origin: 50% 112px;
+  transform: rotate(var(--wave-rotate)) translateY(-112px) scaleY(0.35);
+  background: linear-gradient(to top, rgba(56,189,248,0.15), rgba(251,191,36,0.95), rgba(255,255,255,0.7));
+  box-shadow: 0 0 14px rgba(251,191,36,0.45);
+  opacity: 0.3;
+}
+.roomwave-scope .radial-wave-bar.playing {
+  animation: roomwave-radial-wave var(--wave-speed) ease-in-out infinite;
+  animation-delay: var(--wave-delay);
+}
+
+@keyframes roomwave-ambient-flow {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  50%  { transform: translate(40px, 30px) rotate(180deg); }
+  100% { transform: translate(0, 0) rotate(360deg); }
+}
+.roomwave-scope .ambient-flow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0,255,102,0.08) 0%, rgba(127,86,217,0.05) 50%, rgba(0,0,0,0) 100%);
+  filter: blur(80px);
+  pointer-events: none;
+  animation: roomwave-ambient-flow 45s linear infinite;
+}
+
+/* 扫描线氛围 */
+.roomwave-scope .scanline::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+/* ── 嵌入的 DJ 控制台面板 ──
+   ModePads / ProjectDeck / PromptCard / ArrangerPanel 直接复用 DJ 组件，
+   它们依赖全局主题变量。RoomWave 首页恒为深色，这里固定为暗色变量集，
+   避免用户把全站切到浅色时，这些玻璃面板在 RoomWave 黑底上发白突兀。 */
+.roomwave-scope .roomwave-dj-embed {
+  color-scheme: dark;
+  --text-primary: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-subtle: rgba(255, 255, 255, 0.45);
+  --text-faint: rgba(255, 255, 255, 0.35);
+  --text-inactive: rgba(255, 255, 255, 0.3);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --glass-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --pad-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  --pad-active-inset: inset 0 0 24px rgba(255, 255, 255, 0.06);
+  --chip-bg: rgba(255, 255, 255, 0.1);
+  --surface: rgba(0, 0, 0, 0.4);
+  --led-panel: rgba(0, 0, 0, 0.5);
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --input-placeholder: rgba(255, 255, 255, 0.25);
+  --led-glow: 0 0 12px currentColor, 0 0 32px currentColor;
+  --fader-track-inset: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  --vinyl-border: rgba(0, 0, 0, 0.5);
+  --vinyl-from: #334155;
+  --vinyl-to: #0f172a;
+  --layer-mbti: rgb(165, 180, 252);
+  --layer-project: rgb(110, 231, 183);
+  --layer-mode: rgb(252, 211, 77);
+  --layer-console: rgb(240, 171, 252);
+}
+/* DJ 组件根节点自带 mt/间距，嵌入时统一留白 */
+.roomwave-scope .roomwave-dj-embed + .roomwave-dj-embed {
+  margin-top: 1.25rem;
+}

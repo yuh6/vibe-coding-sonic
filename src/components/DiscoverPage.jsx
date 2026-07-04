@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getLiveRadios, joinRadio, leaveRadio, getPublicPlaylists, getPlaylist } from '../lib/api';
+import MusicWheel from './MusicWheel';
 
 const MODE_LABELS = {
   brainstorm: '🧠 头脑风暴', focus: '🎯 专注', sprint: '🏃 冲刺',
@@ -104,6 +105,11 @@ export default function DiscoverPage({ onPlayTrack }) {
 
   return (
     <div className="space-y-4">
+      {/* 音乐类型随机转盘（居中）*/}
+      <div className="mx-auto w-full max-w-5xl">
+        <MusicWheel />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-bold text-white/90">🌍 发现音乐</h2>
