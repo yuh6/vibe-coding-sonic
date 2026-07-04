@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import net from 'node:net';
+import Database from 'better-sqlite3';
 
 async function getFreePort() {
   const server = net.createServer();
@@ -90,6 +91,34 @@ async function waitForCompletedJob(client, jobId, timeoutMs = 8_000) {
   throw new Error(`Music job did not complete in time; latest status: ${latest?.status || 'unknown'}`);
 }
 
+function seedSharedLibraryTrack(dbFilePath) {
+  const sdb = new Database(dbFilePath);
+  const track = {
+    id: `smoke-shared-${Date.now()}`,
+    title: 'Smoke Shared Track',
+    mbti: 'INTJ',
+    mode: 'focus',
+    genre: 'electronic',
+    tags: 'smoke,test',
+    mood: 'focused',
+    bpm: 124,
+    audioUrl: '/samples/focus-1.mp3',
+    durationSec: 60,
+    qualityScore: 0.9,
+    createdAt: Date.now(),
+  };
+  try {
+    sdb.prepare(
+      `INSERT INTO shared_library
+       (id, title, mbti, mode, genre, tags, mood, bpm, audio_url, duration_sec, quality_score, created_at)
+       VALUES (@id, @title, @mbti, @mode, @genre, @tags, @mood, @bpm, @audioUrl, @durationSec, @qualityScore, @createdAt)`
+    ).run(track);
+    return track;
+  } finally {
+    sdb.close();
+  }
+}
+
 const tmpRoot = await mkdtemp(join(tmpdir(), 'vibe-coding-sonic-smoke-'));
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -120,6 +149,7 @@ server.stderr.on('data', (chunk) => {
 try {
   const client = new SmokeClient(baseUrl);
   await waitForServer(client);
+  const sharedTrack = seedSharedLibraryTrack(dbPath);
 
   await assert.rejects(
     () => client.request('/api/notes/parse', {
@@ -157,6 +187,33 @@ try {
   const playlists = await client.request('/api/playlists/mine/list');
   assert.ok(Array.isArray(playlists.playlists));
 
+  // ── 共享曲库 / 播放列表 / 电台 合约测试 ──
+  const sharedLibrary = await client.request('/api/library/shared?limit=5');
+  assert.ok(sharedLibrary.tracks.some((t) => t.id === sharedTrack.id));
+
+  await client.request(`/api/library/shared/${sharedTrack.id}/play`, { method: 'POST' });
+  const popular = await client.request('/api/recommend/popular?limit=5');
+  assert.ok(popular.tracks.some((t) => t.id === sharedTrack.id));
+
+  const playlist = await client.request('/api/playlists', {
+    method: 'POST',
+    body: { title: 'Smoke Playlist', description: 'Created by smoke test' },
+  });
+  assert.ok(playlist.id);
+
+  await client.request(`/api/playlists/${playlist.id}/tracks`, {
+    method: 'POST',
+    body: { trackId: sharedTrack.id },
+  });
+
+  const playlistDetail = await client.request(`/api/playlists/${playlist.id}`);
+  assert.equal(playlistDetail.tracks.length, 1);
+  assert.equal(playlistDetail.tracks[0].id, sharedTrack.id);
+
+  await client.request(`/api/playlists/${playlist.id}/play`, { method: 'POST' });
+  const playedPlaylist = await client.request(`/api/playlists/${playlist.id}`);
+  assert.equal(playedPlaylist.playCount, 1);
+
   const axes = { ie: 25, ns: 70, tf: 35, jp: 80 };
   const style = { energy: 60, texture: 35, brightness: 65 };
   const projectAnalysis = {
@@ -186,6 +243,40 @@ try {
   const poolStatus = await client.request(`/api/arranger/pool-status?sessionId=${session.id}`);
   assert.equal(typeof poolStatus.budgetLimit, 'number');
   assert.equal(typeof poolStatus.phases, 'object');
+
+  // ── 电台合约测试（需要 session.id）──
+  const station = await client.request('/api/radio', {
+    method: 'POST',
+    body: {
+      title: 'Smoke Radio',
+      description: 'Smoke test station',
+      sessionId: session.id,
+      mode: 'focus',
+      mbti: 'INTJ',
+    },
+  });
+  assert.ok(station.id);
+
+  await client.request(`/api/radio/${station.id}/listen`, { method: 'POST' });
+  const tunedStation = await client.request(`/api/radio/${station.id}`);
+  assert.equal(tunedStation.listenerCount, 1);
+
+  const stationWithTrack = await client.request(`/api/radio/${station.id}/now-playing`, {
+    method: 'PATCH',
+    body: {
+      track: {
+        title: 'Smoke Now Playing',
+        genre: 'electronic',
+        bpm: 124,
+        audioUrl: sharedTrack.audioUrl,
+      },
+    },
+  });
+  assert.equal(stationWithTrack.currentTrack.title, 'Smoke Now Playing');
+  assert.equal(stationWithTrack.currentTrack.audioUrl, sharedTrack.audioUrl);
+
+  await client.request(`/api/radio/${station.id}/leave`, { method: 'POST' });
+  await client.request(`/api/radio/${station.id}`, { method: 'DELETE' });
 
   const preview = await client.request('/api/music/generate', {
     method: 'POST',
