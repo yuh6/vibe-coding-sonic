@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { authLogin, authRegister, authLogout } from '../lib/api';
 
 function AuthModal({ onClose, onSuccess }) {
@@ -26,7 +27,9 @@ function AuthModal({ onClose, onSuccess }) {
     }
   };
 
-  return (
+  // 用 Portal 渲染到 body，脱离含 backdrop-filter/transform 的祖先，
+  // 否则 fixed 定位会以祖先为基准导致弹窗偏移（如 RoomWave 顶栏）。
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <form
         onSubmit={submit}
@@ -91,11 +94,12 @@ function AuthModal({ onClose, onSuccess }) {
           {isRegister ? '已有账号？直接登录' : '没有账号？注册一个'}
         </button>
       </form>
-    </div>
+    </div>,
+    document.body
   );
 }
 
-export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout }) {
+export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout, triggerClass, chipClass }) {
   const handleLogout = async () => {
     try {
       await authLogout();
@@ -104,11 +108,15 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
     }
   };
 
+  // 默认沿用 DJ 台原样式；传入自定义类时（如 RoomWave 绿色主题）覆盖。
+  const btnClass = triggerClass || 'pad px-3.5 py-2 text-xs text-white/70';
+  const userChipClass = chipClass || 'flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5';
+
   return (
     <>
       {user ? (
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5">
+          <div className={userChipClass}>
             <span className="font-display text-xs font-semibold text-white/85">{user.name}</span>
             {quota && (
               <span
@@ -119,12 +127,12 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
               </span>
             )}
           </div>
-          <button type="button" onClick={handleLogout} className="pad px-3 py-2 text-xs text-white/70">
+          <button type="button" onClick={handleLogout} className={btnClass}>
             登出
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => onOpenChange(true)} className="pad px-3.5 py-2 text-xs text-white/70">
+        <button type="button" onClick={() => onOpenChange(true)} className={btnClass}>
           👤 登录
         </button>
       )}

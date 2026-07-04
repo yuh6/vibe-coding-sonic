@@ -1,0 +1,69 @@
+/* ── 音乐转盘（霓虹俱乐部）专有样式 ──
+   仅作用于 <div class="music-wheel-scope">，不影响站内其它内容。 */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&display=swap');
+
+.music-wheel-scope {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  color: #f3f4f6;
+}
+
+.music-wheel-scope .font-orbitron {
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+}
+
+/* 霓虹描边 / 光晕 */
+.music-wheel-scope .neon-border-pink {
+  box-shadow: 0 0 15px rgba(255, 42, 122, 0.4), inset 0 0 15px rgba(255, 42, 122, 0.2);
+  border: 1px solid rgba(255, 42, 122, 0.6);
+}
+.music-wheel-scope .neon-border-green {
+  box-shadow: 0 0 15px rgba(0, 245, 212, 0.4), inset 0 0 15px rgba(0, 245, 212, 0.2);
+  border: 1px solid rgba(0, 245, 212, 0.6);
+}
+.music-wheel-scope .neon-glow-pink {
+  text-shadow: 0 0 8px rgba(255, 42, 122, 0.8), 0 0 20px rgba(255, 42, 122, 0.4);
+}
+.music-wheel-scope .neon-glow-green {
+  text-shadow: 0 0 8px rgba(0, 245, 212, 0.8), 0 0 20px rgba(0, 245, 212, 0.4);
+}
+
+/* 转盘旋转物理曲线 */
+.music-wheel-scope .wheel-transition {
+  transition: transform 5s cubic-bezier(0.15, 0.85, 0.15, 1);
+}
+
+/* 霓虹细滚动条（歌单区）*/
+.music-wheel-scope .neon-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.music-wheel-scope .neon-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.music-wheel-scope .neon-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 212, 0.3);
+  border-radius: 2px;
+}
+.music-wheel-scope .neon-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 212, 0.6);
+}
+
+/* 左侧转盘区径向底色（替代原 CDN 的 bg-radial-at-c）*/
+.music-wheel-scope .neon-radial-bg {
+  background: radial-gradient(circle at center, #110f19 0%, #08070b 100%);
+}
+
+/* 自定义动画 */
+@keyframes music-wheel-pulseScale {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.85; }
+}
+.music-wheel-scope .animate-pulseScale {
+  animation: music-wheel-pulseScale 1.2s ease-in-out infinite;
+}
+@keyframes music-wheel-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.music-wheel-scope .animate-fade-in {
+  animation: music-wheel-fade-in 0.35s ease-out;
+}
