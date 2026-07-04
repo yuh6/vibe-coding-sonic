@@ -22,10 +22,10 @@ function ownsSession(req, session) {
   return Boolean(session) && session.userId === req.user.id;
 }
 
-router.post('/', requireUser, (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   try {
     const { name, mbtiType, mbtiSliders, schedule, budgetLimit } = req.body || {};
-    const session = createSession({
+    const session = await createSession({
       userId: req.user.id,
       name,
       mbtiType,
@@ -40,21 +40,21 @@ router.post('/', requireUser, (req, res) => {
   }
 });
 
-router.get('/:id', requireUser, (req, res) => {
-  const session = getSession(req.params.id);
+router.get('/:id', requireUser, async (req, res) => {
+  const session = await getSession(req.params.id);
   if (!ownsSession(req, session)) {
     return res.status(404).json({ error: 'Session not found' });
   }
   res.json(session);
 });
 
-router.put('/:id/schedule', requireUser, (req, res) => {
-  const session = getSession(req.params.id);
+router.put('/:id/schedule', requireUser, async (req, res) => {
+  const session = await getSession(req.params.id);
   if (!ownsSession(req, session)) {
     return res.status(404).json({ error: 'Session not found' });
   }
   try {
-    const updated = updateSchedule(req.params.id, req.body?.schedule || req.body);
+    const updated = await updateSchedule(req.params.id, req.body?.schedule || req.body);
     res.json(updated);
   } catch (err) {
     console.error('[session/schedule]', err);

@@ -5,18 +5,18 @@ import { getProfile, saveProfile, listTracks } from '../services/quotaService.js
 const router = Router();
 router.use(requireUser);
 
-router.get('/profile', (req, res) => {
-  res.json({ profile: getProfile(req.user.id) });
+router.get('/profile', async (req, res) => {
+  res.json({ profile: await getProfile(req.user.id) });
 });
 
-router.put('/profile', (req, res) => {
+router.put('/profile', async (req, res) => {
   const { axes, style, mode } = req.body || {};
-  saveProfile(req.user.id, { axes, style, mode });
+  await saveProfile(req.user.id, { axes, style, mode });
   res.json({ ok: true });
 });
 
-router.get('/tracks', (req, res) => {
-  res.json({ tracks: listTracks(req.user.id) });
+router.get('/tracks', async (req, res) => {
+  res.json({ tracks: await listTracks(req.user.id) });
 });
 
 export default router;

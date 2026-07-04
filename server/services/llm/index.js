@@ -17,20 +17,23 @@ function cacheKey(name, description) {
   return createHash('sha256').update(`${name}||${description}`).digest('hex');
 }
 
-function getCachedAnalysis(key) {
-  const row = db.prepare('SELECT analysis_json, analyzed_at FROM project_cache WHERE folder_path = ?').get(key);
+async function getCachedAnalysis(key) {
+  const row = await db.prepare('SELECT analysis_json, analyzed_at FROM project_cache WHERE folder_path = ?').get(key);
   if (!row) return null;
   const age = Date.now() - new Date(row.analyzed_at).getTime();
   if (age > CACHE_TTL_MS) {
-    db.prepare('DELETE FROM project_cache WHERE folder_path = ?').run(key);
+    await db.prepare('DELETE FROM project_cache WHERE folder_path = ?').run(key);
     return null;
   }
   try { return JSON.parse(row.analysis_json); } catch { return null; }
 }
 
-function setCachedAnalysis(key, analysis) {
-  db.prepare(
-    `INSERT OR REPLACE INTO project_cache (folder_path, analysis_json, analyzed_at) VALUES (?, ?, ?)`
+async function setCachedAnalysis(key, analysis) {
+  await db.prepare(
+    `INSERT INTO project_cache (folder_path, analysis_json, analyzed_at) VALUES (?, ?, ?)
+     ON CONFLICT(folder_path) DO UPDATE SET
+       analysis_json = excluded.analysis_json,
+       analyzed_at = excluded.analyzed_at`
   ).run(key, JSON.stringify(analysis), new Date().toISOString());
 }
 
@@ -96,7 +99,7 @@ export async function analyzeProject({ name = '', description = '' }) {
 
   // §3.3 缓存检查（SHA-256 key, 24h TTL）
   const key = cacheKey(name, description);
-  const cached = getCachedAnalysis(key);
+  const cached = await getCachedAnalysis(key);
   if (cached) {
     return { ...cached, source: 'cache' };
   }
@@ -120,7 +123,7 @@ export async function analyzeProject({ name = '', description = '' }) {
     };
 
     // 写入缓存
-    setCachedAnalysis(key, result);
+    await setCachedAnalysis(key, result);
     return result;
   } catch (err) {
     console.warn(`[llm:${config.providerId}] fallback to template:`, err.message);

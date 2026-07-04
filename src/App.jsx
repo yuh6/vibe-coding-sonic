@@ -402,7 +402,7 @@ export default function App() {
         ) : isMixer ? (
           <MixerPage incomingMix={mixerImport} />
         ) : isDiscover ? (
-          <DiscoverPage onPlayTrack={(track) => { player.loadAndPlay(track.audioUrl); }} />
+          <DiscoverPage onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })} />
         ) : (
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}

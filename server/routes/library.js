@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db.js';
+import { requireAdmin } from '../middleware/adminAuth.js';
 import {
   getLibrary, addTrack, removeTrack,
   listSharedLibrary, getSharedLibraryStats,
@@ -9,11 +10,11 @@ const router = Router();
 
 // ── 原有兜底曲库（admin） ──
 
-router.get('/', (_req, res) => {
+router.get('/', requireAdmin, (_req, res) => {
   res.json(getLibrary());
 });
 
-router.post('/', (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
   try {
     const { mode, title, url } = req.body || {};
     const track = addTrack({ mode, title, url });
@@ -23,7 +24,7 @@ router.post('/', (req, res) => {
   }
 });
 
-router.delete('/:mode/:id', (req, res) => {
+router.delete('/:mode/:id', requireAdmin, (req, res) => {
   const removed = removeTrack(req.params.mode, req.params.id);
   if (!removed) {
     return res.status(404).json({ error: 'Track not found' });
@@ -33,9 +34,9 @@ router.delete('/:mode/:id', (req, res) => {
 
 // ── 歌曲总库（公开） ──
 
-router.get('/shared', (req, res) => {
+router.get('/shared', async (req, res) => {
   const { mode, mbti, genre, q, page = 1, limit = 20 } = req.query;
-  const result = listSharedLibrary({
+  const result = await listSharedLibrary({
     mode: mode || undefined,
     mbti: mbti?.toUpperCase() || undefined,
     genre: genre || undefined,
@@ -46,12 +47,12 @@ router.get('/shared', (req, res) => {
   res.json(result);
 });
 
-router.get('/shared/stats', (_req, res) => {
-  res.json(getSharedLibraryStats());
+router.get('/shared/stats', async (_req, res) => {
+  res.json(await getSharedLibraryStats());
 });
 
-router.get('/shared/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM shared_library WHERE id = ?').get(req.params.id);
+router.get('/shared/:id', async (req, res) => {
+  const row = await db.prepare('SELECT * FROM shared_library WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Track not found' });
   res.json({
     id: row.id, title: row.title, mbti: row.mbti, mode: row.mode,
@@ -61,8 +62,8 @@ router.get('/shared/:id', (req, res) => {
   });
 });
 
-router.post('/shared/:id/play', (req, res) => {
-  const result = db.prepare(
+router.post('/shared/:id/play', async (req, res) => {
+  const result = await db.prepare(
     'UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?'
   ).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Track not found' });

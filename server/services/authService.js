@@ -47,7 +47,7 @@ export async function registerUser({ email, password, name }) {
   const normalizedPassword = normalizePassword(password);
   const displayName = normalizeName(name, normalized.split('@')[0]);
 
-  const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(normalized);
+  const exists = await db.prepare('SELECT id FROM users WHERE email = ?').get(normalized);
   if (exists) throw new Error('该邮箱已注册');
 
   const user = {
@@ -57,7 +57,7 @@ export async function registerUser({ email, password, name }) {
     name: displayName,
     created_at: Date.now(),
   };
-  db.prepare(
+  await db.prepare(
     'INSERT INTO users (id, email, password_hash, name, created_at) VALUES (@id, @email, @password_hash, @name, @created_at)'
   ).run(user);
   return { id: user.id, email: user.email, name: user.name, role: 'user' };
@@ -66,7 +66,7 @@ export async function registerUser({ email, password, name }) {
 export async function loginUser({ email, password }) {
   const normalized = normalizeEmail(email);
   const normalizedPassword = normalizePassword(password, { forLogin: true });
-  const row = db.prepare('SELECT * FROM users WHERE email = ?').get(normalized);
+  const row = await db.prepare('SELECT * FROM users WHERE email = ?').get(normalized);
   // 用户不存在时也做一次哈希，避免时间侧信道暴露邮箱是否注册
   if (!row) {
     await verifyPassword(normalizedPassword, DUMMY_PASSWORD_HASH);
@@ -76,21 +76,21 @@ export async function loginUser({ email, password }) {
   return { id: row.id, email: row.email, name: row.name, role: row.role };
 }
 
-export function createSession(userId) {
+export async function createSession(userId) {
   const token = randomBytes(32).toString('hex');
-  db.prepare(
+  await db.prepare(
     'INSERT INTO auth_sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
   ).run(token, userId, Date.now() + SESSION_TTL_MS, Date.now());
   return { token, maxAgeMs: SESSION_TTL_MS };
 }
 
-export function destroySession(token) {
-  if (token) db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
+export async function destroySession(token) {
+  if (token) await db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
 }
 
-export function getUserBySession(token) {
+export async function getUserBySession(token) {
   if (!token) return null;
-  const row = db
+  const row = await db
     .prepare(
       `SELECT u.id, u.email, u.name, u.role, s.expires_at
        FROM auth_sessions s JOIN users u ON u.id = s.user_id
@@ -99,7 +99,7 @@ export function getUserBySession(token) {
     .get(token);
   if (!row) return null;
   if (row.expires_at < Date.now()) {
-    destroySession(token);
+    await destroySession(token);
     return null;
   }
   return { id: row.id, email: row.email, name: row.name, role: row.role };

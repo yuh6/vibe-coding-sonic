@@ -13,6 +13,8 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 export const sqlite = {
+  dialect: 'sqlite',
+
   /** SELECT 多行 */
   async query(sql, params = []) {
     return db.prepare(sql).all(...params);

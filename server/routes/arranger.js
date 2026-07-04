@@ -27,17 +27,21 @@ function resolveSessionId(req) {
   return req.body?.sessionId || req.query?.sessionId;
 }
 
-function requireOwnedSession(req, res, next) {
-  const sessionId = resolveSessionId(req);
-  if (!sessionId) {
-    return res.status(400).json({ error: 'sessionId is required' });
+async function requireOwnedSession(req, res, next) {
+  try {
+    const sessionId = resolveSessionId(req);
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+    const session = await getSession(sessionId);
+    if (!session || session.userId !== req.user.id) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    req.arrangerSession = session;
+    next();
+  } catch (err) {
+    next(err);
   }
-  const session = getSession(sessionId);
-  if (!session || session.userId !== req.user.id) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  req.arrangerSession = session;
-  next();
 }
 
 router.use(requireUser, requireOwnedSession);
@@ -52,8 +56,8 @@ router.post('/start', async (req, res) => {
   }
 });
 
-router.post('/stop', (req, res) => {
-  stopEngine(req.arrangerSession.id);
+router.post('/stop', async (req, res) => {
+  await stopEngine(req.arrangerSession.id);
   res.json({ ok: true });
 });
 
@@ -96,17 +100,17 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
-router.get('/now-playing', (req, res) => {
-  res.json(nowPlaying(req.arrangerSession.id) || { state: 'IDLE', track: null });
+router.get('/now-playing', async (req, res) => {
+  res.json(await nowPlaying(req.arrangerSession.id) || { state: 'IDLE', track: null });
 });
 
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   const limit = Math.min(100, Number(req.query.limit) || 20);
-  res.json({ history: history(req.arrangerSession.id, limit) });
+  res.json({ history: await history(req.arrangerSession.id, limit) });
 });
 
-router.get('/pool-status', (req, res) => {
-  res.json(poolStatus(req.arrangerSession.id));
+router.get('/pool-status', async (req, res) => {
+  res.json(await poolStatus(req.arrangerSession.id));
 });
 
 router.get('/energy-curve', (_req, res) => {

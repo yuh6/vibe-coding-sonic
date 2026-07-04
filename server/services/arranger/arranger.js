@@ -32,76 +32,74 @@ export class Arranger {
     return trackPool.recentHistory(this.sessionId, limit);
   }
 
-  recentlyPlayed(trackId, windowSize = RECENTLY_PLAYED_WINDOW) {
-    return this.history(windowSize).some((h) => h.trackPoolId === trackId);
+  recentlyPlayed(history, trackId, windowSize = RECENTLY_PLAYED_WINDOW) {
+    return history.slice(0, windowSize).some((h) => h.trackPoolId === trackId);
   }
 
   /** 防重复过滤：同一首歌需间隔 ≥4 首才能再播 */
-  applyAntiRepeat(candidates) {
-    const recent = this.history(REPEAT_GAP);
+  applyAntiRepeat(candidates, recent) {
     const recentIds = new Set(recent.map((h) => h.trackPoolId));
     return candidates.filter((t) => !recentIds.has(t.id));
   }
 
   /** §8.8 防疲劳：同阶段连续 >4 首 / 同流派连续 >2 首 → 需要强制切换标记 */
-  needsForcedVariety() {
-    const recent = this.history(FORCE_SWITCH_AFTER);
+  async needsForcedVariety() {
+    const recent = await this.history(FORCE_SWITCH_AFTER);
     if (recent.length < FORCE_SWITCH_AFTER) return { phase: false, genre: false };
     const samePhaseStreak = recent.every((h) => h.phase === recent[0].phase);
-    const genreStreak = this.history(2);
+    const genreStreak = await this.history(2);
     const sameGenreStreak = genreStreak.length >= 2 && genreStreak[0].genre === genreStreak[1].genre;
     return { phase: samePhaseStreak, genre: sameGenreStreak };
   }
 
   /** 核心决策：下一首播什么 */
-  decideNext() {
+  async decideNext() {
     const targetPhase = this.sensing.getCurrentPhase();
     const targetEnergy = this.sensing.getTargetEnergy();
+    const recent = await this.history(Math.max(REPEAT_GAP, RECENTLY_PLAYED_WINDOW));
+    const readyTracks = await trackPool.listReadyTracks(this.sessionId, targetPhase);
 
     // 1. 从曲库池筛选候选：阶段匹配 + 能量接近 + 近4首没播过
-    let candidates = trackPool
-      .listReadyTracks(this.sessionId, targetPhase)
-      .filter((t) => Math.abs(t.energyLevel - targetEnergy) < 20 && !this.recentlyPlayed(t.id));
+    let candidates = readyTracks.filter((t) =>
+      Math.abs(t.energyLevel - targetEnergy) < 20 && !this.recentlyPlayed(recent, t.id)
+    );
 
     // 2. 防重复过滤
-    candidates = this.applyAntiRepeat(candidates);
+    candidates = this.applyAntiRepeat(candidates, recent.slice(0, REPEAT_GAP));
 
     // 3. 候选为空 → 放宽条件（近2首没播过即可）
     if (candidates.length === 0) {
-      candidates = trackPool
-        .listReadyTracks(this.sessionId, targetPhase)
-        .filter((t) => !this.recentlyPlayed(t.id, 2));
+      candidates = readyTracks.filter((t) => !this.recentlyPlayed(recent, t.id, 2));
     }
 
     // 4. 仍为空 → 循环本阶段任意已就绪曲目
     if (candidates.length === 0) {
-      candidates = trackPool.listReadyTracks(this.sessionId, targetPhase);
+      candidates = readyTracks;
     }
 
     if (candidates.length === 0) {
       return { track: null, targetPhase, targetEnergy, poolExhausted: true };
     }
 
-    const track = this.scoreAndPick(candidates, targetEnergy);
+    const track = this.scoreAndPick(candidates, targetEnergy, recent[0] || null);
     return { track, targetPhase, targetEnergy, poolExhausted: false };
   }
 
   /** 打分：能量匹配度 50% + 新鲜度 30% + 变化奖励 20% */
-  scoreAndPick(candidates, targetEnergy) {
+  scoreAndPick(candidates, targetEnergy, lastTrack) {
     return candidates
       .map((track) => ({
         track,
         score:
           (1 - Math.abs(track.energyLevel - targetEnergy) / 100) * 0.5 +
           (1 - Math.min(track.playCount, 10) / 10) * 0.3 +
-          this.varietyBonus(track) * 0.2,
+          this.varietyBonus(track, lastTrack) * 0.2,
       }))
       .sort((a, b) => b.score - a.score)[0]?.track;
   }
 
   /** 变化奖励：和上一首风格差异越大分越高 */
-  varietyBonus(track) {
-    const last = this.history(1)[0];
+  varietyBonus(track, last) {
     if (!last) return 1;
     const genreDiff = track.genre !== last.genre ? 1 : 0;
     const instrumentDiff = 1 - jaccardSimilarity(track.instruments, last.instruments);

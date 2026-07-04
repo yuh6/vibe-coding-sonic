@@ -7,7 +7,7 @@ import { dal } from '../db.js';
 
 export async function addFavorite(userId, trackId) {
   await dal.run(
-    'INSERT OR IGNORE INTO favorites (user_id, track_id, created_at) VALUES (?, ?, ?)',
+    'INSERT INTO favorites (user_id, track_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id, track_id) DO NOTHING',
     [userId, trackId, Date.now()]
   );
   return { ok: true };
@@ -29,9 +29,9 @@ export async function isFavorited(userId, trackId) {
 
 export async function getUserFavorites(userId, { page = 1, limit = 20 } = {}) {
   const offset = (Math.max(1, page) - 1) * limit;
-  const total = (await dal.get(
+  const total = Number((await dal.get(
     'SELECT COUNT(*) as cnt FROM favorites WHERE user_id = ?', [userId]
-  ))?.cnt || 0;
+  ))?.cnt || 0);
 
   const rows = await dal.query(
     `SELECT sl.*, f.created_at as favorited_at
@@ -47,7 +47,7 @@ export async function getUserFavorites(userId, { page = 1, limit = 20 } = {}) {
     tracks: rows.map((r) => ({
       id: r.id, title: r.title, genre: r.genre, bpm: r.bpm, mbti: r.mbti, mode: r.mode,
       audioUrl: r.audio_local || r.audio_url,
-      playCount: r.play_count, favoritedAt: r.favorited_at,
+      playCount: Number(r.play_count || 0), favoritedAt: r.favorited_at,
     })),
   };
 }
@@ -57,7 +57,8 @@ export async function getUserFavorites(userId, { page = 1, limit = 20 } = {}) {
 export async function rateTrack(userId, trackId, score) {
   if (score < 1 || score > 5) throw new Error('Score must be 1-5');
   await dal.run(
-    `INSERT OR REPLACE INTO ratings (user_id, track_id, score, created_at) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO ratings (user_id, track_id, score, created_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, track_id) DO UPDATE SET score = excluded.score, created_at = excluded.created_at`,
     [userId, trackId, score, Date.now()]
   );
   // 更新 shared_library.quality_score 为平均评分
@@ -81,5 +82,5 @@ export async function getTrackRatings(trackId) {
   const row = await dal.get(
     'SELECT AVG(score) as avg, COUNT(*) as cnt FROM ratings WHERE track_id = ?', [trackId]
   );
-  return { average: row?.avg ? Math.round(row.avg * 10) / 10 : null, count: row?.cnt || 0 };
+  return { average: row?.avg ? Math.round(Number(row.avg) * 10) / 10 : null, count: Number(row?.cnt || 0) };
 }

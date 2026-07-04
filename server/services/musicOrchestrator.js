@@ -34,11 +34,38 @@ cleanupTimer.unref?.();
 
 async function saveJobToDB(job) {
   await dal.run(
-    `INSERT OR REPLACE INTO generation_jobs
+    `INSERT INTO generation_jobs
      (id, user_id, status, mbti, mode, full_prompt, negative_tags, bpm, weirdness, style_weight,
       suno_task_id, music_id, audio_url, audio_local, title, duration_sec, tracks_json, layers_json,
       profile_json, fallback, fallback_source, error, split_stems, stem_task_id, stem_status, created_at, completed_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET
+       user_id = excluded.user_id,
+       status = excluded.status,
+       mbti = excluded.mbti,
+       mode = excluded.mode,
+       full_prompt = excluded.full_prompt,
+       negative_tags = excluded.negative_tags,
+       bpm = excluded.bpm,
+       weirdness = excluded.weirdness,
+       style_weight = excluded.style_weight,
+       suno_task_id = excluded.suno_task_id,
+       music_id = excluded.music_id,
+       audio_url = excluded.audio_url,
+       audio_local = excluded.audio_local,
+       title = excluded.title,
+       duration_sec = excluded.duration_sec,
+       tracks_json = excluded.tracks_json,
+       layers_json = excluded.layers_json,
+       profile_json = excluded.profile_json,
+       fallback = excluded.fallback,
+       fallback_source = excluded.fallback_source,
+       error = excluded.error,
+       split_stems = excluded.split_stems,
+       stem_task_id = excluded.stem_task_id,
+       stem_status = excluded.stem_status,
+       created_at = excluded.created_at,
+       completed_at = excluded.completed_at`,
     [
       job.id, job.userId || null, job.status, job.mbti, job.mode,
       job.fullPrompt, job.negativeTags, job.bpm,
@@ -85,6 +112,21 @@ function masterTracks({ url, title = 'Master' }) {
   return url ? [{ id: 'master', name: title || 'Master', type: 'master', url }] : [];
 }
 
+export function getPlaybackUrl(job) {
+  return job?.audioLocal || job?.audioUrl || null;
+}
+
+export function getPlaybackTracks(job) {
+  const playbackUrl = getPlaybackUrl(job);
+  const tracks = job?.tracks || [];
+  if (!tracks.length) return playbackUrl ? masterTracks({ url: playbackUrl, title: job?.title || 'Master' }) : [];
+  if (!job?.audioLocal || !job?.audioUrl) return tracks;
+  return tracks.map((track) => {
+    if (track?.url !== job.audioUrl) return track;
+    return { ...track, url: job.audioLocal };
+  });
+}
+
 function mergeStemTracks(job, stemTracks = []) {
   const existingUrls = new Set((job.tracks || []).map((t) => t.url));
   const next = [...(job.tracks || [])];
@@ -106,12 +148,17 @@ async function persistTrackAsync(job) {
     const key = `audio/${job.id}.mp3`;
     const publicUrl = await storage.upload(key, res.body, 'audio/mpeg');
     job.audioLocal = publicUrl;
+    job.tracks = getPlaybackTracks(job);
 
     // 入库歌曲总库
     await dal.run(
-      `INSERT OR IGNORE INTO shared_library
+      `INSERT INTO shared_library
        (id, user_id, title, mbti, mode, genre, tags, mood, bpm, audio_url, audio_local, duration_sec, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO UPDATE SET
+         audio_url = excluded.audio_url,
+         audio_local = excluded.audio_local,
+         duration_sec = excluded.duration_sec`,
       [
         job.id, job.userId || null,
         job.title || `${job.mbti} · ${job.mode}`,
@@ -129,6 +176,11 @@ async function persistTrackAsync(job) {
 
     // 更新 job 的 audio_local
     await dal.run('UPDATE generation_jobs SET audio_local = ? WHERE id = ?', [publicUrl, job.id]);
+    await dal.run(
+      'UPDATE tracks SET audio_url = ?, tracks_json = ? WHERE id = ?',
+      [publicUrl, JSON.stringify(getPlaybackTracks(job)), job.id]
+    );
+    await saveJobToDB(job);
   } catch (err) {
     console.warn('[persist] audio upload/save failed:', err.message);
   }
@@ -171,7 +223,7 @@ async function startStemSeparation(job) {
 
 async function completeWithFallback(job, delayMs = 0) {
   const finish = async () => {
-    const shared = pickFromSharedLibrary({
+    const shared = await pickFromSharedLibrary({
       mode: job.mode, mbti: job.mbti,
       genre: job.profile?.genre, bpm: job.bpm,
     });
@@ -209,6 +261,7 @@ async function completeWithFallback(job, delayMs = 0) {
 // ═══════════════════════════════════════════════════════════════
 
 export function createMusicJob({
+  userId,
   mbti, axes, mode, projectAnalysis, style,
   selectedGenre, notes, vocals,
   forceFallback = false, splitStems = true,
@@ -219,6 +272,7 @@ export function createMusicJob({
 
   const job = {
     id: jobId,
+    userId: userId || null,
     status: 'processing',
     ...composed,
     audioUrl: null,

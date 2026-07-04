@@ -27,15 +27,14 @@ function broadcastToStation(stationId, message) {
   }
 }
 
-// 当 arranger session 切歌时，推送给对应电台的收听者
-arrangerEvents.on('event', ({ sessionId, type, payload }) => {
+async function handleRadioEvent({ sessionId, type, payload }) {
   if (type !== 'track_started' && type !== 'phase_changed') return;
 
-  const stationId = getStationBySession(sessionId);
+  const stationId = await getStationBySession(sessionId);
   if (!stationId) return;
 
   if (type === 'track_started' && payload?.trackId) {
-    updateNowPlaying(stationId, payload.trackId);
+    await updateNowPlaying(stationId, payload.trackId);
     broadcastToStation(stationId, {
       type: 'track_change',
       payload: {
@@ -54,6 +53,13 @@ arrangerEvents.on('event', ({ sessionId, type, payload }) => {
       payload: { phase: payload?.phase },
     });
   }
+}
+
+// 当 arranger session 切歌时，推送给对应电台的收听者
+arrangerEvents.on('event', (event) => {
+  handleRadioEvent(event).catch((err) => {
+    console.error('[ws/radio] event handling failed:', err.message);
+  });
 });
 
 export function attachWsRadio(httpServer) {

@@ -15,10 +15,11 @@
 import { getMigrationSQL } from './migrations.js';
 
 const DB_DRIVER = (process.env.DB_DRIVER || 'sqlite').toLowerCase();
+const DB_DIALECT = ['pg', 'postgres', 'postgresql'].includes(DB_DRIVER) ? 'pg' : 'sqlite';
 
 let dal;
 
-if (DB_DRIVER === 'pg' || DB_DRIVER === 'postgres' || DB_DRIVER === 'postgresql') {
+if (DB_DIALECT === 'pg') {
   const { postgres } = await import('./pg.js');
   dal = postgres;
   console.log('[db] Using PostgreSQL:', process.env.DATABASE_URL?.replace(/\/\/.*@/, '//***@'));
@@ -29,11 +30,11 @@ if (DB_DRIVER === 'pg' || DB_DRIVER === 'postgres' || DB_DRIVER === 'postgresql'
 }
 
 // 执行迁移（创建表）
-await dal.exec(getMigrationSQL(DB_DRIVER));
+await dal.exec(getMigrationSQL(DB_DIALECT));
 
 // 兼容旧 db.js 的导出（迁移期间）
 export { dal };
-export const db = dal.raw || dal; // 兼容直接 db.prepare() 的旧代码
+export const db = dal.raw || dal.compat || dal; // 兼容直接 db.prepare() 的旧代码
 
 export function today() {
   return new Date().toISOString().slice(0, 10);

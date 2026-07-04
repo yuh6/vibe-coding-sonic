@@ -27,16 +27,16 @@ function authRateLimit(req, res, next) {
   next();
 }
 
-function issueSession(res, user) {
-  const { token, maxAgeMs } = createSession(user.id);
+async function issueSession(res, user) {
+  const { token, maxAgeMs } = await createSession(user.id);
   res.setHeader('Set-Cookie', sessionCookie(token, maxAgeMs));
-  return { user, quota: getQuota(user.id) };
+  return { user, quota: await getQuota(user.id) };
 }
 
 router.post('/register', authRateLimit, async (req, res) => {
   try {
     const user = await registerUser(req.body || {});
-    res.json(issueSession(res, user));
+    res.json(await issueSession(res, user));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -45,20 +45,20 @@ router.post('/register', authRateLimit, async (req, res) => {
 router.post('/login', authRateLimit, async (req, res) => {
   try {
     const user = await loginUser(req.body || {});
-    res.json(issueSession(res, user));
+    res.json(await issueSession(res, user));
   } catch (err) {
     res.status(401).json({ error: err.message });
   }
 });
 
-router.post('/logout', (req, res) => {
-  destroySession(req.sessionToken);
+router.post('/logout', async (req, res) => {
+  await destroySession(req.sessionToken);
   res.setHeader('Set-Cookie', clearSessionCookie());
   res.json({ ok: true });
 });
 
-router.get('/me', requireUser, (req, res) => {
-  res.json({ user: req.user, quota: getQuota(req.user.id) });
+router.get('/me', requireUser, async (req, res) => {
+  res.json({ user: req.user, quota: await getQuota(req.user.id) });
 });
 
 export default router;

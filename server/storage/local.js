@@ -15,6 +15,7 @@ if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
 export const local = {
   async upload(key, streamOrBuffer, _contentType) {
     const filePath = join(CACHE_DIR, key);
+    mkdirSync(dirname(filePath), { recursive: true });
     if (Buffer.isBuffer(streamOrBuffer) || ArrayBuffer.isView(streamOrBuffer)) {
       const { writeFileSync } = await import('fs');
       writeFileSync(filePath, streamOrBuffer);

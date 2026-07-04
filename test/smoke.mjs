@@ -103,6 +103,8 @@ const server = spawn(process.execPath, ['server/index.js'], {
     PORT: String(port),
     DB_PATH: dbPath,
     USE_FALLBACK_ONLY: 'true',
+    DISABLE_LLM: 'true',
+    LLM_PROVIDER: 'none',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -118,6 +120,14 @@ server.stderr.on('data', (chunk) => {
 try {
   const client = new SmokeClient(baseUrl);
   await waitForServer(client);
+
+  await assert.rejects(
+    () => client.request('/api/notes/parse', {
+      method: 'POST',
+      body: { text: 'happy synth drive' },
+    }),
+    (err) => err.status === 401
+  );
 
   const email = `smoke-${Date.now()}@example.test`;
   const password = 'smoke-pass-123';
@@ -141,6 +151,12 @@ try {
   const me = await client.request('/api/auth/me');
   assert.equal(me.user.email, email);
 
+  const sharedStats = await client.request('/api/library/shared/stats');
+  assert.equal(typeof sharedStats.total, 'number');
+
+  const playlists = await client.request('/api/playlists/mine/list');
+  assert.ok(Array.isArray(playlists.playlists));
+
   const axes = { ie: 25, ns: 70, tf: 35, jp: 80 };
   const style = { energy: 60, texture: 35, brightness: 65 };
   const projectAnalysis = {
@@ -148,6 +164,28 @@ try {
     mood: ['focused'],
     instruments: ['synth bass'],
   };
+
+  const notes = await client.request('/api/notes/parse', {
+    method: 'POST',
+    body: { text: 'happy synth drive, no vocals' },
+  });
+  assert.ok(Array.isArray(notes.keywords));
+  assert.ok(Array.isArray(notes.mood));
+  assert.ok(Array.isArray(notes.avoid));
+
+  const session = await client.request('/api/session', {
+    method: 'POST',
+    body: {
+      name: 'Smoke Session',
+      mbtiType: 'INTJ',
+      mbtiSliders: axes,
+      schedule: { phases: [] },
+    },
+  });
+  assert.ok(session.id);
+  const poolStatus = await client.request(`/api/arranger/pool-status?sessionId=${session.id}`);
+  assert.equal(typeof poolStatus.budgetLimit, 'number');
+  assert.equal(typeof poolStatus.phases, 'object');
 
   const preview = await client.request('/api/music/generate', {
     method: 'POST',

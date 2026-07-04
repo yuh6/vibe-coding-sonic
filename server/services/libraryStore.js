@@ -112,30 +112,30 @@ export function libraryHasTrackUrl(url) {
 //  歌曲总库（shared_library 表）— 智能匹配 + 分页查询
 // ═══════════════════════════════════════════════════════════════
 
-export function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
+export async function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
   const baseWhere = "audio_local IS NOT NULL AND audio_local != ''";
 
-  let candidates = db.prepare(
+  let candidates = await db.prepare(
     `SELECT * FROM shared_library WHERE mode = ? AND genre LIKE ? AND ${baseWhere}
      ORDER BY play_count ASC, created_at DESC LIMIT 20`
   ).all(mode, `%${(genre || '').split(',')[0]?.trim() || ''}%`);
 
   if (!candidates.length && mbti) {
-    candidates = db.prepare(
+    candidates = await db.prepare(
       `SELECT * FROM shared_library WHERE mode = ? AND mbti = ? AND ${baseWhere}
        ORDER BY play_count ASC, created_at DESC LIMIT 20`
     ).all(mode, mbti);
   }
 
   if (!candidates.length) {
-    candidates = db.prepare(
+    candidates = await db.prepare(
       `SELECT * FROM shared_library WHERE mode = ? AND ${baseWhere}
        ORDER BY play_count ASC, created_at DESC LIMIT 20`
     ).all(mode);
   }
 
   if (!candidates.length) {
-    candidates = db.prepare(
+    candidates = await db.prepare(
       `SELECT * FROM shared_library WHERE ${baseWhere}
        ORDER BY play_count ASC, created_at DESC LIMIT 10`
     ).all();
@@ -152,7 +152,7 @@ export function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
   scored.sort((a, b) => b.score - a.score);
 
   const picked = scored[0].row;
-  db.prepare('UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?').run(picked.id);
+  await db.prepare('UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?').run(picked.id);
 
   return {
     id: picked.id, title: picked.title, url: picked.audio_local,
@@ -160,7 +160,7 @@ export function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
   };
 }
 
-export function listSharedLibrary({ mode, mbti, genre, q, page = 1, limit = 20 }) {
+export async function listSharedLibrary({ mode, mbti, genre, q, page = 1, limit = 20 }) {
   const conditions = [];
   const params = [];
 
@@ -172,19 +172,19 @@ export function listSharedLibrary({ mode, mbti, genre, q, page = 1, limit = 20 }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (Math.max(1, page) - 1) * limit;
 
-  const total = db.prepare(`SELECT COUNT(*) as cnt FROM shared_library ${where}`).get(...params)?.cnt || 0;
-  const rows = db.prepare(
+  const total = Number((await db.prepare(`SELECT COUNT(*) as cnt FROM shared_library ${where}`).get(...params))?.cnt || 0);
+  const rows = await db.prepare(
     `SELECT * FROM shared_library ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   ).all(...params, limit, offset);
 
   return { total, page, limit, tracks: rows.map(formatSharedTrack) };
 }
 
-export function getSharedLibraryStats() {
-  const total = db.prepare('SELECT COUNT(*) as cnt FROM shared_library').get()?.cnt || 0;
-  const cached = db.prepare("SELECT COUNT(*) as cnt FROM shared_library WHERE audio_local IS NOT NULL AND audio_local != ''").get()?.cnt || 0;
-  const modes = db.prepare('SELECT mode, COUNT(*) as cnt FROM shared_library GROUP BY mode').all();
-  return { total, cached, byMode: Object.fromEntries(modes.map((r) => [r.mode, r.cnt])) };
+export async function getSharedLibraryStats() {
+  const total = Number((await db.prepare('SELECT COUNT(*) as cnt FROM shared_library').get())?.cnt || 0);
+  const cached = Number((await db.prepare("SELECT COUNT(*) as cnt FROM shared_library WHERE audio_local IS NOT NULL AND audio_local != ''").get())?.cnt || 0);
+  const modes = await db.prepare('SELECT mode, COUNT(*) as cnt FROM shared_library GROUP BY mode').all();
+  return { total, cached, byMode: Object.fromEntries(modes.map((r) => [r.mode, Number(r.cnt || 0)])) };
 }
 
 function formatSharedTrack(row) {

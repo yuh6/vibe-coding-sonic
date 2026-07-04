@@ -20,9 +20,9 @@ export async function recordPlay({ userId, trackId, durationSec = null, complete
 
 export async function getUserHistory(userId, { page = 1, limit = 30 } = {}) {
   const offset = (Math.max(1, page) - 1) * limit;
-  const total = (await dal.get(
+  const total = Number((await dal.get(
     'SELECT COUNT(*) as cnt FROM user_play_history WHERE user_id = ?', [userId]
-  ))?.cnt || 0;
+  ))?.cnt || 0);
 
   const rows = await dal.query(
     `SELECT h.*, sl.title, sl.genre, sl.bpm, sl.mbti, sl.mode,
@@ -66,7 +66,7 @@ export async function getRecommendations(userId, { limit = 10 } = {}) {
 
   // 2. 获取已听 track IDs（排除重复推荐）
   const heardRows = await dal.query(
-    'SELECT DISTINCT track_id FROM user_play_history WHERE user_id = ? ORDER BY played_at DESC LIMIT 200',
+    'SELECT track_id FROM user_play_history WHERE user_id = ? GROUP BY track_id ORDER BY MAX(played_at) DESC LIMIT 200',
     [userId]
   );
   const heardSet = new Set(heardRows.map((r) => r.track_id));
@@ -117,6 +117,6 @@ function formatTrack(r) {
     id: r.id, title: r.title, genre: r.genre, bpm: r.bpm,
     mbti: r.mbti, mode: r.mode,
     audioUrl: r.audio_local || r.audio_url,
-    playCount: r.play_count, qualityScore: r.quality_score,
+    playCount: Number(r.play_count || 0), qualityScore: Number(r.quality_score || 0),
   };
 }

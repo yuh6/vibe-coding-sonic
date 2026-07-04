@@ -25,13 +25,50 @@ function getPool() {
   return pool;
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date) && !Buffer.isBuffer(value);
+}
+
+function normalizeParams(argsOrParams = []) {
+  if (Array.isArray(argsOrParams)) {
+    if (argsOrParams.length === 1 && Array.isArray(argsOrParams[0])) return argsOrParams[0];
+    if (argsOrParams.length === 1 && isPlainObject(argsOrParams[0])) return argsOrParams[0];
+    return argsOrParams;
+  }
+  return argsOrParams;
+}
+
 /**
- * 将 `?` 占位符转换为 `$1, $2, ...`（PostgreSQL 格式）
- * 跳过字符串内部和 `??` 转义
+ * 将 SQLite/better-sqlite3 占位符转换为 PostgreSQL 格式。
+ * 支持数组参数的 `?`，也支持对象参数的 `@name`。
  */
-function convertPlaceholders(sql) {
+function convertPlaceholders(sql, inputParams = []) {
+  const params = normalizeParams(inputParams);
+
+  if (isPlainObject(params)) {
+    const values = [];
+    const indexes = new Map();
+    const text = sql.replace(/@([A-Za-z_][A-Za-z0-9_]*)/g, (_match, name) => {
+      if (!indexes.has(name)) {
+        indexes.set(name, values.length + 1);
+        values.push(params[name]);
+      }
+      return `$${indexes.get(name)}`;
+    });
+    return { text, values };
+  }
+
   let idx = 0;
-  return sql.replace(/\?/g, () => `$${++idx}`);
+  const values = Array.isArray(params) ? params : [];
+  return { text: sql.replace(/\?/g, () => `$${++idx}`), values };
+}
+
+function withReturningId(sql) {
+  if (/\bRETURNING\b/i.test(sql)) return sql;
+  if (!/^\s*INSERT\s+INTO\s+(track_pool|play_history|playlist_tracks|user_play_history)\b/i.test(sql)) {
+    return sql;
+  }
+  return `${sql.replace(/;\s*$/, '')} RETURNING id`;
 }
 
 /**
@@ -40,19 +77,24 @@ function convertPlaceholders(sql) {
  */
 
 export const postgres = {
+  dialect: 'pg',
+
   async query(sql, params = []) {
-    const result = await getPool().query(convertPlaceholders(sql), params);
+    const { text, values } = convertPlaceholders(sql, params);
+    const result = await getPool().query(text, values);
     return result.rows;
   },
 
   async get(sql, params = []) {
-    const result = await getPool().query(convertPlaceholders(sql), params);
+    const { text, values } = convertPlaceholders(sql, params);
+    const result = await getPool().query(text, values);
     return result.rows[0] || null;
   },
 
   async run(sql, params = []) {
-    const result = await getPool().query(convertPlaceholders(sql), params);
-    return { changes: result.rowCount, lastInsertRowid: null };
+    const { text, values } = convertPlaceholders(withReturningId(sql), params);
+    const result = await getPool().query(text, values);
+    return { changes: result.rowCount, lastInsertRowid: result.rows[0]?.id ?? null };
   },
 
   async exec(sql) {
@@ -64,9 +106,18 @@ export const postgres = {
     try {
       await client.query('BEGIN');
       const result = await fn({
-        query: (sql, params = []) => client.query(convertPlaceholders(sql), params).then((r) => r.rows),
-        get: (sql, params = []) => client.query(convertPlaceholders(sql), params).then((r) => r.rows[0] || null),
-        run: (sql, params = []) => client.query(convertPlaceholders(sql), params).then((r) => ({ changes: r.rowCount })),
+        query: (sql, params = []) => {
+          const { text, values } = convertPlaceholders(sql, params);
+          return client.query(text, values).then((r) => r.rows);
+        },
+        get: (sql, params = []) => {
+          const { text, values } = convertPlaceholders(sql, params);
+          return client.query(text, values).then((r) => r.rows[0] || null);
+        },
+        run: (sql, params = []) => {
+          const { text, values } = convertPlaceholders(withReturningId(sql), params);
+          return client.query(text, values).then((r) => ({ changes: r.rowCount, lastInsertRowid: r.rows[0]?.id ?? null }));
+        },
       });
       await client.query('COMMIT');
       return result;
@@ -81,6 +132,16 @@ export const postgres = {
   async close() {
     if (pool) await pool.end();
     pool = null;
+  },
+
+  compat: {
+    prepare(sql) {
+      return {
+        all: (...args) => postgres.query(sql, normalizeParams(args)),
+        get: (...args) => postgres.get(sql, normalizeParams(args)),
+        run: (...args) => postgres.run(sql, normalizeParams(args)),
+      };
+    },
   },
 
   raw: null, // PG 不暴露同步 raw 接口

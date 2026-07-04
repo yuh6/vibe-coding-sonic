@@ -92,8 +92,8 @@ function safeJsonParse(value, fallback) {
 }
 
 /** 新建一个曲库池条目（初始时可能还没有 audioUrl，异步生成完成后用 markTrackReady 回填） */
-export function createTrack(sessionId, { phase, moodTag, energyLevel, genre, instruments, promptConfig, audioUrl = null, audioLocal = null, durationSec = null }) {
-  const result = insertTrackStmt.run({
+export async function createTrack(sessionId, { phase, moodTag, energyLevel, genre, instruments, promptConfig, audioUrl = null, audioLocal = null, durationSec = null }) {
+  const result = await insertTrackStmt.run({
     sessionId,
     phase,
     moodTag,
@@ -105,50 +105,53 @@ export function createTrack(sessionId, { phase, moodTag, energyLevel, genre, ins
     audioLocal,
     durationSec,
   });
-  return parseTrack(getTrackStmt.get(result.lastInsertRowid));
+  return parseTrack(await getTrackStmt.get(result.lastInsertRowid));
 }
 
 /** 生成完成后回填音频地址 */
-export function markTrackReady(trackId, { audioUrl, audioLocal = null, durationSec = null }) {
-  updateAudioStmt.run({ id: trackId, audioUrl, audioLocal, durationSec });
-  return parseTrack(getTrackStmt.get(trackId));
+export async function markTrackReady(trackId, { audioUrl, audioLocal = null, durationSec = null }) {
+  await updateAudioStmt.run({ id: trackId, audioUrl, audioLocal, durationSec });
+  return parseTrack(await getTrackStmt.get(trackId));
 }
 
-export function getTrack(trackId) {
-  return parseTrack(getTrackStmt.get(trackId));
+export async function getTrack(trackId) {
+  return parseTrack(await getTrackStmt.get(trackId));
 }
 
-export function listTracks(sessionId, phase) {
-  return listByPhaseStmt.all(sessionId, phase).map(parseTrack);
+export async function listTracks(sessionId, phase) {
+  const rows = await listByPhaseStmt.all(sessionId, phase);
+  return rows.map(parseTrack);
 }
 
 /** 只返回已经生成完成、可播放的曲目 */
-export function listReadyTracks(sessionId, phase) {
-  return listReadyByPhaseStmt.all(sessionId, phase).map(parseTrack);
+export async function listReadyTracks(sessionId, phase) {
+  const rows = await listReadyByPhaseStmt.all(sessionId, phase);
+  return rows.map(parseTrack);
 }
 
-export function countReady(sessionId, phase) {
-  return countReadyByPhaseStmt.get(sessionId, phase)?.n || 0;
+export async function countReady(sessionId, phase) {
+  return Number((await countReadyByPhaseStmt.get(sessionId, phase))?.n || 0);
 }
 
-export function countPending(sessionId, phase) {
-  return countPendingByPhaseStmt.get(sessionId, phase)?.n || 0;
+export async function countPending(sessionId, phase) {
+  return Number((await countPendingByPhaseStmt.get(sessionId, phase))?.n || 0);
 }
 
 /** 记录一次播放开始，返回 play_history 行 id（曲目播完/跳过时用 endPlay 收尾） */
-export function recordPlayStart(sessionId, trackId, phase) {
-  bumpPlayCountStmt.run(trackId);
-  const result = insertPlayHistoryStmt.run(sessionId, trackId, phase);
+export async function recordPlayStart(sessionId, trackId, phase) {
+  await bumpPlayCountStmt.run(trackId);
+  const result = await insertPlayHistoryStmt.run(sessionId, trackId, phase);
   return result.lastInsertRowid;
 }
 
-export function endPlay(playHistoryId, { skipped = false } = {}) {
-  endPlayHistoryStmt.run({ id: playHistoryId, skipped: skipped ? 1 : 0 });
+export async function endPlay(playHistoryId, { skipped = false } = {}) {
+  await endPlayHistoryStmt.run({ id: playHistoryId, skipped: skipped ? 1 : 0 });
 }
 
 /** 最近 N 条播放记录（含 genre/instruments/energy），用于防重复与变化奖励打分 */
-export function recentHistory(sessionId, limit = 10) {
-  return recentHistoryStmt.all(sessionId, limit).map((row) => ({
+export async function recentHistory(sessionId, limit = 10) {
+  const rows = await recentHistoryStmt.all(sessionId, limit);
+  return rows.map((row) => ({
     id: row.id,
     trackPoolId: row.track_pool_id,
     phase: row.phase,
@@ -162,11 +165,11 @@ export function recentHistory(sessionId, limit = 10) {
 }
 
 /** 曲库池状态汇总（按阶段分组的 total/ready），供 GET /api/arranger/pool-status */
-export function poolStatus(sessionId) {
-  const rows = poolCountBySessionStmt.all(sessionId);
+export async function poolStatus(sessionId) {
+  const rows = await poolCountBySessionStmt.all(sessionId);
   const byPhase = {};
   for (const row of rows) {
-    byPhase[row.phase] = { total: row.total, ready: row.ready || 0 };
+    byPhase[row.phase] = { total: Number(row.total || 0), ready: Number(row.ready || 0) };
   }
   return byPhase;
 }

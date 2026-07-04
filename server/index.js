@@ -89,7 +89,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/config', requireAdmin, configRoutes);
-app.use('/api/library', requireAdmin, libraryRoutes);
+app.use('/api/library', libraryRoutes);
 
 app.use('/api/mbti', mbtiRoutes);
 app.use('/api/project', projectRoutes);

@@ -3,20 +3,20 @@ import { db, today } from '../db.js';
 const QUOTA_PER_DAY = Number(process.env.QUOTA_PER_DAY || 5);
 const GLOBAL_DAILY_LIMIT = Number(process.env.GLOBAL_DAILY_LIMIT || 100);
 
-export function getQuota(userId) {
-  const row = db.prepare('SELECT used FROM quotas WHERE user_id = ? AND day = ?').get(userId, today());
-  const used = row?.used || 0;
+export async function getQuota(userId) {
+  const row = await db.prepare('SELECT used FROM quotas WHERE user_id = ? AND day = ?').get(userId, today());
+  const used = Number(row?.used || 0);
   return { used, limit: QUOTA_PER_DAY, remaining: Math.max(0, QUOTA_PER_DAY - used) };
 }
 
-function globalUsedToday() {
-  const row = db.prepare('SELECT SUM(used) AS total FROM quotas WHERE day = ?').get(today());
-  return row?.total || 0;
+async function globalUsedToday() {
+  const row = await db.prepare('SELECT SUM(used) AS total FROM quotas WHERE day = ?').get(today());
+  return Number(row?.total || 0);
 }
 
 // 检查并占用一次配额；返回 { ok } 或 { ok: false, status, error }
-export function consumeQuota(userId) {
-  if (globalUsedToday() >= GLOBAL_DAILY_LIMIT) {
+export async function consumeQuota(userId) {
+  if (await globalUsedToday() >= GLOBAL_DAILY_LIMIT) {
     return {
       ok: false,
       status: 503,
@@ -24,7 +24,7 @@ export function consumeQuota(userId) {
       code: 'GLOBAL_BUDGET_EXCEEDED',
     };
   }
-  const { remaining } = getQuota(userId);
+  const { remaining } = await getQuota(userId);
   if (remaining <= 0) {
     return {
       ok: false,
@@ -33,7 +33,7 @@ export function consumeQuota(userId) {
       code: 'QUOTA_EXCEEDED',
     };
   }
-  db.prepare(
+  await db.prepare(
     `INSERT INTO quotas (user_id, day, used) VALUES (?, ?, 1)
      ON CONFLICT(user_id, day) DO UPDATE SET used = used + 1`
   ).run(userId, today());
@@ -41,16 +41,26 @@ export function consumeQuota(userId) {
 }
 
 // TTAPI 失败落到兜底时退还配额（用户没得到真实生成，不该计费）
-export function refundQuota(userId) {
-  db.prepare(
-    'UPDATE quotas SET used = MAX(0, used - 1) WHERE user_id = ? AND day = ?'
+export async function refundQuota(userId) {
+  await db.prepare(
+    'UPDATE quotas SET used = CASE WHEN used > 0 THEN used - 1 ELSE 0 END WHERE user_id = ? AND day = ?'
   ).run(userId, today());
 }
 
-export function saveTrack({ jobId, userId, title, mbti, mode, prompt, audioUrl, tracks, fallback }) {
-  db.prepare(
-    `INSERT OR REPLACE INTO tracks (id, user_id, title, mbti, mode, prompt, audio_url, tracks_json, fallback, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+export async function saveTrack({ jobId, userId, title, mbti, mode, prompt, audioUrl, tracks, fallback }) {
+  await db.prepare(
+    `INSERT INTO tracks (id, user_id, title, mbti, mode, prompt, audio_url, tracks_json, fallback, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       user_id = excluded.user_id,
+       title = excluded.title,
+       mbti = excluded.mbti,
+       mode = excluded.mode,
+       prompt = excluded.prompt,
+       audio_url = excluded.audio_url,
+       tracks_json = excluded.tracks_json,
+       fallback = excluded.fallback,
+       created_at = excluded.created_at`
   ).run(
     jobId,
     userId,
@@ -65,11 +75,11 @@ export function saveTrack({ jobId, userId, title, mbti, mode, prompt, audioUrl, 
   );
 }
 
-export function listTracks(userId, limit = 50) {
-  return db
+export async function listTracks(userId, limit = 50) {
+  const rows = await db
     .prepare('SELECT * FROM tracks WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
-    .all(userId, limit)
-    .map((row) => ({
+    .all(userId, limit);
+  return rows.map((row) => ({
       id: row.id,
       title: row.title,
       mbti: row.mbti,
@@ -82,8 +92,8 @@ export function listTracks(userId, limit = 50) {
     }));
 }
 
-export function userOwnsTrackUrl(userId, url) {
-  const rows = db
+export async function userOwnsTrackUrl(userId, url) {
+  const rows = await db
     .prepare('SELECT audio_url, tracks_json FROM tracks WHERE user_id = ? ORDER BY created_at DESC LIMIT 200')
     .all(userId);
 
@@ -100,8 +110,8 @@ export function userOwnsTrackUrl(userId, url) {
   return false;
 }
 
-export function getProfile(userId) {
-  const row = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
+export async function getProfile(userId) {
+  const row = await db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
   if (!row) return null;
   return {
     axes: row.axes_json ? JSON.parse(row.axes_json) : null,
@@ -111,8 +121,8 @@ export function getProfile(userId) {
   };
 }
 
-export function saveProfile(userId, { axes, style, mode }) {
-  db.prepare(
+export async function saveProfile(userId, { axes, style, mode }) {
+  await db.prepare(
     `INSERT INTO profiles (user_id, axes_json, style_json, mode, updated_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
