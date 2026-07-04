@@ -249,6 +249,33 @@ const MIGRATIONS_PG = MIGRATIONS_SQLITE
   .replace(/INTEGER DEFAULT 0/g, 'INTEGER DEFAULT 0')  // 保持兼容
   .replace(/TEXT DEFAULT CURRENT_TIMESTAMP/g, "TIMESTAMPTZ DEFAULT NOW()");
 
+const PG_BIGINT_TIMESTAMP_COLUMNS = [
+  ['users', 'created_at'],
+  ['auth_sessions', 'expires_at'],
+  ['auth_sessions', 'created_at'],
+  ['profiles', 'updated_at'],
+  ['tracks', 'created_at'],
+  ['app_settings', 'updated_at'],
+  ['fallback_tracks', 'created_at'],
+  ['shared_library', 'created_at'],
+  ['playlists', 'created_at'],
+  ['playlists', 'updated_at'],
+  ['playlist_tracks', 'added_at'],
+  ['radio_stations', 'current_track_started_at'],
+  ['radio_stations', 'created_at'],
+  ['generation_jobs', 'created_at'],
+  ['generation_jobs', 'completed_at'],
+  ['favorites', 'created_at'],
+  ['ratings', 'created_at'],
+  ['user_play_history', 'played_at'],
+];
+
+const MIGRATIONS_PG_COMPAT = PG_BIGINT_TIMESTAMP_COLUMNS
+  .map(([table, column]) =>
+    `ALTER TABLE IF EXISTS ${table} ALTER COLUMN ${column} TYPE BIGINT USING ${column}::bigint;`
+  )
+  .join('\n');
+
 export function getMigrationSQL(driver) {
-  return driver === 'pg' ? MIGRATIONS_PG : MIGRATIONS_SQLITE;
+  return driver === 'pg' ? `${MIGRATIONS_PG}\n${MIGRATIONS_PG_COMPAT}` : MIGRATIONS_SQLITE;
 }
