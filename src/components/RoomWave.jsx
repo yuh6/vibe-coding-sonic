@@ -91,6 +91,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
   const [newMessage, setNewMessage] = useState('');
   const [onlineCount, setOnlineCount] = useState(128);
   const [activeRoomType, setActiveRoomType] = useState('random'); // "random" | "mbti"
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [soloDims, setSoloDims] = useState({ ei: 35, ns: 62, tf: 48, jp: 70 });
   const [styleFx, setStyleFx] = useState({ chillHype: 59, synthAcoustic: 35, darkBright: 40 });
   const [activeModePad, setActiveModePad] = useState('专注构思');
@@ -1028,12 +1029,8 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
                         <span className="text-xs font-mono font-bold text-white bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-[#00FF66]/30 flex items-center gap-1.5">
                           {activeRoomType === 'random' ? '随机跃迁房' : `MBTI - ${selectedMBTI.id} 房`}
                         </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-zinc-800 text-zinc-300 flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-[#00FF66]" />
-                          {onlineCount} 在线
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200">
+                          本地体验模式
                         </span>
                       </div>
                     </div>
@@ -1245,7 +1242,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
         <div>
           <span>© {new Date().getFullYear()} ROOMWAVE AUDIO-VISUAL LAB. </span>
           <span className="text-zinc-800">|</span>
-          <span className="text-zinc-500 hover:text-zinc-400 cursor-pointer ml-1">隐私协议</span>
+          <button type="button" onClick={() => setShowPrivacy(true)} className="ml-1 text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline">隐私协议</button>
         </div>
         <div className="flex items-center gap-4 text-[10px]">
           <span className="flex items-center gap-1 text-[#00FF66]">
@@ -1255,6 +1252,27 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
           <span>HOST: 0x29e...1a88</span>
         </div>
       </footer>
+
+      {showPrivacy && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-200 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-lg font-bold">隐私协议</h3>
+              <button
+                type="button"
+                onClick={() => setShowPrivacy(false)}
+                className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:text-white"
+              >
+                关闭
+              </button>
+            </div>
+            <div className="space-y-2 text-sm leading-6 text-zinc-400">
+              <p>当前 RoomWave 房间、聊天和在线人数为本地体验模式，不会上传聊天内容。</p>
+              <p>登录信息和音乐生成请求沿用主应用后端接口；真实多人房间上线前，会补充房间成员、消息存储和实时同步规则。</p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
