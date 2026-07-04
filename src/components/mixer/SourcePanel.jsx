@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getLibrary, getMyTracks } from '../../lib/api';
 
-export default function SourcePanel({ onAdd, onAddMany, loading }) {
+export default function SourcePanel({ onAdd, onAddMany, loading, user, onRequireAuth }) {
   const [library, setLibrary] = useState(null);
   const [myTracks, setMyTracks] = useState(null);
   const [url, setUrl] = useState('');
@@ -33,6 +33,16 @@ export default function SourcePanel({ onAdd, onAddMany, loading }) {
   const handleUrl = () => {
     const trimmed = url.trim();
     if (!trimmed) return;
+    // 远程 URL 未登录时提示登录，不直接触发代理请求
+    try {
+      const parsed = new URL(trimmed);
+      if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && !user) {
+        onRequireAuth?.('登录后才能加载远程音频 URL');
+        return;
+      }
+    } catch {
+      // 非标准 URL（如 blob:），直接通过
+    }
     const name = trimmed.split('/').pop()?.split('?')[0] || 'URL Track';
     onAdd({ name, url: trimmed, type: 'stem' });
     setUrl('');

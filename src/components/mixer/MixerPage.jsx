@@ -20,7 +20,7 @@ function importStatusText(incomingMix) {
   return `Loaded ${incomingMix.tracks?.length || 0} track${incomingMix.tracks?.length === 1 ? '' : 's'}`;
 }
 
-export default function MixerPage({ incomingMix = null }) {
+export default function MixerPage({ incomingMix = null, user, onRequireAuth }) {
   const mixer = useMixer();
   const importedSignatureRef = useRef('');
   const importJobRef = useRef('');
@@ -55,7 +55,7 @@ export default function MixerPage({ incomingMix = null }) {
             </div>
           </div>
         )}
-        <SourcePanel onAdd={mixer.addTrack} onAddMany={mixer.addTracks} loading={mixer.loading} />
+        <SourcePanel onAdd={mixer.addTrack} onAddMany={mixer.addTracks} loading={mixer.loading} user={user} onRequireAuth={onRequireAuth} />
         <VersionPanel
           getMixState={mixer.getMixState}
           onRestore={mixer.applySnapshot}
