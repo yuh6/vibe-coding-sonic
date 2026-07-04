@@ -26,7 +26,10 @@ import {
   getMyProfile,
   previewPrompt,
   saveMyProfile,
+  startRadio,
+  stopRadio,
   syncSchedule,
+  updateRadioNowPlaying,
 } from './lib/api';
 import { useMusicPoll, usePlayer } from './hooks/usePlayer';
 import { useArranger } from './hooks/useArranger';
@@ -67,6 +70,8 @@ export default function App() {
   const [quota, setQuota] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [notice, setNotice] = useState('');
+  const [liveStation, setLiveStation] = useState(null);
+  const [radioBusy, setRadioBusy] = useState(false);
 
   const mbti = mbtiFromAxes(axes);
   const theme = getTheme(mbti);
@@ -298,6 +303,53 @@ export default function App() {
     setProjectDesc(preset.description);
   };
 
+  const handleRadioToggle = async () => {
+    if (liveStation) {
+      setRadioBusy(true);
+      try {
+        await stopRadio(liveStation.id);
+        setLiveStation(null);
+        setNotice('电台已下线');
+      } finally {
+        setRadioBusy(false);
+      }
+      return;
+    }
+
+    if (!user) {
+      setNotice('登录后可以公开电台');
+      setAuthOpen(true);
+      return;
+    }
+
+    if (!arranger.sessionId) {
+      setNotice('先开始编排，再公开为电台');
+      return;
+    }
+
+    setRadioBusy(true);
+    try {
+      const station = await startRadio({
+        title: `${projectName || 'Vibe Coding'} · ${mbti} Radio`,
+        description: projectDesc || '',
+        sessionId: arranger.sessionId,
+        mode: arranger.phase || mode,
+        mbti,
+      });
+      setLiveStation(station);
+      setNotice('电台已公开');
+    } catch (err) {
+      if (err.status === 401) {
+        setAuthOpen(true);
+        setNotice('登录后可以公开电台');
+      } else {
+        setNotice(err.message || '电台公开失败');
+      }
+    } finally {
+      setRadioBusy(false);
+    }
+  };
+
   const handleGithubAnalyze = async (url) => {
     const analysis = await analyzeGithub(url);
     skipAnalyzeRef.current = true;
@@ -307,6 +359,23 @@ export default function App() {
     setProjectAnalysis(analysis);
     setAnalysisSource(`github · ${analysis.source || ''}`);
   };
+
+  // 同步 arranger 正在播放的曲目到电台 now-playing snapshot
+  useEffect(() => {
+    if (!liveStation?.id || !arranger.nowPlayingTrack) return;
+    const track = arranger.nowPlayingTrack;
+    const audioUrl = track.audioLocal || track.audioUrl;
+    if (!audioUrl) return;
+
+    updateRadioNowPlaying(liveStation.id, {
+      title: track.title || track.moodTag || `${track.genre || 'Live'} Track`,
+      genre: track.genre,
+      bpm: track.bpm,
+      audioUrl,
+    }).catch((err) => {
+      console.error('[radio now-playing]', err);
+    });
+  }, [liveStation?.id, arranger.nowPlayingTrack]);
 
   const pageBg = isDark
     ? `radial-gradient(ellipse at 20% 0%, ${theme.primary} 0%, transparent 55%),
@@ -413,9 +482,22 @@ export default function App() {
         {isAdmin ? (
           <AdminPanel />
         ) : isMixer ? (
-          <MixerPage incomingMix={mixerImport} />
+          <MixerPage
+            incomingMix={mixerImport}
+            user={user}
+            onRequireAuth={(message = '登录后才能加载远程音频 URL') => {
+              setNotice(message);
+              setAuthOpen(true);
+            }}
+          />
         ) : isDiscover ? (
-          <DiscoverPage onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })} />
+          <DiscoverPage
+            onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })}
+            onRequireAuth={(message = '登录后可以使用此功能') => {
+              setNotice(message);
+              setAuthOpen(true);
+            }}
+          />
         ) : (
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}
@@ -469,6 +551,9 @@ export default function App() {
                 onStop={handleArrangerStop}
                 onPhaseChange={handleArrangerPhaseChange}
                 onFeedback={handleArrangerFeedback}
+                liveStation={liveStation}
+                radioBusy={radioBusy}
+                onRadioToggle={handleRadioToggle}
               />
             </div>
 

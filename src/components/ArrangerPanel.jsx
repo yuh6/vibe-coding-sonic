@@ -138,6 +138,9 @@ export default function ArrangerPanel({
   onStop,
   onPhaseChange,
   onFeedback,
+  liveStation,
+  radioBusy,
+  onRadioToggle,
 }) {
   const {
     state,
@@ -163,9 +166,25 @@ export default function ArrangerPanel({
         >
           {starting ? '启动中...' : running ? '⏹ 停止' : '▶ 开始编排'}
         </button>
+        {onRadioToggle && (
+          <button
+            type="button"
+            onClick={onRadioToggle}
+            disabled={radioBusy || (!running && !liveStation)}
+            className={`pad px-3 py-1.5 text-xs disabled:opacity-50 ${liveStation ? 'pad-active' : ''}`}
+          >
+            {radioBusy ? '处理中...' : liveStation ? '📻 下线电台' : '📻 公开'}
+          </button>
+        )}
       </div>
 
       {error && <div className="mb-2 text-[11px] text-red-400">{error}</div>}
+
+      {liveStation && (
+        <div className="mb-2 rounded-lg border border-green-500/20 bg-green-500/10 px-2 py-1.5 text-[11px] text-green-300">
+          电台公开中: {liveStation.title}
+        </div>
+      )}
 
       <div className="mb-3">
         <MoodIndicator track={nowPlayingTrack} phase={phase} theme={theme} />
