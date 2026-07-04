@@ -237,7 +237,7 @@ async function completeWithFallback(job, delayMs = 0) {
       await saveJobToDB(job);
       return;
     }
-    const track = pickTrack(job.mode, job.mbti);
+    const track = await pickTrack(job.mode, job.mbti);
     if (!track) {
       job.status = 'failed';
       job.error = 'No fallback track available';
@@ -388,8 +388,8 @@ export async function refreshJob(jobId) {
   return job;
 }
 
-export function getFallbackTrack(mode, mbti, extras = {}) {
-  const track = pickTrack(mode, mbti);
+export async function getFallbackTrack(mode, mbti, extras = {}) {
+  const track = await pickTrack(mode, mbti);
   const composed = composePrompt({ mbti: mbti || 'INTJ', mode, projectAnalysis: null, ...extras });
   return {
     ...(track || {}),

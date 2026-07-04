@@ -35,8 +35,21 @@ import { cleanupLocalCache } from './storage/local.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '127.0.0.1';
 const isProd = process.env.NODE_ENV === 'production';
+const HOST = resolveHost();
+
+function isLoopbackHost(host) {
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function resolveHost() {
+  const configuredHost = process.env.HOST;
+  if (isProd && process.env.RAILWAY_PROJECT_ID && isLoopbackHost(configuredHost)) {
+    console.warn(`[server] Ignoring Railway loopback HOST=${configuredHost}; using 0.0.0.0`);
+    return '0.0.0.0';
+  }
+  return configuredHost || (isProd ? '0.0.0.0' : '127.0.0.1');
+}
 
 function parseCsv(value) {
   return String(value || '')

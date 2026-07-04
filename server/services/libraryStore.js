@@ -1,8 +1,8 @@
 /**
- * 预生成音乐库 — 默认曲目来自 fallback-manifest.json，运行时修改写入 gitignored 文件。
+ * 预生成音乐库 — 默认曲目来自 fallback-manifest.json，运行时修改写入数据库。
  * + 歌曲总库（shared_library）智能匹配
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { randomUUID } from 'crypto';
@@ -15,7 +15,7 @@ const LIBRARY_PATH = join(__dirname, '../data/runtime-library.json');
 // 七阶段体系（v3 替换原 focus/spark/sprint/charge 四模式）
 const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
 
-let manifest = load();
+let manifest = await load();
 
 function emptyManifest() {
   return { brainstorm: [], focus: [], sprint: [], charge: [], behind: [], break: [], celebrate: [] };
@@ -29,7 +29,7 @@ function normalizeManifest(raw) {
   return next;
 }
 
-function load() {
+function loadManifestFile() {
   const path = existsSync(LIBRARY_PATH) ? LIBRARY_PATH : DEFAULT_MANIFEST_PATH;
   try {
     return normalizeManifest(JSON.parse(readFileSync(path, 'utf-8')));
@@ -38,11 +38,45 @@ function load() {
   }
 }
 
-function persist() {
-  mkdirSync(dirname(LIBRARY_PATH), { recursive: true });
-  const tmpPath = `${LIBRARY_PATH}.${process.pid}.${Date.now()}.tmp`;
-  writeFileSync(tmpPath, JSON.stringify(manifest, null, 2));
-  renameSync(tmpPath, LIBRARY_PATH);
+function rowsToManifest(rows) {
+  const next = emptyManifest();
+  for (const row of rows) {
+    if (!MODES.includes(row.mode)) continue;
+    next[row.mode].push({ id: row.id, title: row.title, url: row.url });
+  }
+  return next;
+}
+
+async function seedFallbackTracksIfEmpty() {
+  const row = await db.prepare('SELECT COUNT(*) as cnt FROM fallback_tracks').get();
+  if (Number(row?.cnt || 0) > 0) return;
+
+  const seed = loadManifestFile();
+  const now = Date.now();
+  for (const [mode, tracks] of Object.entries(seed)) {
+    for (const track of tracks) {
+      if (!track?.id || !track?.url) continue;
+      await db.prepare(
+        `INSERT INTO fallback_tracks (id, mode, title, url, created_at)
+         VALUES (@id, @mode, @title, @url, @createdAt)
+         ON CONFLICT(id) DO NOTHING`
+      ).run({
+        id: String(track.id),
+        mode,
+        title: String(track.title || track.url).slice(0, 120),
+        url: String(track.url),
+        createdAt: now,
+      });
+    }
+  }
+}
+
+async function load() {
+  await seedFallbackTracksIfEmpty();
+  const rows = await db.prepare(
+    'SELECT id, mode, title, url FROM fallback_tracks ORDER BY mode, created_at, id'
+  ).all();
+  return rowsToManifest(rows);
 }
 
 function validateTrackUrl(value) {
@@ -74,7 +108,7 @@ export function getTracks(mode) {
   return manifest[key] || manifest.focus || [];
 }
 
-export function addTrack({ mode, title, url }) {
+export async function addTrack({ mode, title, url }) {
   const key = String(mode || '').toLowerCase();
   if (!MODES.includes(key)) {
     throw new Error(`Invalid mode: ${mode}`);
@@ -82,29 +116,32 @@ export function addTrack({ mode, title, url }) {
   const safeUrl = validateTrackUrl(url);
   const safeTitle = String(title || safeUrl).trim().slice(0, 120);
   const track = { id: `${key}-${randomUUID().slice(0, 8)}`, title: safeTitle, url: safeUrl };
+  await db.prepare(
+    `INSERT INTO fallback_tracks (id, mode, title, url, created_at)
+     VALUES (@id, @mode, @title, @url, @createdAt)`
+  ).run({ ...track, mode: key, createdAt: Date.now() });
   manifest[key] = [...(manifest[key] || []), track];
-  persist();
   return track;
 }
 
-export function removeTrack(mode, id) {
+export async function removeTrack(mode, id) {
   const key = String(mode || '').toLowerCase();
   const tracks = manifest[key] || [];
+  const removed = await db.prepare('DELETE FROM fallback_tracks WHERE mode = ? AND id = ?').run(key, id);
+  if (removed.changes === 0) return false;
   const next = tracks.filter((t) => t.id !== id);
-  if (next.length === tracks.length) return false;
   manifest[key] = next;
-  persist();
   return true;
 }
 
-export function pickTrack(mode, mbti) {
+export async function pickTrack(mode, mbti) {
   const tracks = getTracks(mode);
   if (!tracks.length) return null;
   const index = mbti ? mbti.charCodeAt(0) % tracks.length : 0;
   return tracks[index];
 }
 
-export function libraryHasTrackUrl(url) {
+export async function libraryHasTrackUrl(url) {
   return Object.values(manifest).some((tracks) => tracks.some((track) => track?.url === url));
 }
 

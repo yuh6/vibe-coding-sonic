@@ -19,6 +19,8 @@ const PRELOAD_AT = 0.85;
 const TRANSITION_AT = 0.95;
 const NO_NEXT_RECHECK_MS = 10_000;
 const TICK_MS = 250;
+const WS_RECONNECT_BASE_MS = 1_000;
+const WS_RECONNECT_MAX_MS = 15_000;
 
 function wsUrl(sessionId) {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -136,38 +138,67 @@ export function useArranger() {
   // 实际 preload/transition 时机仍由本地播放进度驱动，见上方轮询）
   useEffect(() => {
     if (!sessionId) return undefined;
-    const ws = new WebSocket(wsUrl(sessionId));
-    wsRef.current = ws;
+    let stopped = false;
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
+    let ws = null;
 
-    ws.onmessage = (evt) => {
-      let msg;
-      try {
-        msg = JSON.parse(evt.data);
-      } catch {
-        return;
-      }
-      const { type, payload } = msg;
-      if (type === 'track_changed' && payload?.track) {
-        if (!deckRef.current.current) {
-          handleDecision({ track: payload.track });
-        }
-      } else if (type === 'phase_changed') {
-        if (payload?.phase) setPhase(payload.phase);
-        if (payload?.state) setState(payload.state);
-      } else if (type === 'pool_refill') {
+    const connect = () => {
+      if (stopped) return;
+      ws = new WebSocket(wsUrl(sessionId));
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        reconnectAttempt = 0;
         refreshPoolStatus(sessionId);
-      } else if (type === 'user_feedback') {
-        // 反馈影响能量曲线，刷新一下展示
-        getArrangerEnergyCurve().then((data) => setEnergyCurve(data.curve)).catch(() => {});
-      }
+        refreshHistory(sessionId);
+      };
+
+      ws.onmessage = (evt) => {
+        let msg;
+        try {
+          msg = JSON.parse(evt.data);
+        } catch {
+          return;
+        }
+        const { type, payload } = msg;
+        if (type === 'track_changed' && payload?.track) {
+          if (!deckRef.current.current) {
+            handleDecision({ track: payload.track });
+          }
+        } else if (type === 'phase_changed') {
+          if (payload?.phase) setPhase(payload.phase);
+          if (payload?.state) setState(payload.state);
+        } else if (type === 'pool_refill') {
+          refreshPoolStatus(sessionId);
+        } else if (type === 'user_feedback') {
+          // 反馈影响能量曲线，刷新一下展示
+          getArrangerEnergyCurve().then((data) => setEnergyCurve(data.curve)).catch(() => {});
+        }
+      };
+
+      ws.onerror = () => {
+        ws?.close();
+      };
+
+      ws.onclose = () => {
+        if (wsRef.current === ws) wsRef.current = null;
+        if (stopped) return;
+        const delay = Math.min(WS_RECONNECT_BASE_MS * 2 ** reconnectAttempt, WS_RECONNECT_MAX_MS);
+        reconnectAttempt += 1;
+        reconnectTimer = window.setTimeout(connect, delay);
+      };
     };
-    ws.onerror = () => {};
+
+    connect();
 
     return () => {
-      ws.close();
+      stopped = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      ws?.close();
       wsRef.current = null;
     };
-  }, [sessionId, handleDecision, refreshPoolStatus]);
+  }, [sessionId, handleDecision, refreshPoolStatus, refreshHistory]);
 
   const start = useCallback(
     async ({ name, mbtiType, mbtiSliders, schedule, budgetLimit } = {}) => {

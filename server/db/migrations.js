@@ -102,6 +102,21 @@ CREATE TABLE IF NOT EXISTS project_cache (
   analyzed_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  name       TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fallback_tracks (
+  id         TEXT PRIMARY KEY,
+  mode       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mode ON fallback_tracks(mode);
+
 CREATE TABLE IF NOT EXISTS shared_library (
   id            TEXT PRIMARY KEY,
   user_id       TEXT,

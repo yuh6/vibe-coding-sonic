@@ -114,7 +114,7 @@ async function isAuthorizedProxyUrl(userId, url) {
   return (
     userOwnsJobUrl(userId, url) ||
     await userOwnsTrackUrl(userId, url) ||
-    libraryHasTrackUrl(url) ||
+    await libraryHasTrackUrl(url) ||
     isAllowedConfiguredHost(new URL(url).hostname)
   );
 }
@@ -319,11 +319,15 @@ router.get('/status/:id', requireUser, async (req, res) => {
   }
 });
 
-router.get('/fallback', (req, res) => {
-  const mode = req.query.mode || 'focus';
-  const mbti = req.query.mbti || 'INTJ';
-  const track = getFallbackTrack(mode, mbti);
-  res.json(track);
+router.get('/fallback', async (req, res) => {
+  try {
+    const mode = req.query.mode || 'focus';
+    const mbti = req.query.mbti || 'INTJ';
+    const track = await getFallbackTrack(mode, mbti);
+    res.json(track);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 音频代理需登录：防止被当作公网开放代理滥用

@@ -14,22 +14,26 @@ router.get('/', requireAdmin, (_req, res) => {
   res.json(getLibrary());
 });
 
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { mode, title, url } = req.body || {};
-    const track = addTrack({ mode, title, url });
+    const track = await addTrack({ mode, title, url });
     res.json(track);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-router.delete('/:mode/:id', requireAdmin, (req, res) => {
-  const removed = removeTrack(req.params.mode, req.params.id);
-  if (!removed) {
-    return res.status(404).json({ error: 'Track not found' });
+router.delete('/:mode/:id', requireAdmin, async (req, res) => {
+  try {
+    const removed = await removeTrack(req.params.mode, req.params.id);
+    if (!removed) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
-  res.json({ ok: true });
 });
 
 // ── 歌曲总库（公开） ──

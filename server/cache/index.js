@@ -8,7 +8,9 @@ import Redis from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL;
 let redis = null;
+let redisSubscriber = null;
 let isRedisAvailable = false;
+const subscriptionHandlers = new Map();
 
 if (REDIS_URL) {
   try {
@@ -29,6 +31,33 @@ if (REDIS_URL) {
   }
 } else {
   console.log('[cache] No REDIS_URL, using in-memory LRU cache');
+}
+
+async function getSubscriber() {
+  if (!isRedisAvailable || !REDIS_URL) return null;
+  if (redisSubscriber) return redisSubscriber;
+
+  redisSubscriber = new Redis(REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      if (times > 5) return null;
+      return Math.min(times * 200, 2000);
+    },
+    lazyConnect: true,
+  });
+  redisSubscriber.on('message', (channel, message) => {
+    const handlers = subscriptionHandlers.get(channel);
+    if (!handlers) return;
+    for (const handler of handlers) {
+      try {
+        handler(message);
+      } catch (err) {
+        console.warn('[cache] Redis subscription handler failed:', err.message);
+      }
+    }
+  });
+  await redisSubscriber.connect();
+  return redisSubscriber;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -137,8 +166,38 @@ export const cache = {
     return this.set(key, JSON.stringify(obj), ttlSec);
   },
 
+  /** Pub/Sub publish — Redis 可用时跨实例广播；不可用时返回 0 */
+  async publish(channel, message) {
+    if (!isRedisAvailable) return 0;
+    return redis.publish(channel, typeof message === 'string' ? message : JSON.stringify(message));
+  },
+
+  /** Pub/Sub subscribe — 返回 unsubscribe 函数；Redis 不可用时为 no-op */
+  async subscribe(channel, handler) {
+    if (!isRedisAvailable) return () => {};
+    if (!subscriptionHandlers.has(channel)) {
+      subscriptionHandlers.set(channel, new Set());
+      const subscriber = await getSubscriber();
+      await subscriber.subscribe(channel);
+    }
+    subscriptionHandlers.get(channel).add(handler);
+    return async () => {
+      const handlers = subscriptionHandlers.get(channel);
+      if (!handlers) return;
+      handlers.delete(handler);
+      if (handlers.size === 0) {
+        subscriptionHandlers.delete(channel);
+        if (redisSubscriber) await redisSubscriber.unsubscribe(channel);
+      }
+    };
+  },
+
   /** 关闭 */
   async close() {
+    if (redisSubscriber) await redisSubscriber.quit();
+    redisSubscriber = null;
     if (redis) await redis.quit();
+    redis = null;
+    isRedisAvailable = false;
   },
 };

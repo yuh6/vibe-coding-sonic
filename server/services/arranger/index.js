@@ -6,6 +6,7 @@
  * 状态机：IDLE → BOOTSTRAP → PLAYING ↔ TRANSITION → DECIDING → GENERATING → CACHED → PHASE_CHANGE
  */
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import * as sessionStore from './sessionStore.js';
 import * as trackPool from './trackPool.js';
 import { SensingLayer } from './sensingLayer.js';
@@ -13,6 +14,7 @@ import { Arranger } from './arranger.js';
 import { GenerationScheduler } from './generationScheduler.js';
 import { buildEnergyCurve, arcEnergyAtProgress } from './macroArc.js';
 import { generatePhaseSequence } from './phaseArrangement.js';
+import { cache } from '../../cache/index.js';
 
 // 冷启动/补货数量（§8.5 生成节奏表）
 const COLD_START_COUNT = 2;
@@ -22,10 +24,28 @@ const REFILL_COUNT = 2;
 // 全局事件总线：routes/ws.js 订阅后转发到 /ws/events
 export const arrangerEvents = new EventEmitter();
 arrangerEvents.setMaxListeners(0);
+const ARRANGER_EVENT_CHANNEL = 'arranger-events';
+const INSTANCE_ID = process.env.RAILWAY_REPLICA_ID || `${process.pid}-${randomUUID()}`;
 
 function emit(sessionId, type, payload = {}) {
-  arrangerEvents.emit('event', { sessionId, type, payload, at: Date.now() });
+  const event = { sessionId, type, payload, at: Date.now(), sourceId: INSTANCE_ID };
+  arrangerEvents.emit('event', event);
+  cache.publish(ARRANGER_EVENT_CHANNEL, event).catch((err) => {
+    console.warn('[arranger] Redis event publish failed:', err.message);
+  });
 }
+
+cache.subscribe(ARRANGER_EVENT_CHANNEL, (message) => {
+  try {
+    const event = JSON.parse(message);
+    if (!event || event.sourceId === INSTANCE_ID) return;
+    arrangerEvents.emit('event', event);
+  } catch (err) {
+    console.warn('[arranger] Redis event parse failed:', err.message);
+  }
+}).catch((err) => {
+  console.warn('[arranger] Redis event subscription disabled:', err.message);
+});
 
 async function getEngineBundle(sessionId) {
   const rt = await sessionStore.getRuntime(sessionId);

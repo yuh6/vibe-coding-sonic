@@ -39,12 +39,13 @@ router.get('/keys', (_req, res) => {
   res.json({ settings: maskedSettings() });
 });
 
-router.post('/keys', (req, res) => {
+router.post('/keys', async (req, res) => {
   try {
-    const applied = updateSettings(req.body || {});
+    const { applied, skipped } = await updateSettings(req.body || {});
     res.json({
       ok: true,
       applied,
+      skipped,
       llm: resolveLlmConfig(),
       ttapi: resolveTtapiConfig(),
     });
