@@ -288,3 +288,43 @@ export function stopRadio(id) {
   return request(`/api/radio/${id}`, { method: 'DELETE' });
 }
 
+// ── 共享曲库 + 播放记录 ──
+
+export function getSharedLibrary({ mode, mbti, genre, q, page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (mode) params.set('mode', mode);
+  if (mbti) params.set('mbti', mbti);
+  if (genre) params.set('genre', genre);
+  if (q) params.set('q', q);
+  params.set('page', page);
+  params.set('limit', limit);
+  return request(`/api/library/shared?${params}`);
+}
+
+export function recordSharedTrackPlay(trackId) {
+  return request(`/api/library/shared/${encodeURIComponent(trackId)}/play`, { method: 'POST' });
+}
+
+export function getPopularTracks(limit = 12) {
+  const params = new URLSearchParams({ limit });
+  return request(`/api/recommend/popular?${params}`);
+}
+
+export function recordRecommendedPlay({ trackId, durationSec = null, completed = false }) {
+  return request('/api/recommend/play', {
+    method: 'POST',
+    body: JSON.stringify({ trackId, durationSec, completed }),
+  });
+}
+
+export function recordPlaylistPlay(playlistId) {
+  return request(`/api/playlists/${encodeURIComponent(playlistId)}/play`, { method: 'POST' });
+}
+
+export function updateRadioNowPlaying(id, track) {
+  return request(`/api/radio/${encodeURIComponent(id)}/now-playing`, {
+    method: 'PATCH',
+    body: JSON.stringify({ track }),
+  });
+}
+
