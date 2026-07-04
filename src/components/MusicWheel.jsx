@@ -93,7 +93,44 @@ const SONGS_DATABASE = {
   ],
 };
 
-export default function MusicWheel() {
+const GENRE_ALIASES = {
+  pop: ['pop', '流行'],
+  jazz: ['jazz', '爵士'],
+  rock: ['rock', '摇滚'],
+  hiphop: ['hip-hop', 'hiphop', 'rap', '说唱'],
+  classical: ['classical', '古典'],
+  electronic: ['electronic', 'edm', '电子'],
+  rnb: ['r&b', 'rnb', '节奏蓝调'],
+  country: ['country', '乡村'],
+  latin: ['latin', '拉丁'],
+  metal: ['metal', '重金属'],
+  indie: ['indie', '独立'],
+  funk: ['funk', '放克'],
+};
+
+function matchesGenre(track, genreId) {
+  const raw = `${track.genre || ''} ${track.tags || ''}`.toLowerCase();
+  return (GENRE_ALIASES[genreId] || [genreId]).some((alias) => raw.includes(alias));
+}
+
+function toWheelSong(track) {
+  return {
+    id: track.id,
+    title: track.title || 'Untitled Track',
+    artist: [track.mbti, track.mode].filter(Boolean).join(' · ') || 'Shared Library',
+    duration: track.durationSec ? `${Math.floor(track.durationSec / 60)}:${String(track.durationSec % 60).padStart(2, '0')}` : '--:--',
+    likes: `${track.playCount || 0}`,
+    audioUrl: track.audioUrl,
+    genre: track.genre,
+    source: 'library',
+  };
+}
+
+export default function MusicWheel({
+  backendTracks = [],
+  onPlayTrack,
+  onRecordTrackPlay,
+}) {
   const [spinning, setSpinning] = useState(false);
   const [currentRotation, setCurrentRotation] = useState(0);
   const [selectedGenreIndex, setSelectedGenreIndex] = useState(0);
@@ -175,15 +212,27 @@ export default function MusicWheel() {
   const handlePlaySong = (song) => {
     if (currentPlayingSong?.title === song.title && isPlayingAudio) {
       setIsPlayingAudio(false);
+      return;
+    }
+
+    setCurrentPlayingSong(song);
+    setIsPlayingAudio(true);
+
+    if (song.audioUrl) {
+      onPlayTrack?.({ audioUrl: song.audioUrl, title: song.title, trackId: song.id });
+      if (song.id) onRecordTrackPlay?.(song.id);
+      triggerToast(`正在播放: ${song.title}`);
     } else {
-      setCurrentPlayingSong(song);
-      setIsPlayingAudio(true);
-      triggerToast(`正在模拟播放: ${song.title} - ${song.artist}`);
+      triggerToast(`示例曲目: ${song.title}。曲库暂无该流派真实音频。`);
     }
   };
 
   const activeGenre = GENRES[selectedGenreIndex];
-  const activeSongs = SONGS_DATABASE[activeGenre.id] || [];
+  const realSongs = backendTracks
+    .filter((track) => track?.audioUrl && matchesGenre(track, activeGenre.id))
+    .map(toWheelSong);
+  const activeSongs = realSongs.length ? realSongs : SONGS_DATABASE[activeGenre.id] || [];
+  const usingRealSongs = realSongs.length > 0;
 
   return (
     <div className="music-wheel-scope relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08070b] text-zinc-100 shadow-2xl">
@@ -395,7 +444,7 @@ export default function MusicWheel() {
                   <h3 className="text-sm font-bold tracking-wider text-white uppercase font-orbitron">Recommended Station</h3>
                 </div>
                 <span className="text-[10px] text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md font-orbitron">
-                  {activeSongs.length} TRACKS
+                  {usingRealSongs ? `${activeSongs.length} REAL TRACKS` : `${activeSongs.length} DEMO TRACKS`}
                 </span>
               </div>
 

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getLiveRadios, joinRadio, leaveRadio, getPublicPlaylists, getPlaylist } from '../lib/api';
+import { getLiveRadios, joinRadio, leaveRadio, getPublicPlaylists, getPlaylist, getPopularTracks, recordPlaylistPlay, recordSharedTrackPlay } from '../lib/api';
 import MusicWheel from './MusicWheel';
+import SharedLibraryBrowser from './SharedLibraryBrowser';
+import PlaylistManager from './PlaylistManager';
 
 const MODE_LABELS = {
   brainstorm: '🧠 头脑风暴', focus: '🎯 专注', sprint: '🏃 冲刺',
@@ -68,13 +70,15 @@ function PlaylistCard({ playlist, onPlay }) {
   );
 }
 
-export default function DiscoverPage({ onPlayTrack }) {
+export default function DiscoverPage({ onPlayTrack, onRequireAuth }) {
   const [tab, setTab] = useState('radio');
   const [radios, setRadios] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [playlistDetail, setPlaylistDetail] = useState(null);
   const [tuned, setTuned] = useState(null); // 当前收听的电台
   const [loading, setLoading] = useState(false);
+  const [wheelTracks, setWheelTracks] = useState([]);
+  const [selectedLibraryTrack, setSelectedLibraryTrack] = useState(null);
 
   useEffect(() => {
     if (tab === 'radio') {
@@ -86,6 +90,12 @@ export default function DiscoverPage({ onPlayTrack }) {
     }
   }, [tab]);
 
+  useEffect(() => {
+    getPopularTracks(36)
+      .then((data) => setWheelTracks(data.tracks || []))
+      .catch(() => setWheelTracks([]));
+  }, []);
+
   const handleTune = useCallback(async (station) => {
     if (tuned) await leaveRadio(tuned.id).catch(() => {});
     const full = await joinRadio(station.id);
@@ -96,10 +106,17 @@ export default function DiscoverPage({ onPlayTrack }) {
   }, [tuned, onPlayTrack]);
 
   const handlePlayPlaylist = useCallback(async (pl) => {
+    await recordPlaylistPlay(pl.id).catch(() => {});
+    setPlaylists((items) =>
+      items.map((item) => item.id === pl.id ? { ...item, playCount: (item.playCount || 0) + 1 } : item)
+    );
+
     const detail = await getPlaylist(pl.id);
     setPlaylistDetail(detail);
     if (detail?.tracks?.length) {
-      onPlayTrack?.({ audioUrl: detail.tracks[0].audioUrl, title: detail.tracks[0].title });
+      const first = detail.tracks[0];
+      if (first.id) recordSharedTrackPlay(first.id).catch(() => {});
+      onPlayTrack?.({ audioUrl: first.audioUrl, title: first.title, trackId: first.id });
     }
   }, [onPlayTrack]);
 
@@ -107,7 +124,11 @@ export default function DiscoverPage({ onPlayTrack }) {
     <div className="space-y-4">
       {/* 音乐类型随机转盘（居中）*/}
       <div className="mx-auto w-full max-w-5xl">
-        <MusicWheel />
+        <MusicWheel
+          backendTracks={wheelTracks}
+          onPlayTrack={onPlayTrack}
+          onRecordTrackPlay={(trackId) => recordSharedTrackPlay(trackId).catch(() => {})}
+        />
       </div>
 
       {/* Header */}
@@ -161,7 +182,19 @@ export default function DiscoverPage({ onPlayTrack }) {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">{radios.map((r) => <RadioCard key={r.id} station={r} onTune={handleTune} />)}</div>
         )
-      ) : playlistDetail ? (
+      ) : (
+        <div className="space-y-4">
+          <SharedLibraryBrowser
+            onPlayTrack={onPlayTrack}
+            onSelectTrack={setSelectedLibraryTrack}
+          />
+          <PlaylistManager
+            selectedTrack={selectedLibraryTrack}
+            onRequireAuth={onRequireAuth}
+            onAdded={() => getPublicPlaylists().then((d) => setPlaylists(d.playlists || [])).catch(() => {})}
+          />
+
+          {playlistDetail ? (
         <div>
           <button onClick={() => setPlaylistDetail(null)} className="text-xs text-white/40 mb-3 hover:text-white/60">← 返回列表</button>
           <h3 className="text-sm font-medium text-white/80 mb-2">{playlistDetail.title}</h3>
@@ -169,7 +202,10 @@ export default function DiscoverPage({ onPlayTrack }) {
             {playlistDetail.tracks?.map((t, i) => (
               <div
                 key={t.id}
-                onClick={() => onPlayTrack?.({ audioUrl: t.audioUrl, title: t.title })}
+                onClick={() => {
+                  if (t.id) recordSharedTrackPlay(t.id).catch(() => {});
+                  onPlayTrack?.({ audioUrl: t.audioUrl, title: t.title, trackId: t.id });
+                }}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer"
               >
                 <span className="text-[11px] text-white/20 w-5 text-right">{i + 1}</span>
@@ -187,6 +223,8 @@ export default function DiscoverPage({ onPlayTrack }) {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">{playlists.map((pl) => <PlaylistCard key={pl.id} playlist={pl} onPlay={handlePlayPlaylist} />)}</div>
+      )}
+        </div>
       )}
     </div>
   );
