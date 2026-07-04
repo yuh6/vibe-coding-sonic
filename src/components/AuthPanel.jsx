@@ -99,8 +99,13 @@ function AuthModal({ onClose, onSuccess }) {
   );
 }
 
-export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout, triggerClass, chipClass }) {
+export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout, onBeforeLogout, triggerClass, chipClass }) {
   const handleLogout = async () => {
+    try {
+      await onBeforeLogout?.();
+    } catch (err) {
+      console.error('[auth before logout]', err);
+    }
     try {
       await authLogout();
     } finally {

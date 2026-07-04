@@ -70,7 +70,7 @@ function PlaylistCard({ playlist, onPlay }) {
   );
 }
 
-export default function DiscoverPage({ onPlayTrack, onRequireAuth }) {
+export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onStopPlayback, onRequireAuth }) {
   const [tab, setTab] = useState('radio');
   const [radios, setRadios] = useState([]);
   const [playlists, setPlaylists] = useState([]);
@@ -127,6 +127,8 @@ export default function DiscoverPage({ onPlayTrack, onRequireAuth }) {
         <MusicWheel
           backendTracks={wheelTracks}
           onPlayTrack={onPlayTrack}
+          onTogglePlayback={onTogglePlayback}
+          onStopPlayback={onStopPlayback}
           onRecordTrackPlay={(trackId) => recordSharedTrackPlay(trackId).catch(() => {})}
         />
       </div>
@@ -190,6 +192,7 @@ export default function DiscoverPage({ onPlayTrack, onRequireAuth }) {
           />
           <PlaylistManager
             selectedTrack={selectedLibraryTrack}
+            user={user}
             onRequireAuth={onRequireAuth}
             onAdded={() => getPublicPlaylists().then((d) => setPlaylists(d.playlists || [])).catch(() => {})}
           />

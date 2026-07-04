@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { addToPlaylist, createPlaylist, getMyPlaylists } from '../lib/api';
 
-export default function PlaylistManager({ selectedTrack, onRequireAuth, onAdded }) {
+export default function PlaylistManager({ selectedTrack, user, onRequireAuth, onAdded }) {
   const [playlists, setPlaylists] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -9,7 +9,14 @@ export default function PlaylistManager({ selectedTrack, onRequireAuth, onAdded 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const load = () => {
+  const load = useCallback(() => {
+    if (!user) {
+      setPlaylists([]);
+      setLoading(false);
+      setError('');
+      return;
+    }
+
     setLoading(true);
     setError('');
     getMyPlaylists()
@@ -22,13 +29,19 @@ export default function PlaylistManager({ selectedTrack, onRequireAuth, onAdded 
         setError(err.message || '我的歌单加载失败');
       })
       .finally(() => setLoading(false));
-  };
+  }, [user]);
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const create = async () => {
     const safeTitle = title.trim();
     if (!safeTitle) return;
+    if (!user) {
+      onRequireAuth?.('登录后可以创建播放列表');
+      return;
+    }
     setLoading(true);
     setError('');
     setMessage('');
@@ -50,6 +63,10 @@ export default function PlaylistManager({ selectedTrack, onRequireAuth, onAdded 
   };
 
   const add = async (playlistId) => {
+    if (!user) {
+      onRequireAuth?.('登录后可以管理播放列表');
+      return;
+    }
     if (!selectedTrack?.id) {
       setMessage('先从共享曲库选择一首歌');
       return;
@@ -105,6 +122,7 @@ export default function PlaylistManager({ selectedTrack, onRequireAuth, onAdded 
 
       {error && <div className="mt-2 text-xs text-red-300">{error}</div>}
       {message && <div className="mt-2 text-xs text-green-300">{message}</div>}
+      {!user && <div className="mt-2 text-xs text-white/35">登录后可以创建播放列表并收藏共享曲目。</div>}
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {playlists.map((playlist) => (

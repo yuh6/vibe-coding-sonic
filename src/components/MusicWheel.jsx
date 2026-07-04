@@ -129,6 +129,8 @@ function toWheelSong(track) {
 export default function MusicWheel({
   backendTracks = [],
   onPlayTrack,
+  onTogglePlayback,
+  onStopPlayback,
   onRecordTrackPlay,
 }) {
   const [spinning, setSpinning] = useState(false);
@@ -172,6 +174,9 @@ export default function MusicWheel({
 
   const handleSpin = () => {
     if (spinning) return;
+    if (currentPlayingSong?.audioUrl) {
+      onStopPlayback?.();
+    }
     setIsPlayingAudio(false);
     setCurrentPlayingSong(null);
     setSpinning(true);
@@ -210,7 +215,14 @@ export default function MusicWheel({
   };
 
   const handlePlaySong = (song) => {
-    if (currentPlayingSong?.title === song.title && isPlayingAudio) {
+    const isSameSong = currentPlayingSong?.title === song.title;
+    if (isSameSong && song.audioUrl) {
+      onTogglePlayback?.();
+      setIsPlayingAudio((value) => !value);
+      return;
+    }
+
+    if (isSameSong && isPlayingAudio) {
       setIsPlayingAudio(false);
       return;
     }
@@ -225,6 +237,23 @@ export default function MusicWheel({
     } else {
       triggerToast(`示例曲目: ${song.title}。曲库暂无该流派真实音频。`);
     }
+  };
+
+  const handleMiniToggle = () => {
+    if (!currentPlayingSong?.audioUrl) {
+      setIsPlayingAudio((value) => !value);
+      return;
+    }
+    onTogglePlayback?.();
+    setIsPlayingAudio((value) => !value);
+  };
+
+  const handleMiniClose = () => {
+    if (currentPlayingSong?.audioUrl) {
+      onStopPlayback?.();
+    }
+    setIsPlayingAudio(false);
+    setCurrentPlayingSong(null);
   };
 
   const activeGenre = GENRES[selectedGenreIndex];
@@ -422,10 +451,10 @@ export default function MusicWheel({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => setIsPlayingAudio(!isPlayingAudio)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white">
+                  <button onClick={handleMiniToggle} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white">
                     {isPlayingAudio ? <Pause className="w-3.5 h-3.5 fill-current text-[#00f5d4]" /> : <Play className="w-3.5 h-3.5 fill-current" />}
                   </button>
-                  <button onClick={() => setCurrentPlayingSong(null)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white">
+                  <button onClick={handleMiniClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>

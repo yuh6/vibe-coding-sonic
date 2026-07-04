@@ -72,6 +72,7 @@ export function usePlayer() {
       howlRef.current = null;
     }
     setPlaying(false);
+    setCurrentTitle('');
   }, []);
 
   const playUrl = useCallback(

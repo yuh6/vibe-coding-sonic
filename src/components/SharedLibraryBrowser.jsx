@@ -9,29 +9,34 @@ export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const debounceRef = useRef(null);
+  const requestSeqRef = useRef(0);
 
   const params = useMemo(() => ({ mode: mode || undefined, q: query || undefined, limit: 24 }), [mode, query]);
 
   useEffect(() => {
+    let cancelled = false;
+    const requestSeq = ++requestSeqRef.current;
+
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      let cancelled = false;
       setLoading(true);
       setError('');
       getSharedLibrary(params)
         .then((data) => {
-          if (!cancelled) setTracks(data.tracks || []);
+          if (!cancelled && requestSeq === requestSeqRef.current) setTracks(data.tracks || []);
         })
         .catch((err) => {
-          if (!cancelled) setError(err.message || '曲库加载失败');
+          if (!cancelled && requestSeq === requestSeqRef.current) setError(err.message || '曲库加载失败');
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled && requestSeq === requestSeqRef.current) setLoading(false);
         });
-      // 注意：此处 cancelled 对 debounce 后的异步有效，
-      // 但如果 params 再次变化，debounce 会 clearTimeout 并重新触发。
     }, 300);
-    return () => clearTimeout(debounceRef.current);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceRef.current);
+    };
   }, [params]);
 
   const play = (track) => {

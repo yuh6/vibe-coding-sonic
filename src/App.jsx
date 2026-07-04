@@ -286,8 +286,26 @@ export default function App() {
     arranger.start({ name: projectName, mbtiType: mbti, mbtiSliders: axes, schedule: schedule?.phases });
   };
 
-  const handleArrangerStop = () => {
-    arranger.stop();
+  const stopLiveStation = useCallback(async (message = '电台已下线') => {
+    const stationId = liveStation?.id;
+    if (!stationId) return;
+
+    setRadioBusy(true);
+    try {
+      await stopRadio(stationId);
+      if (message) setNotice(message);
+    } catch (err) {
+      console.error('[radio stop]', err);
+      setNotice(err.status === 401 ? '登录状态已变化，已清除本地电台状态' : '电台下线请求失败，已清除本地状态');
+    } finally {
+      setLiveStation((current) => (current?.id === stationId ? null : current));
+      setRadioBusy(false);
+    }
+  }, [liveStation?.id]);
+
+  const handleArrangerStop = async () => {
+    await arranger.stop();
+    await stopLiveStation('编排已停止，电台已下线');
   };
 
   const handleArrangerPhaseChange = (nextPhase) => {
@@ -305,14 +323,7 @@ export default function App() {
 
   const handleRadioToggle = async () => {
     if (liveStation) {
-      setRadioBusy(true);
-      try {
-        await stopRadio(liveStation.id);
-        setLiveStation(null);
-        setNotice('电台已下线');
-      } finally {
-        setRadioBusy(false);
-      }
+      await stopLiveStation('电台已下线');
       return;
     }
 
@@ -422,6 +433,7 @@ export default function App() {
               quota={quota}
               open={authOpen}
               onOpenChange={setAuthOpen}
+              onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
               onAuth={(data) => {
                 setUser(data.user);
                 setQuota(data.quota);
@@ -437,6 +449,7 @@ export default function App() {
               onLogout={() => {
                 setUser(null);
                 setQuota(null);
+                setLiveStation(null);
               }}
             />
             {health && (
@@ -492,7 +505,10 @@ export default function App() {
           />
         ) : isDiscover ? (
           <DiscoverPage
+            user={user}
             onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })}
+            onTogglePlayback={player.togglePlay}
+            onStopPlayback={player.unload}
             onRequireAuth={(message = '登录后可以使用此功能') => {
               setNotice(message);
               setAuthOpen(true);
