@@ -13,6 +13,13 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import sessionRoutes from './routes/session.js';
 import arrangerRoutes from './routes/arranger.js';
+import stylesRoutes from './routes/styles.js';
+import notesRoutes from './routes/notes.js';
+import lyricsRoutes from './routes/lyrics.js';
+import playlistsRoutes from './routes/playlists.js';
+import radioRoutes from './routes/radio.js';
+import favoritesRoutes from './routes/favorites.js';
+import recommendRoutes from './routes/recommend.js';
 import { attachUser } from './middleware/userAuth.js';
 import { requireAdmin } from './middleware/adminAuth.js';
 import { isSunoConfigured } from './services/sunoClient.js';
@@ -20,6 +27,7 @@ import { isLlmConfigured } from './services/llm/index.js';
 import { resolveLlmConfig, resolveTtapiConfig } from './config/providers.js';
 import { getSetting } from './config/runtimeConfig.js';
 import { attachWsEvents } from './ws/events.js';
+import { attachWsRadio } from './ws/radio.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -89,6 +97,13 @@ app.use('/api/music', musicRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/arranger', arrangerRoutes);
+app.use('/api/styles', stylesRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/api/lyrics', lyricsRoutes);
+app.use('/api/playlists', playlistsRoutes);
+app.use('/api/radio', radioRoutes);
+app.use('/api/favorites', favoritesRoutes);
+app.use('/api/recommend', recommendRoutes);
 
 // 编排引擎生成音频的本地缓存（TTAPI CDN URL 会过期，§9.1 落盘后从这里提供）
 app.use('/audio-cache', express.static(join(__dirname, 'data/audio-cache')));
@@ -110,3 +125,4 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 attachWsEvents(server);
+attachWsRadio(server);

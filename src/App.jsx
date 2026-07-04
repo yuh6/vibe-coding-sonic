@@ -9,6 +9,7 @@ import Timeline from './components/Timeline';
 import ArrangerPanel from './components/ArrangerPanel';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
+import DiscoverPage from './components/DiscoverPage';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
@@ -43,6 +44,7 @@ export default function App() {
   const hash = useHashRoute();
   const isAdmin = hash === '#/admin';
   const isMixer = hash === '#/mixer';
+  const isDiscover = hash === '#/discover';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -375,6 +377,12 @@ export default function App() {
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
+              href={isDiscover ? '#/' : '#/discover'}
+              className="pad px-3.5 py-2 text-xs text-muted no-underline"
+            >
+              {isDiscover ? '🎛 DJ 台' : '🌍 发现'}
+            </a>
+            <a
               href={isMixer ? '#/' : '#/mixer'}
               className="pad px-3.5 py-2 text-xs text-muted no-underline"
             >
@@ -393,6 +401,8 @@ export default function App() {
           <AdminPanel />
         ) : isMixer ? (
           <MixerPage incomingMix={mixerImport} />
+        ) : isDiscover ? (
+          <DiscoverPage onPlayTrack={(track) => { player.loadAndPlay(track.audioUrl); }} />
         ) : (
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}

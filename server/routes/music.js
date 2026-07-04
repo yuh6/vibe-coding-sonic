@@ -182,6 +182,9 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
       mode = 'focus',
       projectAnalysis,
       style,
+      selectedGenre,
+      notes,
+      vocals,
       previewOnly = false,
       forceFallback = false,
       splitStems = true,
@@ -193,7 +196,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
 
     // prompt 预览免费且公开
     if (previewOnly) {
-      const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style });
+      const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
       return res.json({ preview: true, ...composed });
     }
 
@@ -217,6 +220,9 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
       mode,
       projectAnalysis,
       style,
+      selectedGenre,
+      notes,
+      vocals,
       forceFallback: useFallback,
       splitStems,
     });

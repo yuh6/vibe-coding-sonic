@@ -238,3 +238,53 @@ export function getArrangerEnergyCurve() {
   return request('/api/arranger/energy-curve');
 }
 
+// ── 播放列表 ──
+
+export function getPublicPlaylists({ sort = 'popular', page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams({ sort, page, limit });
+  return request(`/api/playlists?${params}`);
+}
+
+export function getPlaylist(id) {
+  return request(`/api/playlists/${id}`);
+}
+
+export function createPlaylist({ title, description }) {
+  return request('/api/playlists', { method: 'POST', body: JSON.stringify({ title, description }) });
+}
+
+export function addToPlaylist(playlistId, trackId) {
+  return request(`/api/playlists/${playlistId}/tracks`, { method: 'POST', body: JSON.stringify({ trackId }) });
+}
+
+export function getMyPlaylists() {
+  return request('/api/playlists/mine/list');
+}
+
+// ── 电台 ──
+
+export function getLiveRadios({ page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams({ page, limit });
+  return request(`/api/radio?${params}`);
+}
+
+export function getRadioStation(id) {
+  return request(`/api/radio/${id}`);
+}
+
+export function joinRadio(id) {
+  return request(`/api/radio/${id}/listen`, { method: 'POST' });
+}
+
+export function leaveRadio(id) {
+  return request(`/api/radio/${id}/leave`, { method: 'POST' });
+}
+
+export function startRadio({ title, description, sessionId, mode, mbti }) {
+  return request('/api/radio', { method: 'POST', body: JSON.stringify({ title, description, sessionId, mode, mbti }) });
+}
+
+export function stopRadio(id) {
+  return request(`/api/radio/${id}`, { method: 'DELETE' });
+}
+
