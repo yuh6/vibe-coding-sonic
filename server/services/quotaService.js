@@ -35,7 +35,7 @@ export async function consumeQuota(userId) {
   }
   await db.prepare(
     `INSERT INTO quotas (user_id, day, used) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, day) DO UPDATE SET used = used + 1`
+     ON CONFLICT(user_id, day) DO UPDATE SET used = quotas.used + 1`
   ).run(userId, today());
   return { ok: true };
 }
