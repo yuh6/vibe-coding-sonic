@@ -279,3 +279,32 @@ const MIGRATIONS_PG_COMPAT = PG_BIGINT_TIMESTAMP_COLUMNS
 export function getMigrationSQL(driver) {
   return driver === 'pg' ? `${MIGRATIONS_PG}\n${MIGRATIONS_PG_COMPAT}` : MIGRATIONS_SQLITE;
 }
+
+// ── 兼容迁移：给已存在的 radio_stations 表增加 now-playing snapshot 列 ──
+
+const RADIO_SNAPSHOT_COLUMNS = [
+  ['current_track_title', 'TEXT'],
+  ['current_track_genre', 'TEXT'],
+  ['current_track_bpm', 'INTEGER'],
+  ['current_track_audio_url', 'TEXT'],
+];
+
+export async function applyCompatibilityMigrations(dal, driver) {
+  if (driver === 'pg') {
+    await dal.exec(`
+      ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_title TEXT;
+      ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_genre TEXT;
+      ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_bpm INTEGER;
+      ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_audio_url TEXT;
+    `);
+    return;
+  }
+
+  const rows = await dal.query('PRAGMA table_info(radio_stations)');
+  const existing = new Set(rows.map((row) => row.name));
+  for (const [name, type] of RADIO_SNAPSHOT_COLUMNS) {
+    if (!existing.has(name)) {
+      await dal.exec(`ALTER TABLE radio_stations ADD COLUMN ${name} ${type};`);
+    }
+  }
+}

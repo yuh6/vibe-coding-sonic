@@ -12,7 +12,7 @@
  *   dal.transaction(fn)     → Promise<result>
  *   dal.close()             → Promise<void>
  */
-import { getMigrationSQL } from './migrations.js';
+import { applyCompatibilityMigrations, getMigrationSQL } from './migrations.js';
 
 const DB_DRIVER = (process.env.DB_DRIVER || 'sqlite').toLowerCase();
 const DB_DIALECT = ['pg', 'postgres', 'postgresql'].includes(DB_DRIVER) ? 'pg' : 'sqlite';
@@ -38,6 +38,8 @@ if (DB_DIALECT === 'pg') {
   // SQLite: exec() 本身是原子的（WAL 模式下）
   await dal.exec(migrationSQL);
 }
+
+await applyCompatibilityMigrations(dal, DB_DIALECT);
 
 // 兼容旧 db.js 的导出（迁移期间）
 export { dal };

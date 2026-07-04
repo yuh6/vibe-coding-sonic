@@ -29,6 +29,28 @@ export async function updateNowPlaying(stationId, trackId) {
   ).run(trackId, Date.now(), stationId);
 }
 
+export async function updateNowPlayingSnapshot(stationId, userId, track) {
+  const title = String(track?.title || track?.moodTag || 'Untitled Track').slice(0, 160);
+  const genre = track?.genre ? String(track.genre).slice(0, 120) : null;
+  const bpm = Number.isFinite(Number(track?.bpm)) ? Number(track.bpm) : null;
+  const audioUrl = track?.audioUrl || track?.audioLocal || null;
+
+  if (!audioUrl) return false;
+
+  const result = await db.prepare(
+    `UPDATE radio_stations
+     SET current_track_id = NULL,
+         current_track_title = ?,
+         current_track_genre = ?,
+         current_track_bpm = ?,
+         current_track_audio_url = ?,
+         current_track_started_at = ?
+     WHERE id = ? AND user_id = ? AND is_live = 1`
+  ).run(title, genre, bpm, audioUrl, Date.now(), stationId, userId);
+
+  return result.changes > 0;
+}
+
 export async function updateStationInfo(stationId, userId, { title, description, mode }) {
   const result = await db.prepare(
     `UPDATE radio_stations SET title = COALESCE(?, title), description = COALESCE(?, description),
@@ -82,17 +104,30 @@ export async function getStationBySession(sessionId) {
 }
 
 function formatStation(s) {
+  const snapshotTrack = s.current_track_audio_url ? {
+    id: null,
+    title: s.current_track_title,
+    genre: s.current_track_genre,
+    bpm: s.current_track_bpm,
+    audioUrl: s.current_track_audio_url,
+    startedAt: s.current_track_started_at,
+  } : null;
+
+  const sharedTrack = s.current_track_id ? {
+    id: s.current_track_id,
+    title: s.track_title,
+    genre: s.track_genre,
+    bpm: s.track_bpm,
+    audioUrl: s.track_audio_url,
+    startedAt: s.current_track_started_at,
+  } : null;
+
   return {
     id: s.id, userId: s.user_id, userName: s.user_name,
     title: s.title, description: s.description,
     mode: s.mode, mbti: s.mbti,
     isLive: Boolean(s.is_live), listenerCount: Number(s.listener_count || 0),
-    currentTrack: s.current_track_id ? {
-      id: s.current_track_id, title: s.track_title,
-      genre: s.track_genre, bpm: s.track_bpm,
-      audioUrl: s.track_audio_url,
-      startedAt: s.current_track_started_at,
-    } : null,
+    currentTrack: snapshotTrack || sharedTrack,
     sessionId: s.session_id, createdAt: s.created_at,
   };
 }

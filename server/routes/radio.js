@@ -3,6 +3,7 @@ import { requireUser } from '../middleware/userAuth.js';
 import {
   goLive, goOffline, updateStationInfo, getStation,
   listLiveStations, joinStation, leaveStation,
+  updateNowPlayingSnapshot,
 } from '../services/radioService.js';
 
 const router = Router();
@@ -50,6 +51,13 @@ router.put('/:id', requireUser, async (req, res) => {
   const { title, description, mode } = req.body || {};
   const ok = await updateStationInfo(req.params.id, req.user.id, { title, description, mode });
   if (!ok) return res.status(404).json({ error: 'Station not found or not owned' });
+  res.json(await getStation(req.params.id));
+});
+
+// 需登录：更新电台正在播放 snapshot
+router.patch('/:id/now-playing', requireUser, async (req, res) => {
+  const ok = await updateNowPlayingSnapshot(req.params.id, req.user.id, req.body?.track);
+  if (!ok) return res.status(404).json({ error: 'Station not found, offline, or track has no audioUrl' });
   res.json(await getStation(req.params.id));
 });
 
