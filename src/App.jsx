@@ -318,7 +318,7 @@ export default function App() {
 
   // RoomWave 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
   if (isRoomWave) {
-    return <RoomWave />;
+    return <RoomWave isDark={isDark} onToggleColorMode={toggleColorMode} />;
   }
 
   return (

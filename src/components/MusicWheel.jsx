@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Share2, Play, Pause, Music, Disc, Radio, HelpCircle, Sparkles, X, Heart } from 'lucide-react';
 import '../styles/music-wheel.css';
 
@@ -102,6 +102,13 @@ export default function MusicWheel() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const spinTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(spinTimerRef.current);
+    clearTimeout(toastTimerRef.current);
+  }, []);
 
   // 转盘停止时用 Web Audio 合成一段复古激光音效
   const playStopSound = () => {
@@ -141,7 +148,8 @@ export default function MusicWheel() {
     const newRotation = currentRotation + additionalSpins + (offsetAngle - (currentRotation % 360));
     setCurrentRotation(newRotation);
 
-    setTimeout(() => {
+    clearTimeout(spinTimerRef.current);
+    spinTimerRef.current = setTimeout(() => {
       setSpinning(false);
       setSelectedGenreIndex(targetIndex);
       setShowResultModal(true);
@@ -152,7 +160,8 @@ export default function MusicWheel() {
   const triggerToast = (msg) => {
     setToastMsg(msg);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleShare = () => {

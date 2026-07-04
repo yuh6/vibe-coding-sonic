@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Users, Send, Volume2, VolumeX, Play, Pause,
   Music, ChevronRight,
@@ -10,7 +10,6 @@ import { usePlayer, useMusicPoll } from '../hooks/usePlayer';
 import { useArranger } from '../hooks/useArranger';
 import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getHealth, authMe, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
 import { mbtiFromAxes, getTheme, MODES } from '../lib/mbti';
-import { useColorMode } from '../hooks/useColorMode';
 import AuthPanel from './AuthPanel';
 import AudioVisualizer from './AudioVisualizer';
 import ModePads from './ModePads';
@@ -84,7 +83,7 @@ const commentsPool = [
   { user: 'Rhythm_R', text: '深夜俱乐部既视感，太对味了。', type: 'ISTP' }
 ];
 
-export default function RoomWave() {
+export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }) {
   const [currentView, setCurrentView] = useState('home'); // "home" | "room" | "mbti-hub" | "solo"
   const [selectedMBTI, setSelectedMBTI] = useState(mbtiData[0]);
   const [isMuted, setIsMuted] = useState(true);
@@ -95,8 +94,8 @@ export default function RoomWave() {
   const [soloDims, setSoloDims] = useState({ ei: 35, ns: 62, tf: 48, jp: 70 });
   const [styleFx, setStyleFx] = useState({ chillHype: 59, synthAcoustic: 35, darkBright: 40 });
   const [activeModePad, setActiveModePad] = useState('专注构思');
-  const [isLightMode, setIsLightMode] = useState(false);
   const videoRef = useRef(null);
+  const isLightMode = !isDark;
 
   // ── Solo 页真实化：复用 DJ 控制台的后端接口，不改后端 ──
   const player = usePlayer();
@@ -123,6 +122,7 @@ export default function RoomWave() {
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);
   const skipAnalyzeRef = useRef(false);
+  const lastSoloSignatureRef = useRef('');
 
   const soloStyle = {
     energy: styleFx.chillHype,
@@ -198,11 +198,11 @@ export default function RoomWave() {
   const handleModePadChange = (modeId) => {
     const label = MODES.find((m) => m.id === modeId)?.label;
     if (label) setActiveModePad(label);
-    handleSoloGenerate({ force: true });
+    handleSoloGenerate({ force: true, mode: modeId, label });
   };
   const handleModePanic = () => {
     setActiveModePad('落后了');
-    handleSoloGenerate({ force: true });
+    handleSoloGenerate({ force: true, mode: 'behind', label: '落后了' });
   };
   const handleApplyPreset = (preset) => {
     setProjectName(preset.name);
@@ -235,8 +235,17 @@ export default function RoomWave() {
 
   // 生成音乐（真实）：优先真生成，失败/未配置则回退演示曲
   const handleSoloGenerate = async (opts = {}) => {
-    // 已在播放且非强制（模式切换）→ 当作暂停/播放切换
-    if (!opts.force && (player.playing || player.currentTitle)) {
+    const nextModeId = opts.mode || soloModeId;
+    const nextModeLabel = opts.label || activeModePad;
+    const nextSignature = JSON.stringify({
+      axes: soloAxes,
+      mode: nextModeId,
+      style: soloStyle,
+      projectAnalysis,
+    });
+
+    // 参数未变时，主播放键沿用播放/暂停；参数变化后重新生成新声轨。
+    if (!opts.force && (player.playing || player.currentTitle) && lastSoloSignatureRef.current === nextSignature) {
       player.togglePlay();
       return;
     }
@@ -247,21 +256,23 @@ export default function RoomWave() {
     try {
       const job = await generateMusic({
         axes: soloAxes,
-        mode: soloModeId,
+        mode: nextModeId,
         style: soloStyle,
         projectAnalysis: projectAnalysis || undefined,
         forceFallback: opts.force || false,
       });
       if (job.quota) setQuota(job.quota);
       if (job.quotaNotice) setSoloNotice(job.quotaNotice);
+      lastSoloSignatureRef.current = nextSignature;
       poll.startPolling(job.jobId);
     } catch (err) {
       // 未登录 / 未配置 key → 回退演示曲，保证有声音
       try {
-        const fb = await getFallback({ mode: soloModeId, mbti: soloMbti });
+        const fb = await getFallback({ mode: nextModeId, mbti: soloMbti });
         if (fb.url) {
           setSoloFallback(true);
-          player.playUrl(fb.url, { title: fb.title || `${soloMbti} · ${activeModePad}`, loop: true });
+          lastSoloSignatureRef.current = nextSignature;
+          player.playUrl(fb.url, { title: fb.title || `${soloMbti} · ${nextModeLabel}`, loop: true });
           setSoloNotice(err.status === 401 ? '未登录，先播放演示曲（登录后可真实生成）' : '已播放演示曲');
         } else {
           setSoloNotice('生成失败，请稍后再试');
@@ -278,23 +289,12 @@ export default function RoomWave() {
   const isSoloPlaying = player.playing;
 
   // ── 顶栏：登录 / TTAPI·LLM 状态 / 主题切换（接真实接口）──
-  const { isDark, toggle: toggleColorMode } = useColorMode();
   const [health, setHealth] = useState(null);
   const [user, setUser] = useState(null);
   const [quota, setQuota] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
 
-  useEffect(() => {
-    getHealth().then(setHealth).catch(() => {});
-    authMe()
-      .then((data) => {
-        setUser(data.user);
-        setQuota(data.quota);
-      })
-      .catch(() => {});
-  }, []);
-
-  const applyProfile = () => {
+  const applyProfile = useCallback(() => {
     getMyProfile()
       .then((res) => {
         const profile = res?.profile;
@@ -314,9 +314,24 @@ export default function RoomWave() {
             darkBright: profile.style.brightness ?? s.darkBright,
           }));
         }
+        if (profile?.mode) {
+          const label = MODES.find((m) => m.id === profile.mode)?.label;
+          if (label) setActiveModePad(label);
+        }
       })
       .catch(() => {});
-  };
+  }, []);
+
+  useEffect(() => {
+    getHealth().then(setHealth).catch(() => {});
+    authMe()
+      .then((data) => {
+        setUser(data.user);
+        setQuota(data.quota);
+        if (data.user) applyProfile();
+      })
+      .catch(() => {});
+  }, [applyProfile]);
 
   // 进入随机Room
   const enterRandomRoom = () => {
@@ -503,7 +518,7 @@ export default function RoomWave() {
             </div>
           )}
           <button
-            onClick={toggleColorMode}
+            onClick={onToggleColorMode}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-base text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
             title={isDark ? '浅色模式' : '深色模式'}
           >
