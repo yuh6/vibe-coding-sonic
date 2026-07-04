@@ -1,22 +1,182 @@
 [
-  { "id": "synthwave", "label": "Synthwave", "category": "复古电子", "tags": "Synthwave, Retrowave, 80s Synth", "bpmRange": [80, 118], "instruments": "Analog Synth, Arpeggio, Pad", "mood": "Nostalgic, Neon" },
-  { "id": "lofi-hiphop", "label": "Lo-Fi Hip Hop", "category": "Chill", "tags": "Lo-Fi Hip Hop, Boom Bap, Jazzy", "bpmRange": [70, 95], "instruments": "Vinyl Crackle, Jazz Piano, Mellow Drums", "mood": "Chill, Study" },
-  { "id": "techno", "label": "Techno", "category": "电子", "tags": "Techno, Driving, Dark", "bpmRange": [125, 140], "instruments": "Drum Machine, Synth Bass, Industrial", "mood": "Hypnotic, Relentless" },
-  { "id": "ambient", "label": "Ambient", "category": "氛围", "tags": "Ambient, Atmospheric, Drone", "bpmRange": [60, 90], "instruments": "Pad, Reverb, Field Recording", "mood": "Ethereal, Spacious" },
-  { "id": "cinematic", "label": "Cinematic Epic", "category": "古典", "tags": "Cinematic, Epic Orchestral, Film Score", "bpmRange": [90, 140], "instruments": "Orchestra, Brass, Timpani", "mood": "Powerful, Heroic" },
-  { "id": "future-bass", "label": "Future Bass", "category": "电子", "tags": "Future Bass, Kawaii, Melodic", "bpmRange": [130, 160], "instruments": "Super Saw, Vocal Chops, 808", "mood": "Euphoric, Bright" },
-  { "id": "indie-folk", "label": "Indie Folk", "category": "民谣", "tags": "Indie Folk, Acoustic, Fingerpicking", "bpmRange": [90, 120], "instruments": "Acoustic Guitar, Banjo, Harmonica", "mood": "Warm, Intimate" },
-  { "id": "jazz-lounge", "label": "Jazz Lounge", "category": "爵士", "tags": "Jazz, Smooth, Lounge", "bpmRange": [80, 120], "instruments": "Saxophone, Double Bass, Brushes", "mood": "Sophisticated, Mellow" },
-  { "id": "dnb", "label": "Drum & Bass", "category": "电子", "tags": "Drum And Bass, Liquid, Atmospheric", "bpmRange": [160, 180], "instruments": "Breakbeats, Reese Bass, Pad", "mood": "Energetic, Rolling" },
-  { "id": "city-pop", "label": "City Pop", "category": "复古电子", "tags": "City Pop, Japanese, 80s Funk", "bpmRange": [100, 125], "instruments": "Electric Piano, Funky Bass, Sax", "mood": "Groovy, Urban" },
-  { "id": "pop", "label": "Pop", "category": "流行", "tags": "Pop, Catchy, Radio Friendly", "bpmRange": [100, 130], "instruments": "Synth, Claps, Bass Guitar", "mood": "Upbeat, Fun" },
-  { "id": "indie-rock", "label": "Indie Rock", "category": "摇滚", "tags": "Indie Rock, Garage, Guitar Driven", "bpmRange": [110, 140], "instruments": "Electric Guitar, Bass, Drums", "mood": "Raw, Energetic" },
-  { "id": "trap", "label": "Trap", "category": "嘻哈", "tags": "Trap, 808, Hi-Hat Rolls", "bpmRange": [130, 170], "instruments": "808 Sub Bass, Hi-Hat, Snare Roll", "mood": "Dark, Hard" },
-  { "id": "bossa-nova", "label": "Bossa Nova", "category": "拉丁", "tags": "Bossa Nova, Brazilian, Smooth", "bpmRange": [100, 130], "instruments": "Nylon Guitar, Soft Percussion, Flute", "mood": "Relaxed, Tropical" },
-  { "id": "chiptune", "label": "Chiptune", "category": "游戏", "tags": "Chiptune, 8-Bit, Retro Game", "bpmRange": [120, 160], "instruments": "Square Wave, Pulse, Noise Channel", "mood": "Playful, Nostalgic" },
-  { "id": "dream-pop", "label": "Dream Pop", "category": "流行", "tags": "Dream Pop, Shoegaze, Ethereal", "bpmRange": [80, 110], "instruments": "Reverb Guitar, Synth Pad, Soft Drums", "mood": "Dreamy, Hazy" },
-  { "id": "house", "label": "House", "category": "电子", "tags": "House, Four On The Floor, Deep", "bpmRange": [118, 130], "instruments": "Synth Bass, Kick, Clap, Piano Stab", "mood": "Groovy, Uplifting" },
-  { "id": "classical-piano", "label": "Classical Piano", "category": "古典", "tags": "Classical, Solo Piano, Neoclassical", "bpmRange": [60, 120], "instruments": "Grand Piano, Sustain Pedal", "mood": "Elegant, Contemplative" },
-  { "id": "reggaeton", "label": "Reggaeton", "category": "拉丁", "tags": "Reggaeton, Dembow, Latin Urban", "bpmRange": [85, 100], "instruments": "Dembow Beat, Synth, Latin Percussion", "mood": "Party, Festive" },
-  { "id": "dark-ambient", "label": "Dark Ambient", "category": "氛围", "tags": "Dark Ambient, Drone, Cinematic Dark", "bpmRange": [50, 80], "instruments": "Sub Drone, Granular, Metallic Texture", "mood": "Ominous, Immersive" }
+  {
+    "id": "city-pop",
+    "label": "City Pop",
+    "category": "复古电子",
+    "tags": "city pop, japanese 80s, funky bass, smooth saxophone, electric piano, retro grooves, dreamy female vocals, mellow disco, bubble gum pop, warm production",
+    "bpmRange": [95, 120],
+    "instruments": ["electric piano", "fretless bass", "alto saxophone", "acoustic drums", "strings"],
+    "mood": ["nostalgic", "dreamy", "groovy", "summery", "romantic"]
+  },
+  {
+    "id": "future-funk",
+    "label": "Future Funk",
+    "category": "复古电子",
+    "tags": "future funk, nu-disco, funky bass, vocoder, chopped vocals, disco house, french house, retro electronic, filtered synths, upbeat groove",
+    "bpmRange": [110, 128],
+    "instruments": ["vocoder", "Moog bass synth", "electric guitar", "analog drum machine", "Rhodes piano"],
+    "mood": ["funky", "euphoric", "energetic", "playful", "danceable"]
+  },
+  {
+    "id": "synthwave",
+    "label": "Synthwave",
+    "category": "复古电子",
+    "tags": "synthwave, retrowave, 80s synth, neon noir, pulsing arpeggios, analog synth leads, reverb guitar, drum machine, cinematic retro, driving bass",
+    "bpmRange": [90, 120],
+    "instruments": ["Juno-106 synthesizer", "Oberheim bass synth", "drum machine", "gated reverb snare", "DX7 electric piano"],
+    "mood": ["nostalgic", "dark", "cinematic", "cool", "atmospheric"]
+  },
+  {
+    "id": "lo-fi-hip-hop",
+    "label": "Lo-Fi Hip Hop",
+    "category": "Chill",
+    "tags": "lo-fi hip hop, chill beats, vinyl crackle, jazz samples, mellow boom bap, dusty drums, warm bass, study music, rainy day, cassette tape",
+    "bpmRange": [70, 92],
+    "instruments": ["sampled piano", "upright bass", "brushed drums", "vinyl crackle", "mellotron"],
+    "mood": ["relaxed", "mellow", "focused", "cozy", "introspective"]
+  },
+  {
+    "id": "vaporwave",
+    "label": "Vaporwave",
+    "category": "复古电子",
+    "tags": "vaporwave, aesthetic, slowed and reverbed, 80s mall music, smooth jazz samples, dreamy pads, surreal nostalgia, chopped vocals, slow groove, pastel synths",
+    "bpmRange": [65, 90],
+    "instruments": ["saxophone", "electric piano", "reverb synth pads", "slow drum machine", "fretless bass"],
+    "mood": ["dreamy", "surreal", "nostalgic", "melancholic", "hypnotic"]
+  },
+  {
+    "id": "k-pop",
+    "label": "K-Pop",
+    "category": "流行",
+    "tags": "k-pop, korean pop, catchy hooks, polished production, electronic dance pop, bright synths, punchy drums, girl group, boy band, addictive chorus",
+    "bpmRange": [105, 145],
+    "instruments": ["digital synthesizer", "electronic drums", "electric bass", "processed vocals", "brass stabs"],
+    "mood": ["upbeat", "energetic", "cute", "powerful", "cheerful"]
+  },
+  {
+    "id": "j-pop",
+    "label": "J-Pop",
+    "category": "流行",
+    "tags": "j-pop, japanese pop, anime opening, melodic, emotional chorus, bright electric guitar, soaring vocals, catchy melody, orchestral touches, uplifting",
+    "bpmRange": [95, 138],
+    "instruments": ["electric guitar", "synthesizer", "piano", "electronic drums", "strings"],
+    "mood": ["cheerful", "emotional", "hopeful", "bright", "passionate"]
+  },
+  {
+    "id": "chiptune",
+    "label": "8-bit / Chiptune",
+    "category": "游戏",
+    "tags": "chiptune, 8-bit, retro game music, NES, Game Boy, square wave leads, triangle bass, pulse wave arpeggios, video game, pixel art",
+    "bpmRange": [120, 185],
+    "instruments": ["square wave oscillator", "triangle wave bass", "noise channel drums", "pulse wave arpeggio"],
+    "mood": ["playful", "nostalgic", "adventurous", "energetic", "quirky"]
+  },
+  {
+    "id": "hip-hop",
+    "label": "Hip Hop",
+    "category": "嘻哈",
+    "tags": "hip hop, boom bap, rap beat, sampled drums, punchy snare, deep bass, soulful samples, turntable scratches, old school, head nodding groove",
+    "bpmRange": [80, 105],
+    "instruments": ["SP-1200 drum machine", "sample-based bass", "turntable", "MPC pads", "vinyl samples"],
+    "mood": ["confident", "raw", "bold", "street", "soulful"]
+  },
+  {
+    "id": "trap",
+    "label": "Trap",
+    "category": "嘻哈",
+    "tags": "trap, 808 bass, rolling hi-hats, dark atmospheric, heavy sub bass, ominous pads, trap snare, melodic trap, auto-tune vocals, southern rap",
+    "bpmRange": [130, 160],
+    "instruments": ["Roland TR-808", "808 sub bass", "triple hi-hats", "synthesizer pads", "piano melody"],
+    "mood": ["dark", "aggressive", "atmospheric", "heavy", "brooding"]
+  },
+  {
+    "id": "house",
+    "label": "House",
+    "category": "电子",
+    "tags": "house music, four on the floor, deep house, soulful piano chords, funky bass line, claps, open hi-hats, chicago house, uplifting, dancefloor",
+    "bpmRange": [120, 132],
+    "instruments": ["Roland TR-909", "synthesizer bass", "electric piano", "clap samples", "pad synth"],
+    "mood": ["groovy", "euphoric", "soulful", "danceable", "uplifting"]
+  },
+  {
+    "id": "techno",
+    "label": "Techno",
+    "category": "电子",
+    "tags": "techno, industrial, dark minimal, driving kick drum, hypnotic percussion, acid synth, Berlin underground, warehouse, mechanical groove, relentless",
+    "bpmRange": [132, 155],
+    "instruments": ["Roland TR-909 kick", "TB-303 acid bass", "industrial noise", "modular synth", "reverb percussion"],
+    "mood": ["dark", "hypnotic", "intense", "industrial", "relentless"]
+  },
+  {
+    "id": "ambient",
+    "label": "Ambient",
+    "category": "氛围",
+    "tags": "ambient, atmospheric, drone, meditative, ethereal pads, long reverb, nature sounds, space music, peaceful, soundscape",
+    "bpmRange": [0, 80],
+    "instruments": ["synthesizer pads", "piano", "field recordings", "bowed guitar", "granular textures"],
+    "mood": ["peaceful", "meditative", "ethereal", "serene", "expansive"]
+  },
+  {
+    "id": "cinematic",
+    "label": "Cinematic",
+    "category": "氛围",
+    "tags": "cinematic, film score, epic orchestral, emotional strings, swelling brass, dramatic percussion, trailer music, Hans Zimmer style, tension and release, majestic",
+    "bpmRange": [55, 145],
+    "instruments": ["full orchestra", "choir", "taiko drums", "piano", "brass section"],
+    "mood": ["epic", "emotional", "dramatic", "inspiring", "intense"]
+  },
+  {
+    "id": "folk",
+    "label": "Folk",
+    "category": "民谣",
+    "tags": "folk, acoustic, fingerpicking guitar, storytelling, intimate vocals, fiddle, organic, warm, americana, campfire",
+    "bpmRange": [70, 115],
+    "instruments": ["acoustic guitar", "fiddle", "banjo", "upright bass", "harmonica"],
+    "mood": ["warm", "intimate", "nostalgic", "heartfelt", "earthy"]
+  },
+  {
+    "id": "jazz",
+    "label": "Jazz",
+    "category": "爵士",
+    "tags": "jazz, swing, bebop, saxophone improvisation, walking bass, piano comping, brushed snare, live jazz trio, smooth jazz, blue notes",
+    "bpmRange": [85, 165],
+    "instruments": ["tenor saxophone", "upright bass", "jazz piano", "brushed drums", "muted trumpet"],
+    "mood": ["sophisticated", "cool", "swinging", "improvisational", "soulful"]
+  },
+  {
+    "id": "rock",
+    "label": "Rock",
+    "category": "摇滚",
+    "tags": "rock, electric guitar, power chords, distortion, punchy drums, driving bass, anthemic, classic rock, stadium rock, gritty",
+    "bpmRange": [100, 155],
+    "instruments": ["electric guitar", "bass guitar", "acoustic drums", "Hammond organ", "lead guitar"],
+    "mood": ["energetic", "powerful", "bold", "raw", "passionate"]
+  },
+  {
+    "id": "piano-solo",
+    "label": "Piano Solo",
+    "category": "古典",
+    "tags": "solo piano, classical piano, expressive, delicate touch, intimate, melodic, emotional, Chopin style, concert grand, introspective",
+    "bpmRange": [55, 120],
+    "instruments": ["grand piano"],
+    "mood": ["emotional", "reflective", "intimate", "peaceful", "elegant"]
+  },
+  {
+    "id": "orchestral",
+    "label": "Orchestral",
+    "category": "古典",
+    "tags": "orchestral, symphony, full strings, brass fanfare, woodwind melody, classical composition, majestic, concert hall, dynamic range, polyphonic",
+    "bpmRange": [55, 168],
+    "instruments": ["violin section", "cello", "French horn", "flute", "timpani"],
+    "mood": ["majestic", "grand", "emotional", "powerful", "refined"]
+  },
+  {
+    "id": "reggaeton",
+    "label": "Reggaeton",
+    "category": "拉丁",
+    "tags": "reggaeton, dembow, latin urban, perreo, 808 bass, dancehall influence, latin trap, catchy hook, party, rhythmic",
+    "bpmRange": [90, 108],
+    "instruments": ["drum machine", "808 bass", "synthesizer", "sampler", "processed vocals"],
+    "mood": ["sensual", "energetic", "danceable", "urban", "festive"]
+  }
 ]
