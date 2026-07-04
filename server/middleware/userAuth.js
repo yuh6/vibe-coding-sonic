@@ -11,11 +11,15 @@ export function parseCookies(req) {
 }
 
 // 附加 req.user（可为 null），不拦截
-export function attachUser(req, _res, next) {
+export async function attachUser(req, _res, next) {
   const token = parseCookies(req)[SESSION_COOKIE];
   req.sessionToken = token || null;
-  req.user = getUserBySession(token);
-  next();
+  try {
+    req.user = await getUserBySession(token);
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 // 必须登录

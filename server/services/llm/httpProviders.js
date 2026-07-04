@@ -1,3 +1,5 @@
+const LLM_TIMEOUT_MS = 60_000; // LLM API 60 秒超时
+
 async function parseError(res) {
   const text = await res.text();
   try {
@@ -8,10 +10,11 @@ async function parseError(res) {
   }
 }
 
-export async function callOpenAiCompatible({ baseUrl, apiKey, model, prompt, extraHeaders = {} }) {
+export async function callOpenAiCompatible({ baseUrl, apiKey, model, extraHeaders = {} }, prompt) {
   const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -32,10 +35,11 @@ export async function callOpenAiCompatible({ baseUrl, apiKey, model, prompt, ext
   return data.choices?.[0]?.message?.content?.trim() || '';
 }
 
-export async function callAnthropic({ baseUrl, apiKey, model, prompt }) {
+export async function callAnthropic({ baseUrl, apiKey, model }, prompt) {
   const url = `${baseUrl.replace(/\/$/, '')}/messages`;
   const res = await fetch(url, {
     method: 'POST',
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
@@ -57,11 +61,12 @@ export async function callAnthropic({ baseUrl, apiKey, model, prompt }) {
   return block?.text?.trim() || '';
 }
 
-export async function callGemini({ baseUrl, apiKey, model, prompt }) {
+export async function callGemini({ baseUrl, apiKey, model }, prompt) {
   const base = baseUrl.replace(/\/$/, '');
   const url = `${base}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, {
     method: 'POST',
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],

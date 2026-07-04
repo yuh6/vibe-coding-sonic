@@ -3,20 +3,12 @@
  * 编排引擎/曲库池决定"要补什么"之后，由调度器负责实际调用 TTAPI 生成、轮询、落盘，
  * 并执行预算控制（硬上限 $10/天、软上限 $0.5/小时、余额<$2 暂停生成）。
  */
-import { mkdirSync, createWriteStream } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { Readable } from 'stream';
-import { finished } from 'stream/promises';
 import { composePrompt } from '../promptComposer.js';
 import { isSunoConfigured, submitGeneration, pollGeneration } from '../sunoClient.js';
+import { storage } from '../../storage/index.js';
 import * as trackPool from './trackPool.js';
 import * as sessionStore from './sessionStore.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR = join(__dirname, '../../data/audio-cache');
-mkdirSync(CACHE_DIR, { recursive: true });
 
 const COST_PER_TRACK = 0.08; // §8.10：约 $0.05-0.10/首，取中位数估算
 const HARD_DAILY_LIMIT = 10; // 硬上限：$10/天（sessions.budget_limit 默认值同步于此）
@@ -40,8 +32,8 @@ export class GenerationScheduler {
   }
 
   /** 硬上限/软上限/暂停阈值检查；返回 null 表示可以生成，否则给出拒绝原因 */
-  budgetGate() {
-    const session = sessionStore.getSession(this.sessionId);
+  async budgetGate() {
+    const session = await sessionStore.getSession(this.sessionId);
     if (!session) return 'session-not-found';
 
     const remaining = session.budgetLimit - session.budgetSpent;
@@ -65,9 +57,9 @@ export class GenerationScheduler {
     return null;
   }
 
-  recordSpend(cost) {
+  async recordSpend(cost) {
     this.hourlySpend.push({ at: Date.now(), cost });
-    sessionStore.addBudgetSpend(this.sessionId, cost);
+    await sessionStore.addBudgetSpend(this.sessionId, cost);
   }
 
   /**
@@ -75,7 +67,7 @@ export class GenerationScheduler {
    * promptOpts: composePrompt() 的入参（mbti/axes/mode/projectAnalysis/style）
    */
   async submit(promptOpts, { urgency = 'normal' } = {}) {
-    const gate = this.budgetGate();
+    const gate = await this.budgetGate();
     if (gate && urgency !== 'immediate') {
       return { skipped: true, reason: gate };
     }
@@ -98,7 +90,7 @@ export class GenerationScheduler {
     const composed = composePrompt(promptOpts);
 
     // 曲库池先插入一条"生成中"记录（audioUrl 为 null），供 pool-status 展示进度
-    const track = trackPool.createTrack(this.sessionId, {
+    const track = await trackPool.createTrack(this.sessionId, {
       phase: composed.mode,
       moodTag: promptOpts.style?.moodTag || composed.mode,
       energyLevel: promptOpts.targetEnergy ?? 50,
@@ -121,15 +113,15 @@ export class GenerationScheduler {
       });
 
       const result = await this.waitForCompletion(taskId);
-      const audioLocal = await this.downloadToCache(result.audioUrl, track.id);
+      const audioLocal = await this.persistAudio(result.audioUrl, track.id);
 
-      const ready = trackPool.markTrackReady(track.id, {
+      const ready = await trackPool.markTrackReady(track.id, {
         audioUrl: result.audioUrl,
         audioLocal,
         durationSec: result.music?.duration || null,
       });
 
-      this.recordSpend(COST_PER_TRACK);
+      await this.recordSpend(COST_PER_TRACK);
       this.emit('music_ready', { track: ready });
       return ready;
     } catch (err) {
@@ -154,17 +146,14 @@ export class GenerationScheduler {
     }
   }
 
-  /** TTAPI CDN URL 会过期，24h 流必须落地本地缓存（§9.1） */
-  async downloadToCache(url, trackId) {
-    const filename = `${trackId}-${randomUUID().slice(0, 8)}.mp3`;
-    const filePath = join(CACHE_DIR, filename);
+  /** TTAPI CDN URL 会过期，24h 流必须落地到统一对象存储（§9.1） */
+  async persistAudio(url, trackId) {
+    const key = `arranger/${this.sessionId}/${trackId}-${randomUUID().slice(0, 8)}.mp3`;
     const res = await fetch(url);
     if (!res.ok || !res.body) {
-      throw new Error(`Failed to download audio for local cache: ${res.status}`);
+      throw new Error(`Failed to download audio for storage: ${res.status}`);
     }
-    const file = createWriteStream(filePath);
-    await finished(Readable.fromWeb(res.body).pipe(file));
-    return `/audio-cache/${filename}`;
+    return storage.upload(key, res.body, 'audio/mpeg');
   }
 
   processPending() {

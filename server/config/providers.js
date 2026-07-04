@@ -131,6 +131,15 @@ function parseArgs(raw) {
 }
 
 export function resolveLlmConfig() {
+  if (process.env.DISABLE_LLM === 'true') {
+    return {
+      providerId: 'none',
+      label: '未配置',
+      type: 'none',
+      configured: false,
+    };
+  }
+
   const providerId = env('LLM_PROVIDER', 'openai');
   const preset = LLM_PRESETS[providerId];
 
@@ -183,6 +192,8 @@ export function resolveLlmConfig() {
 }
 
 export function resolveLlmRuntime() {
+  if (process.env.DISABLE_LLM === 'true') return null;
+
   const providerId = env('LLM_PROVIDER', 'openai');
   const preset = LLM_PRESETS[providerId];
 

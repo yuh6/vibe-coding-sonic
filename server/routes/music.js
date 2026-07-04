@@ -8,6 +8,8 @@ import {
   refreshJob,
   getFallbackTrack,
   userOwnsJobUrl,
+  getPlaybackUrl,
+  getPlaybackTracks,
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
 import { isSunoConfigured } from '../services/sunoClient.js';
@@ -108,10 +110,10 @@ async function assertPublicNetworkTarget(url) {
   }
 }
 
-function isAuthorizedProxyUrl(userId, url) {
+async function isAuthorizedProxyUrl(userId, url) {
   return (
     userOwnsJobUrl(userId, url) ||
-    userOwnsTrackUrl(userId, url) ||
+    await userOwnsTrackUrl(userId, url) ||
     libraryHasTrackUrl(url) ||
     isAllowedConfiguredHost(new URL(url).hostname)
   );
@@ -174,7 +176,7 @@ function requireGenerateUser(req, res, next) {
   return requireUser(req, res, next);
 }
 
-router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) => {
+router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, res) => {
   try {
     const {
       mbti,
@@ -182,6 +184,9 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
       mode = 'focus',
       projectAnalysis,
       style,
+      selectedGenre,
+      notes,
+      vocals,
       previewOnly = false,
       forceFallback = false,
       splitStems = true,
@@ -193,7 +198,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
 
     // prompt 预览免费且公开
     if (previewOnly) {
-      const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style });
+      const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
       return res.json({ preview: true, ...composed });
     }
 
@@ -202,7 +207,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
     let quotaNotice = null;
     let quotaCharged = false;
     if (!useFallback && isSunoConfigured()) {
-      const quota = consumeQuota(req.user.id);
+      const quota = await consumeQuota(req.user.id);
       if (!quota.ok) {
         useFallback = true;
         quotaNotice = quota.error;
@@ -212,15 +217,18 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
     }
 
     const job = createMusicJob({
+      userId: req.user.id,
       mbti,
       axes,
       mode,
       projectAnalysis,
       style,
+      selectedGenre,
+      notes,
+      vocals,
       forceFallback: useFallback,
       splitStems,
     });
-    job.userId = req.user.id;
     job.quotaCharged = quotaCharged;
 
     res.json({
@@ -233,7 +241,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, (req, res) =>
       mbti: job.mbti,
       profile: job.profile,
       splitStems: job.splitStems,
-      quota: getQuota(req.user.id),
+      quota: await getQuota(req.user.id),
       quotaNotice,
     });
   } catch (err) {
@@ -259,21 +267,23 @@ router.get('/status/:id', requireUser, async (req, res) => {
       if (job.fallback && job.quotaCharged) {
         job.quotaCharged = false;
         try {
-          refundQuota(job.userId);
+          await refundQuota(job.userId);
         } catch (err) {
           console.error('[music/status] refundQuota failed:', err.message);
         }
       }
       try {
-        saveTrack({
+        const playbackUrl = getPlaybackUrl(job);
+        const playbackTracks = getPlaybackTracks(job);
+        await saveTrack({
           jobId: job.id,
           userId: job.userId,
           title: job.title || job.fallbackTitle || `${job.mbti} · ${job.mode}`,
           mbti: job.mbti,
           mode: job.mode,
           prompt: job.fullPrompt,
-          audioUrl: job.audioUrl,
-          tracks: job.tracks,
+          audioUrl: playbackUrl,
+          tracks: playbackTracks,
           fallback: job.fallback,
         });
       } catch (err) {
@@ -284,11 +294,11 @@ router.get('/status/:id', requireUser, async (req, res) => {
     res.json({
       jobId: job.id,
       status: job.status,
-      audioUrl: job.audioUrl,
+      audioUrl: getPlaybackUrl(job),
       musicId: job.musicId,
       title: job.title,
       duration: job.duration,
-      tracks: job.tracks || [],
+      tracks: getPlaybackTracks(job),
       generationProgress: job.generationProgress,
       stemStatus: job.stemStatus,
       stemProgress: job.stemProgress,
@@ -328,7 +338,7 @@ router.get('/proxy', requireUser, async (req, res) => {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'only http/https allowed' });
   }
-  if (!isAuthorizedProxyUrl(req.user.id, parsed.href)) {
+  if (!(await isAuthorizedProxyUrl(req.user.id, parsed.href))) {
     return res.status(403).json({ error: 'audio url is not available for this user' });
   }
 

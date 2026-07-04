@@ -46,9 +46,9 @@ function safeParse(value, fallback) {
   }
 }
 
-export function createSession({ userId = null, name, mbtiType, mbtiSliders, schedule, budgetLimit = 10.0 }) {
+export async function createSession({ userId = null, name, mbtiType, mbtiSliders, schedule, budgetLimit = 10.0 }) {
   const id = randomUUID();
-  insertStmt.run({
+  await insertStmt.run({
     id,
     userId,
     name: name || null,
@@ -74,26 +74,26 @@ export function createSession({ userId = null, name, mbtiType, mbtiSliders, sche
   return getSession(id);
 }
 
-export function getSession(sessionId) {
-  return parseSession(getStmt.get(sessionId));
+export async function getSession(sessionId) {
+  return parseSession(await getStmt.get(sessionId));
 }
 
-export function updateSchedule(sessionId, schedule) {
-  updateScheduleStmt.run(JSON.stringify(schedule), sessionId);
+export async function updateSchedule(sessionId, schedule) {
+  await updateScheduleStmt.run(JSON.stringify(schedule), sessionId);
   const rt = runtime.get(sessionId);
   if (rt) rt.schedule = schedule;
   return getSession(sessionId);
 }
 
-export function addBudgetSpend(sessionId, cost) {
-  addSpendStmt.run(cost, sessionId);
+export async function addBudgetSpend(sessionId, cost) {
+  await addSpendStmt.run(cost, sessionId);
 }
 
 /** 运行态：供 sensingLayer/arranger/generationScheduler 读写 manualPhase/feedbackLog/state 等 */
-export function getRuntime(sessionId) {
+export async function getRuntime(sessionId) {
   if (!runtime.has(sessionId)) {
     // 服务重启后运行态丢失，但会话本身仍在 DB —— 用默认值重建运行态
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
     if (!session) return null;
     runtime.set(sessionId, {
       schedule: session.schedule,
@@ -111,11 +111,11 @@ export function getRuntime(sessionId) {
   return runtime.get(sessionId);
 }
 
-export function setState(sessionId, state) {
-  const rt = getRuntime(sessionId);
+export async function setState(sessionId, state) {
+  const rt = await getRuntime(sessionId);
   if (rt) rt.state = state;
 }
 
-export function getState(sessionId) {
-  return getRuntime(sessionId)?.state || 'IDLE';
+export async function getState(sessionId) {
+  return (await getRuntime(sessionId))?.state || 'IDLE';
 }

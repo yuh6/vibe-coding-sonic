@@ -14,6 +14,7 @@ import { createHash, randomBytes } from 'crypto';
 
 const WEBSOCKET_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const OPCODE = { CONTINUATION: 0x0, TEXT: 0x1, BINARY: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa };
+const MAX_PAYLOAD_BYTES = 64 * 1024; // 64KB — 防止恶意大消息攻击
 
 function acceptKey(clientKey) {
   return createHash('sha1').update(clientKey + WEBSOCKET_MAGIC).digest('base64');
@@ -93,10 +94,23 @@ class WsConnection {
 
   _handleData(chunk) {
     this._buffer = Buffer.concat([this._buffer, chunk]);
+
+    // 防御：缓冲区累积超过 MAX_PAYLOAD_BYTES 时断开
+    if (this._buffer.length > MAX_PAYLOAD_BYTES) {
+      this.close();
+      return;
+    }
+
     for (;;) {
       const frame = decodeFrame(this._buffer);
       if (!frame) return;
       this._buffer = this._buffer.subarray(frame.frameLength);
+
+      // 帧 payload 超限检查
+      if (frame.payload.length > MAX_PAYLOAD_BYTES) {
+        this.close();
+        return;
+      }
 
       if (frame.opcode === OPCODE.CLOSE) {
         this.close();
