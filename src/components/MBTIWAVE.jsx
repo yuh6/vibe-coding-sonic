@@ -418,7 +418,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
         projectAnalysis: projectAnalysis || undefined,
         vocals: vocalModeToVocals(vocalMode),
         splitStems: vocalMode === 'mixed',
-        forceFallback: opts.force || false,
+        forceFallback: false,
       });
       if (seq !== soloGenerationSeqRef.current) return;
       if (job.quota) setQuota(job.quota);
