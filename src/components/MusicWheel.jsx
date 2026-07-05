@@ -108,6 +108,20 @@ const GENRE_ALIASES = {
   funk: ['funk', '放克'],
 };
 
+function normalizePickedSong(track, genre, index) {
+  const audioUrl = track.audioUrl || track.url;
+  return {
+    id: track.id || `${genre.id}-pick-${index}`,
+    title: track.title || `${genre.name} Mix ${index + 1}`,
+    artist: track.artist || track.mbti || track.source || 'AI Genre Deck',
+    duration: track.duration || '--:--',
+    likes: track.likes || (track.source === 'fallback' ? 'fallback' : '0'),
+    audioUrl,
+    genre: track.genre || genre.id,
+    source: track.source || 'generated',
+  };
+}
+
 function matchesGenre(track, genreId) {
   const raw = `${track.genre || ''} ${track.tags || ''}`.toLowerCase();
   return (GENRE_ALIASES[genreId] || [genreId]).some((alias) => raw.includes(alias));
@@ -126,12 +140,25 @@ function toWheelSong(track) {
   };
 }
 
+function dedupeSongs(songs) {
+  const seen = new Set();
+  const result = [];
+  for (const song of songs) {
+    const key = song.id || song.audioUrl || `${song.title}:${song.artist}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(song);
+  }
+  return result;
+}
+
 export default function MusicWheel({
   backendTracks = [],
   onPlayTrack,
   onTogglePlayback,
   onStopPlayback,
   onRecordTrackPlay,
+  onGenrePick,
 }) {
   const [spinning, setSpinning] = useState(false);
   const [currentRotation, setCurrentRotation] = useState(0);
@@ -139,6 +166,8 @@ export default function MusicWheel({
   const [showResultModal, setShowResultModal] = useState(false);
   const [currentPlayingSong, setCurrentPlayingSong] = useState(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [pickedGenreTracks, setPickedGenreTracks] = useState({});
+  const [pickStatus, setPickStatus] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const spinTimerRef = useRef(null);
@@ -174,6 +203,48 @@ export default function MusicWheel({
     }
   };
 
+  const triggerToast = (msg) => {
+    setToastMsg(msg);
+    setShowToast(true);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const startSongPlayback = (song, { toast = true } = {}) => {
+    setCurrentPlayingSong(song);
+    setIsPlayingAudio(true);
+
+    if (song.audioUrl) {
+      onPlayTrack?.({ audioUrl: song.audioUrl, title: song.title, trackId: song.id });
+      if (song.id && song.source === 'library') onRecordTrackPlay?.(song.id);
+      if (toast) triggerToast(`正在播放: ${song.title}`);
+    } else if (toast) {
+      triggerToast(`示例曲目: ${song.title}。曲库暂无该流派真实音频。`);
+    }
+  };
+
+  const resolvePickedGenre = async (genre) => {
+    if (!onGenrePick) return;
+    setPickStatus({ genreId: genre.id, status: 'loading', message: '正在接入兜底曲库...' });
+    try {
+      const result = await onGenrePick(genre);
+      const tracks = (result?.tracks || []).map((track, index) => normalizePickedSong(track, genre, index));
+      if (tracks.length) {
+        setPickedGenreTracks((current) => ({ ...current, [genre.id]: tracks }));
+        const firstPlayable = tracks.find((song) => song.audioUrl);
+        if (firstPlayable) startSongPlayback(firstPlayable);
+      }
+      setPickStatus({
+        genreId: genre.id,
+        status: 'ready',
+        message: result?.message || `${tracks.length || 0} 首兜底已就绪，后台继续补生成`,
+      });
+    } catch (err) {
+      setPickStatus({ genreId: genre.id, status: 'error', message: err.message || '流派接入失败' });
+      triggerToast(err.message || '流派接入失败，已保留示例歌单');
+    }
+  };
+
   const handleSpin = () => {
     if (spinning) return;
     if (currentPlayingSong?.audioUrl) {
@@ -198,14 +269,8 @@ export default function MusicWheel({
       setSelectedGenreIndex(targetIndex);
       setShowResultModal(true);
       playStopSound();
+      resolvePickedGenre(GENRES[targetIndex]);
     }, 5000);
-  };
-
-  const triggerToast = (msg) => {
-    setToastMsg(msg);
-    setShowToast(true);
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleShare = () => {
@@ -229,16 +294,7 @@ export default function MusicWheel({
       return;
     }
 
-    setCurrentPlayingSong(song);
-    setIsPlayingAudio(true);
-
-    if (song.audioUrl) {
-      onPlayTrack?.({ audioUrl: song.audioUrl, title: song.title, trackId: song.id });
-      if (song.id) onRecordTrackPlay?.(song.id);
-      triggerToast(`正在播放: ${song.title}`);
-    } else {
-      triggerToast(`示例曲目: ${song.title}。曲库暂无该流派真实音频。`);
-    }
+    startSongPlayback(song);
   };
 
   const handleMiniToggle = () => {
@@ -262,8 +318,14 @@ export default function MusicWheel({
   const realSongs = backendTracks
     .filter((track) => track?.audioUrl && matchesGenre(track, activeGenre.id))
     .map(toWheelSong);
-  const activeSongs = realSongs.length ? realSongs : SONGS_DATABASE[activeGenre.id] || [];
+  const pickedSongs = pickedGenreTracks[activeGenre.id] || [];
+  const activeSongs = dedupeSongs([
+    ...realSongs,
+    ...pickedSongs,
+    ...(realSongs.length || pickedSongs.length ? [] : SONGS_DATABASE[activeGenre.id] || []),
+  ]);
   const usingRealSongs = realSongs.length > 0;
+  const activePickStatus = pickStatus?.genreId === activeGenre.id ? pickStatus : null;
 
   return (
     <div className="music-wheel-scope relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08070b] text-zinc-100 shadow-2xl">
@@ -475,7 +537,7 @@ export default function MusicWheel({
                   <h3 className="text-sm font-bold tracking-wider text-white uppercase font-orbitron">Recommended Station</h3>
                 </div>
                 <span className="text-[10px] text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md font-orbitron">
-                  {usingRealSongs ? `${activeSongs.length} REAL TRACKS` : `${activeSongs.length} DEMO TRACKS`}
+                  {usingRealSongs ? `${realSongs.length} REAL TRACKS` : pickedSongs.length ? `${pickedSongs.length} READY TRACKS` : `${activeSongs.length} DEMO TRACKS`}
                 </span>
               </div>
 
@@ -487,6 +549,11 @@ export default function MusicWheel({
                     <span className="text-lg font-black text-white">{activeGenre.name}</span>
                     <span className="text-[10px] text-emerald-400 font-orbitron font-semibold">MATCH 100%</span>
                   </div>
+                  {activePickStatus?.message && (
+                    <p className={`mt-1 text-[10px] ${activePickStatus.status === 'error' ? 'text-red-300' : 'text-zinc-400'}`}>
+                      {activePickStatus.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -497,7 +564,7 @@ export default function MusicWheel({
                 const isSelectedAndPlaying = currentPlayingSong?.title === song.title && isPlayingAudio;
                 return (
                   <div
-                    key={song.title}
+                    key={song.id || song.title}
                     className={`p-3 rounded-xl border transition-all duration-300 flex items-center justify-between group ${
                       isSelectedAndPlaying
                         ? 'bg-[#ff2a7a]/10 border-[#ff2a7a]/40 shadow-[0_0_15px_rgba(255,42,122,0.1)]'
@@ -605,7 +672,13 @@ export default function MusicWheel({
               <button
                 onClick={() => {
                   setShowResultModal(false);
-                  if (activeSongs.length > 0) handlePlaySong(activeSongs[0]);
+                  const firstSong = activeSongs[0];
+                  const sameSong = firstSong && (
+                    currentPlayingSong?.id === firstSong.id ||
+                    currentPlayingSong?.audioUrl === firstSong.audioUrl ||
+                    currentPlayingSong?.title === firstSong.title
+                  );
+                  if (firstSong && !sameSong) handlePlaySong(firstSong);
                 }}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00f5d4] to-[#00f5d4]/80 text-black font-extrabold text-xs tracking-wider uppercase font-orbitron hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#00f5d4]/20"
               >

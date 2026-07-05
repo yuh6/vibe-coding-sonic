@@ -1,5 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getLiveRadios, joinRadio, leaveRadio, getPublicPlaylists, getPlaylist, getPopularTracks, recordPlaylistPlay, recordSharedTrackPlay, getFavorites, getMyHistory, getForYou, recordRecommendedPlay } from '../lib/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  generateMusic,
+  getFallback,
+  getLiveRadios,
+  getMusicStatus,
+  getPublicPlaylists,
+  getPlaylist,
+  getPopularTracks,
+  getSharedLibrary,
+  joinRadio,
+  leaveRadio,
+  recordPlaylistPlay,
+  recordSharedTrackPlay,
+  getFavorites,
+  getMyHistory,
+  getForYou,
+  recordRecommendedPlay,
+} from '../lib/api';
 import MusicWheel from './MusicWheel';
 import SharedLibraryBrowser from './SharedLibraryBrowser';
 import PlaylistManager from './PlaylistManager';
@@ -8,6 +25,141 @@ const MODE_LABELS = {
   brainstorm: '🧠 头脑风暴', focus: '🎯 专注', sprint: '🏃 冲刺',
   charge: '⚡ 冲锋', behind: '🔥 追赶', break: '☕ 休息', celebrate: '🎉 庆祝',
 };
+
+const DISCOVER_MBTI = 'ENFP';
+const MIN_GENRE_TRACKS = 3;
+
+const GENRE_PRESETS = {
+  pop: {
+    mode: 'brainstorm',
+    fallbackModes: ['brainstorm', 'focus', 'sprint'],
+    style: { energy: 74, texture: 32, brightness: 78 },
+    tags: 'pop, dance pop, catchy hooks, bright synths, polished production, radio ready, upbeat groove',
+    bpmRange: [95, 128],
+  },
+  jazz: {
+    mode: 'focus',
+    fallbackModes: ['focus', 'break', 'brainstorm'],
+    style: { energy: 42, texture: 72, brightness: 48 },
+    tags: 'jazz, swing, bebop, walking bass, brushed drums, piano comping, saxophone improvisation',
+    bpmRange: [85, 150],
+  },
+  rock: {
+    mode: 'sprint',
+    fallbackModes: ['sprint', 'charge', 'brainstorm'],
+    style: { energy: 82, texture: 76, brightness: 54 },
+    tags: 'rock, electric guitar, power chords, driving bass, punchy drums, anthemic chorus, gritty energy',
+    bpmRange: [105, 155],
+  },
+  hiphop: {
+    mode: 'sprint',
+    fallbackModes: ['sprint', 'focus', 'behind'],
+    style: { energy: 68, texture: 38, brightness: 42 },
+    tags: 'hip hop, boom bap, rap beat, deep bass, punchy snare, sampled drums, head nodding groove',
+    bpmRange: [80, 105],
+  },
+  classical: {
+    mode: 'focus',
+    fallbackModes: ['focus', 'break', 'charge'],
+    style: { energy: 36, texture: 84, brightness: 58 },
+    tags: 'classical, orchestral, solo piano, concert hall, expressive strings, elegant composition, dynamic range',
+    bpmRange: [55, 130],
+  },
+  electronic: {
+    mode: 'sprint',
+    fallbackModes: ['sprint', 'brainstorm', 'charge'],
+    style: { energy: 84, texture: 18, brightness: 66 },
+    tags: 'electronic, synth bass, four on the floor, arpeggiators, club drums, neon dancefloor, polished mix',
+    bpmRange: [120, 145],
+  },
+  rnb: {
+    mode: 'focus',
+    fallbackModes: ['focus', 'break', 'brainstorm'],
+    style: { energy: 52, texture: 46, brightness: 50 },
+    tags: 'r&b, soulful chords, smooth groove, warm bass, soft drums, late night, polished vocals',
+    bpmRange: [70, 105],
+  },
+  country: {
+    mode: 'focus',
+    fallbackModes: ['focus', 'break', 'celebrate'],
+    style: { energy: 48, texture: 86, brightness: 62 },
+    tags: 'country, acoustic guitar, fiddle, warm bass, americana, storytelling, organic drums, heartfelt',
+    bpmRange: [75, 120],
+  },
+  latin: {
+    mode: 'brainstorm',
+    fallbackModes: ['brainstorm', 'sprint', 'celebrate'],
+    style: { energy: 78, texture: 48, brightness: 82 },
+    tags: 'latin, reggaeton, dembow rhythm, latin percussion, brass stabs, festive groove, danceable hook',
+    bpmRange: [90, 112],
+  },
+  metal: {
+    mode: 'charge',
+    fallbackModes: ['charge', 'sprint', 'behind'],
+    style: { energy: 94, texture: 80, brightness: 34 },
+    tags: 'metal, heavy guitar riffs, double kick drums, aggressive bass, distorted power chords, intense energy',
+    bpmRange: [120, 170],
+  },
+  indie: {
+    mode: 'brainstorm',
+    fallbackModes: ['brainstorm', 'focus', 'break'],
+    style: { energy: 58, texture: 66, brightness: 60 },
+    tags: 'indie, jangly guitars, warm synths, intimate drums, dreamy texture, alternative pop, heartfelt melody',
+    bpmRange: [85, 130],
+  },
+  funk: {
+    mode: 'brainstorm',
+    fallbackModes: ['brainstorm', 'sprint', 'celebrate'],
+    style: { energy: 76, texture: 44, brightness: 72 },
+    tags: 'funk, slap bass, tight drums, syncopated guitar, brass stabs, clavinet, danceable pocket groove',
+    bpmRange: [95, 125],
+  },
+};
+
+function genrePreset(genre) {
+  const preset = GENRE_PRESETS[genre?.id] || GENRE_PRESETS.electronic;
+  return {
+    ...preset,
+    selectedGenre: {
+      id: genre?.id || 'electronic',
+      label: genre?.name || 'Electronic',
+      tags: preset.tags,
+      bpmRange: preset.bpmRange,
+      instruments: [],
+      mood: [],
+    },
+  };
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function mergeTracks(primary = [], secondary = []) {
+  const seen = new Set();
+  const merged = [];
+  for (const track of [...primary, ...secondary]) {
+    const key = track?.id || track?.audioUrl;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(track);
+  }
+  return merged;
+}
+
+function toFallbackWheelTrack(track, genre, index, mode) {
+  const audioUrl = track?.audioUrl || track?.url;
+  return {
+    id: `${genre.id}-${track?.id || mode || index}`,
+    title: `${genre.name} · ${track?.title || `Fallback ${index + 1}`}`,
+    artist: `Fallback Deck · ${MODE_LABELS[mode] || mode}`,
+    duration: '--:--',
+    likes: 'fallback',
+    audioUrl,
+    genre: genre.id,
+    source: 'fallback',
+  };
+}
 
 function formatWhen(ts) {
   if (!ts) return '';
@@ -114,6 +266,7 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   const [selectedLibraryTrack, setSelectedLibraryTrack] = useState(null);
   const [personalTracks, setPersonalTracks] = useState([]);
   const [personalLoading, setPersonalLoading] = useState(false);
+  const genreGenerationRef = useRef({});
 
   const PERSONAL_TABS = ['favorites', 'history', 'for-you'];
 
@@ -153,6 +306,82 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
       .then((data) => setWheelTracks(data.tracks || []))
       .catch(() => setWheelTracks([]));
   }, []);
+
+  const refreshGenreTracks = useCallback(async (genre) => {
+    const data = await getSharedLibrary({ genre: genre.id, limit: 12 });
+    const tracks = data.tracks || [];
+    if (tracks.length) {
+      setWheelTracks((current) => mergeTracks(tracks, current));
+    }
+    return tracks;
+  }, []);
+
+  const pollGenreJob = useCallback(async (jobId) => {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await wait(attempt === 0 ? 1500 : 3000);
+      const data = await getMusicStatus(jobId);
+      if (data.status === 'completed' || data.status === 'failed') return data;
+    }
+    return null;
+  }, []);
+
+  const ensureGenreGenerated = useCallback(async (genre, existingCount = 0) => {
+    const preset = genrePreset(genre);
+    const missing = Math.max(0, MIN_GENRE_TRACKS - existingCount);
+    if (!missing || genreGenerationRef.current[genre.id]) return;
+
+    genreGenerationRef.current[genre.id] = true;
+    try {
+      const jobIds = [];
+      for (let i = 0; i < missing; i += 1) {
+        try {
+          const job = await generateMusic({
+            mbti: DISCOVER_MBTI,
+            mode: preset.mode,
+            style: preset.style,
+            selectedGenre: preset.selectedGenre,
+            vocals: { enabled: false },
+            splitStems: false,
+          });
+          if (job?.jobId) jobIds.push(job.jobId);
+        } catch (err) {
+          console.warn('[discover genre generate]', err.message);
+          break;
+        }
+      }
+
+      await Promise.allSettled(jobIds.map((jobId) => pollGenreJob(jobId)));
+      // persistTrackAsync may finish just after the status call; give the shared library a short beat.
+      await wait(1200);
+      await refreshGenreTracks(genre).catch(() => {});
+    } finally {
+      delete genreGenerationRef.current[genre.id];
+    }
+  }, [pollGenreJob, refreshGenreTracks]);
+
+  const handleGenrePick = useCallback(async (genre) => {
+    const preset = genrePreset(genre);
+    const sharedTracks = await refreshGenreTracks(genre).catch(() => []);
+    const fallbackResults = await Promise.all(
+      preset.fallbackModes.slice(0, MIN_GENRE_TRACKS).map((mode, index) =>
+        getFallback({ mode, mbti: DISCOVER_MBTI })
+          .then((track) => toFallbackWheelTrack(track, genre, index, mode))
+          .catch(() => null)
+      )
+    );
+    const fallbackTracks = fallbackResults.filter((track) => track?.audioUrl).slice(0, MIN_GENRE_TRACKS);
+
+    ensureGenreGenerated(genre, sharedTracks.filter((track) => track.audioUrl).length).catch((err) => {
+      console.warn('[discover genre ensure]', err.message);
+    });
+
+    return {
+      tracks: fallbackTracks.length ? fallbackTracks : sharedTracks.slice(0, MIN_GENRE_TRACKS),
+      message: fallbackTracks.length
+        ? `已先接入 ${fallbackTracks.length} 首兜底，后台补足 ${MIN_GENRE_TRACKS} 首 ${genre.name}`
+        : `已接入共享曲库，后台检查 ${genre.name} 库存`,
+    };
+  }, [ensureGenreGenerated, refreshGenreTracks]);
 
   const handleTune = useCallback(async (station) => {
     try {
@@ -196,6 +425,7 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
           onTogglePlayback={onTogglePlayback}
           onStopPlayback={onStopPlayback}
           onRecordTrackPlay={(trackId) => recordSharedTrackPlay(trackId).catch(() => {})}
+          onGenrePick={handleGenrePick}
         />
       </div>
 

@@ -177,7 +177,7 @@ async function persistTrackAsync(job) {
         job.id, job.userId || null,
         job.title || `${job.mbti} · ${job.mode}`,
         job.mbti, job.mode,
-        job.profile?.genre || null,
+        job.selectedGenre || job.profile?.genre || null,
         job.fullPrompt || null,
         job.layers?.mode || null,
         job.bpm || null,
@@ -239,7 +239,7 @@ async function completeWithFallback(job, delayMs = 0) {
   const finish = async () => {
     const shared = await pickFromSharedLibrary({
       mode: job.mode, mbti: job.mbti,
-      genre: job.profile?.genre, bpm: job.bpm,
+      genre: job.selectedGenre || job.profile?.genre, bpm: job.bpm,
     });
     if (shared) {
       job.status = 'completed';
