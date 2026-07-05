@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStyles } from '../lib/api';
 
+const CATEGORY_LABELS = {
+  '复古电子': 'Retro-Electronic',
+  'Chill': 'Chill',
+  '流行': 'Pop',
+  '游戏': 'Gaming',
+  '嘻哈': 'Hip-Hop',
+  '电子': 'Electronic',
+  '氛围': 'Ambient',
+  '民谣': 'Folk',
+  '爵士': 'Jazz',
+  '摇滚': 'Rock',
+  '古典': 'Classical',
+  '拉丁': 'Latin',
+};
+
 export default function GenreSelector({ value, onChange, theme }) {
   const [styles, setStyles] = useState([]);
   const [error, setError] = useState('');
@@ -22,16 +37,25 @@ export default function GenreSelector({ value, onChange, theme }) {
   }, [styles]);
 
   return (
-    <div className="glass rounded-2xl p-4">
-      <span className="deck-label">Genre</span>
+    <div className="genre-panel">
+      {/* 标题区 */}
+      <div className="mb-4">
+        <h3 className="genre-title">Explore Genres</h3>
+        <p className="genre-subtitle">选择流派 · 影响生成的音乐风格</p>
+      </div>
 
-      {error && <div className="mt-2 text-xs text-red-300">{error}</div>}
+      {error && <div className="mb-2 text-xs text-red-300">{error}</div>}
 
-      <div className="mt-3 space-y-3">
+      {/* 分类行 */}
+      <div className="space-y-4">
         {groups.map(([cat, items]) => (
           <div key={cat}>
-            <div className="mb-1.5 font-mono text-[9px] tracking-widest text-faint">{cat}</div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="genre-cat-row">
+              <span className="genre-cat-zh">{cat}</span>
+              <span className="genre-cat-en">{CATEGORY_LABELS[cat] || cat}</span>
+              <span className="genre-cat-line" />
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
               {items.map((s) => {
                 const active = value === s.id;
                 return (
@@ -39,9 +63,8 @@ export default function GenreSelector({ value, onChange, theme }) {
                     key={s.id}
                     type="button"
                     onClick={() => onChange(active ? '' : s.id)}
-                    className={`pad py-1.5 px-3 text-xs ${active ? 'pad-active' : ''}`}
-                    style={active ? { '--pad-glow': `${theme?.accent || '#22c55e'}66`, color: theme?.glow } : undefined}
-                    title={`${s.label} · ${s.bpmRange?.[0]}–${s.bpmRange?.[1]} BPM`}
+                    className={`genre-chip ${active ? 'genre-chip-active' : ''}`}
+                    title={`${s.bpmRange?.[0]}–${s.bpmRange?.[1]} BPM`}
                   >
                     {s.label}
                   </button>
