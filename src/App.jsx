@@ -62,8 +62,8 @@ export default function App() {
   const [mode, setMode] = useState('focus');
   const [vocalMode, setVocalMode] = useState('instrumental'); // 'vocal' | 'instrumental' | 'mixed'
   const [genre, setGenre] = useState('');
-  const [projectName, setProjectName] = useState('足球经理游戏');
-  const [projectDesc, setProjectDesc] = useState('复古像素风格的足球经理策略游戏，强调竞技与战术');
+  const [projectName, setProjectName] = useState('');
+  const [projectDesc, setProjectDesc] = useState('');
   const [projectAnalysis, setProjectAnalysis] = useState(null);
   const [analysisSource, setAnalysisSource] = useState('');
   const [promptData, setPromptData] = useState(null);
