@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import ModePads from './components/ModePads';
@@ -10,12 +10,8 @@ import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import ArrangerPanel from './components/ArrangerPanel';
 import GenreSelector from './components/GenreSelector';
-import AdminPanel from './components/AdminPanel';
-import MixerPage from './components/mixer/MixerPage';
-import DiscoverPage from './components/DiscoverPage';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
-import MBTIWAVE from './components/MBTIWAVE';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
 import {
@@ -36,6 +32,11 @@ import {
 } from './lib/api';
 import { useMusicPoll, usePlayer } from './hooks/usePlayer';
 import { useArranger } from './hooks/useArranger';
+
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const MixerPage = lazy(() => import('./components/mixer/MixerPage'));
+const DiscoverPage = lazy(() => import('./components/DiscoverPage'));
+const MBTIWAVE = lazy(() => import('./components/MBTIWAVE'));
 
 const STARTUP_FALLBACK_MODE = 'startup';
 
@@ -326,12 +327,12 @@ export default function App() {
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
-    handleGenerate({ mode: nextMode, forceFallback: true });
+    handleGenerate({ mode: nextMode });
   };
 
   const handlePanic = () => {
     setMode('behind');
-    handleGenerate({ mode: 'behind', forceFallback: true });
+    handleGenerate({ mode: 'behind' });
   };
 
   const handleArrangerStart = () => {
@@ -450,7 +451,11 @@ export default function App() {
 
   // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
   if (isMBTIWAVE) {
-    return <MBTIWAVE isDark={isDark} onToggleColorMode={toggleColorMode} />;
+    return (
+      <Suspense fallback={null}>
+        <MBTIWAVE isDark={isDark} onToggleColorMode={toggleColorMode} />
+      </Suspense>
+    );
   }
 
   const mainDeck = (
@@ -571,27 +576,33 @@ export default function App() {
         </header>
 
         {isAdmin ? (
-          <AdminPanel />
+          <Suspense fallback={null}>
+            <AdminPanel />
+          </Suspense>
         ) : isMixer ? (
-          <MixerPage
-            incomingMix={mixerImport}
-            user={user}
-            onRequireAuth={(message = '登录后才能加载远程音频 URL') => {
-              setNotice(message);
-              setAuthOpen(true);
-            }}
-          />
+          <Suspense fallback={null}>
+            <MixerPage
+              incomingMix={mixerImport}
+              user={user}
+              onRequireAuth={(message = '登录后才能加载远程音频 URL') => {
+                setNotice(message);
+                setAuthOpen(true);
+              }}
+            />
+          </Suspense>
         ) : isDiscover ? (
-          <DiscoverPage
-            user={user}
-            onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })}
-            onTogglePlayback={player.togglePlay}
-            onStopPlayback={player.unload}
-            onRequireAuth={(message = '登录后可以使用此功能') => {
-              setNotice(message);
-              setAuthOpen(true);
-            }}
-          />
+          <Suspense fallback={null}>
+            <DiscoverPage
+              user={user}
+              onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })}
+              onTogglePlayback={player.togglePlay}
+              onStopPlayback={player.unload}
+              onRequireAuth={(message = '登录后可以使用此功能') => {
+                setNotice(message);
+                setAuthOpen(true);
+              }}
+            />
+          </Suspense>
         ) : (
           <>
           <div className="grid gap-4 lg:grid-cols-12">

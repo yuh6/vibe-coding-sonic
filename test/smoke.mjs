@@ -326,6 +326,13 @@ try {
   assert.ok(preview.layers?.mbti);
   assert.ok(preview.layers?.project);
 
+  const genrePreview = await client.request('/api/music/generate', {
+    method: 'POST',
+    body: { axes, mode: 'focus', style, selectedGenre: 'city-pop', previewOnly: true },
+  });
+  assert.equal(genrePreview.selectedGenre, 'city-pop');
+  assert.match(genrePreview.fullPrompt, /city pop/i);
+
   const generated = await client.request('/api/music/generate', {
     method: 'POST',
     body: {

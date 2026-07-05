@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { resolveGenreStyle } from './genreStyles.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const profiles = JSON.parse(readFileSync(join(__dirname, '../data/mbti-profiles.json'), 'utf-8'));
@@ -187,18 +188,19 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
   const phasePreset = PHASE_PRESETS[phase];
   const styleAdj = buildStyleAdjustments(style);
   const remixDescriptors = buildRemixDescriptors(axes);
+  const genreStyle = resolveGenreStyle(selectedGenre);
 
   // BPM
   let baseBpm;
-  if (selectedGenre?.bpmRange?.length === 2) {
-    baseBpm = (selectedGenre.bpmRange[0] + selectedGenre.bpmRange[1]) / 2;
+  if (genreStyle?.bpmRange?.length === 2) {
+    baseBpm = (genreStyle.bpmRange[0] + genreStyle.bpmRange[1]) / 2;
   } else {
     baseBpm = (profile.bpmMin + profile.bpmMax) / 2;
   }
   const bpm = clampBpm(baseBpm + phasePreset.bpmDelta + styleAdj.bpmDelta);
 
   // 1) 流派锚点
-  const genreAnchor = selectedGenre?.tags || profile.genre;
+  const genreAnchor = genreStyle?.tags || profile.genre;
   // 2) 乐器
   const instruments = profile.instruments;
   // 3) 阶段情绪
@@ -268,7 +270,7 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
       genre: profile.genre,
       theme: profile.theme,
     },
-    selectedGenre: selectedGenre?.id || null,
+    selectedGenre: genreStyle?.id || null,
     hasLyrics: Boolean(vocals?.enabled && vocals?.lyrics),
   };
 }
