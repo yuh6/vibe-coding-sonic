@@ -140,12 +140,13 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
             type="button"
             onClick={isGuest ? () => onOpenChange(true) : handleLogout}
             className={btnClass}
+            title={isGuest ? '登录' : '登出'}
           >
-            {isGuest ? '登录' : '登出'}
+            {isGuest ? '🔑' : '🚪'}
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => onOpenChange(true)} className={btnClass}>
+        <button type="button" onClick={() => onOpenChange(true)} className={btnClass} title="登录">
           👤
         </button>
       )}
