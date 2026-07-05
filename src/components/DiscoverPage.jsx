@@ -362,6 +362,19 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   const handleGenrePick = useCallback(async (genre) => {
     const preset = genrePreset(genre);
     const sharedTracks = await refreshGenreTracks(genre).catch(() => []);
+    const sharedPlayableTracks = sharedTracks.filter((track) => track.audioUrl).slice(0, MIN_GENRE_TRACKS);
+
+    ensureGenreGenerated(genre, sharedPlayableTracks.length).catch((err) => {
+      console.warn('[discover genre ensure]', err.message);
+    });
+
+    if (sharedPlayableTracks.length >= MIN_GENRE_TRACKS) {
+      return {
+        tracks: sharedPlayableTracks,
+        message: `已接入 ${sharedPlayableTracks.length} 首 ${genre.name} 共享曲库真实歌`,
+      };
+    }
+
     const fallbackResults = await Promise.all(
       preset.fallbackModes.slice(0, MIN_GENRE_TRACKS).map((mode, index) =>
         getFallback({ mode, mbti: DISCOVER_MBTI })
@@ -370,16 +383,13 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
       )
     );
     const fallbackTracks = fallbackResults.filter((track) => track?.audioUrl).slice(0, MIN_GENRE_TRACKS);
-
-    ensureGenreGenerated(genre, sharedTracks.filter((track) => track.audioUrl).length).catch((err) => {
-      console.warn('[discover genre ensure]', err.message);
-    });
+    const immediateTracks = mergeTracks(sharedPlayableTracks, fallbackTracks).slice(0, MIN_GENRE_TRACKS);
 
     return {
-      tracks: fallbackTracks.length ? fallbackTracks : sharedTracks.slice(0, MIN_GENRE_TRACKS),
-      message: fallbackTracks.length
-        ? `已先接入 ${fallbackTracks.length} 首兜底，后台补足 ${MIN_GENRE_TRACKS} 首 ${genre.name}`
-        : `已接入共享曲库，后台检查 ${genre.name} 库存`,
+      tracks: immediateTracks,
+      message: sharedPlayableTracks.length
+        ? `已接入 ${sharedPlayableTracks.length} 首共享曲库真实歌，兜底补位到 ${immediateTracks.length} 首`
+        : `已先接入 ${fallbackTracks.length} 首兜底，后台补足 ${MIN_GENRE_TRACKS} 首 ${genre.name}`,
     };
   }, [ensureGenreGenerated, refreshGenreTracks]);
 
