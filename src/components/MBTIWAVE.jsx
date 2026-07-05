@@ -749,33 +749,29 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
               {/* 往下滚动：每个功能都是独立音乐模块 */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-                {/* 入口 1: 随机 Room (重度沉浸) */}
+                {/* 入口 1: MBTI solo music → 进入 DJ 控制台 */}
                 <div
-                  onClick={enterRandomRoom}
-                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-slate-950/60 border border-sky-200/15 hover:border-sky-300/50 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(125,211,252,0.13)] scanline"
+                  onClick={() => { window.location.hash = '#/'; }}
+                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-rose-950/45 border border-fuchsia-200/18 hover:border-fuchsia-300/60 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_42px_rgba(244,114,182,0.18)] scanline"
                 >
-                  <img src="/card-room.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity duration-500 group-hover:opacity-95" />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent"></div>
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-sky-300/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500"></div>
-
-                  <div className="relative z-10 flex justify-between items-start">
-                    <div className="w-12 h-12 rounded-xl bg-slate-950/80 border border-slate-700 flex items-center justify-center text-sky-200 group-hover:bg-sky-200 group-hover:text-slate-950 transition-all duration-300">
-                      <Radio className="w-6 h-6 animate-pulse" />
+                  <img src="/card-mbti-solo.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity duration-500 group-hover:opacity-95" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose-950/90 via-rose-950/20 to-transparent"></div>
+                  <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(244,114,182,0.18),transparent_40%,rgba(168,85,247,0.18))] opacity-75 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="flex items-start justify-between relative z-10">
+                    <div className="w-12 h-12 rounded-xl bg-black border border-fuchsia-200/25 flex items-center justify-center text-fuchsia-200 group-hover:bg-fuchsia-200 group-hover:text-black transition-all duration-300">
+                      <Music className="w-6 h-6" />
                     </div>
-                    <div className="text-[10px] uppercase tracking-widest text-zinc-400 bg-zinc-950/80 px-2 py-1 rounded border border-zinc-800/80 mono-font">
-                      FLOW STATE
-                    </div>
+                    <span className="text-[10px] text-fuchsia-200 tracking-wider font-bold uppercase mono-font">Solo Channel</span>
                   </div>
-
-                  <div className="relative z-10 space-y-3">
-                    <h3 className="text-2xl font-bold text-white group-hover:text-sky-200 transition-colors">进入随机 Room</h3>
-                    <p className="text-zinc-300 text-xs leading-relaxed">
-                      像掉进一个正在跃迁的异次元电波。随机加入正在播放情绪影像的群组，遇见不可预知的同频旅人。
+                  <div className="space-y-3 relative z-10 mt-5">
+                    <h3 className="text-2xl font-bold text-white group-hover:text-fuchsia-200 transition-colors">MBTI solo music</h3>
+                    <p className="text-zinc-400 text-xs leading-relaxed max-w-xl">
+                      不进入社群房间，只生成一条属于当前人格的私人背景声轨。适合独处、工作、发呆或深夜循环播放。
                     </p>
                   </div>
 
-                  <div className="relative z-10 flex items-center gap-2 text-sky-200 font-bold text-xs mono-font pt-2">
-                    <span>LAUNCH INSTANT WAVE</span>
+                  <div className="flex items-center gap-2 text-fuchsia-200 font-bold text-xs mono-font pt-4 relative z-10">
+                    <span>START SOLO BGM</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                   </div>
                 </div>
@@ -813,28 +809,33 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
                   </div>
                 </div>
 
-                {/* 入口 3: MBTI solo music → 进入 DJ 控制台 */}
+                {/* 入口 3: 随机 Room (重度沉浸) */}
                 <div
-                  onClick={() => { window.location.hash = '#/'; }}
-                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-rose-950/45 border border-fuchsia-200/18 hover:border-fuchsia-300/60 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_42px_rgba(244,114,182,0.18)] scanline"
-                >                  <img src="/card-mbti-solo.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity duration-500 group-hover:opacity-95" />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose-950/90 via-rose-950/20 to-transparent"></div>
-                  <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(244,114,182,0.18),transparent_40%,rgba(168,85,247,0.18))] opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="flex items-start justify-between relative z-10">
-                    <div className="w-12 h-12 rounded-xl bg-black border border-fuchsia-200/25 flex items-center justify-center text-fuchsia-200 group-hover:bg-fuchsia-200 group-hover:text-black transition-all duration-300">
-                      <Music className="w-6 h-6" />
+                  onClick={enterRandomRoom}
+                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-slate-950/60 border border-sky-200/15 hover:border-sky-300/50 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(125,211,252,0.13)] scanline"
+                >
+                  <img src="/card-room.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity duration-500 group-hover:opacity-95" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent"></div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-sky-300/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-500"></div>
+
+                  <div className="relative z-10 flex justify-between items-start">
+                    <div className="w-12 h-12 rounded-xl bg-slate-950/80 border border-slate-700 flex items-center justify-center text-sky-200 group-hover:bg-sky-200 group-hover:text-slate-950 transition-all duration-300">
+                      <Radio className="w-6 h-6 animate-pulse" />
                     </div>
-                    <span className="text-[10px] text-fuchsia-200 tracking-wider font-bold uppercase mono-font">Solo Channel</span>
+                    <div className="text-[10px] uppercase tracking-widest text-zinc-400 bg-zinc-950/80 px-2 py-1 rounded border border-zinc-800/80 mono-font">
+                      FLOW STATE
+                    </div>
                   </div>
-                  <div className="space-y-3 relative z-10 mt-5">
-                    <h3 className="text-2xl font-bold text-white group-hover:text-fuchsia-200 transition-colors">MBTI solo music</h3>
-                    <p className="text-zinc-400 text-xs leading-relaxed max-w-xl">
-                      不进入社群房间，只生成一条属于当前人格的私人背景声轨。适合独处、工作、发呆或深夜循环播放。
+
+                  <div className="relative z-10 space-y-3">
+                    <h3 className="text-2xl font-bold text-white group-hover:text-sky-200 transition-colors">进入随机 Room</h3>
+                    <p className="text-zinc-300 text-xs leading-relaxed">
+                      像掉进一个正在跃迁的异次元电波。随机加入正在播放情绪影像的群组，遇见不可预知的同频旅人。
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 text-fuchsia-200 font-bold text-xs mono-font pt-4 relative z-10">
-                    <span>START SOLO BGM</span>
+                  <div className="relative z-10 flex items-center gap-2 text-sky-200 font-bold text-xs mono-font pt-2">
+                    <span>LAUNCH INSTANT WAVE</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                   </div>
                 </div>
