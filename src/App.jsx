@@ -147,7 +147,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [schedule]);
 
-  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle) => {
+  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle, nextGenre) => {
     setPromptLoading(true);
     try {
       const data = await previewPrompt({
@@ -155,6 +155,7 @@ export default function App() {
         mode: nextMode,
         projectAnalysis: analysis,
         style: nextStyle,
+        selectedGenre: nextGenre || undefined,
       });
       setPromptData(data);
     } catch (err) {
@@ -192,10 +193,10 @@ export default function App() {
   useEffect(() => {
     clearTimeout(promptTimer.current);
     promptTimer.current = setTimeout(() => {
-      refreshPrompt(axes, mode, projectAnalysis, style);
+      refreshPrompt(axes, mode, projectAnalysis, style, genre);
     }, 250);
     return () => clearTimeout(promptTimer.current);
-  }, [axes, mode, projectAnalysis, style, refreshPrompt]);
+  }, [axes, mode, projectAnalysis, style, genre, refreshPrompt]);
 
   useEffect(() => {
     if (poll.audioUrl) {
@@ -244,6 +245,7 @@ export default function App() {
         mode: nextMode,
         projectAnalysis,
         style,
+        selectedGenre: genre || undefined,
         forceFallback: opts.forceFallback,
       });
       setPromptData(job);

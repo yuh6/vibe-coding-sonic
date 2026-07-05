@@ -58,17 +58,17 @@ export function analyzeGithub(url) {
   });
 }
 
-export function previewPrompt({ mbti, axes, mode, projectAnalysis, style }) {
+export function previewPrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre }) {
   return request('/api/music/generate', {
     method: 'POST',
-    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, previewOnly: true }),
+    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, selectedGenre, previewOnly: true }),
   });
 }
 
-export function generateMusic({ mbti, axes, mode, projectAnalysis, style, forceFallback = false, splitStems = true }) {
+export function generateMusic({ mbti, axes, mode, projectAnalysis, style, selectedGenre, forceFallback = false, splitStems = true }) {
   return request('/api/music/generate', {
     method: 'POST',
-    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, forceFallback, splitStems }),
+    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, selectedGenre, forceFallback, splitStems }),
   });
 }
 
