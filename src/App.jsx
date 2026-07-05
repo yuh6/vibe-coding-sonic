@@ -8,6 +8,7 @@ import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import ArrangerPanel from './components/ArrangerPanel';
+import GenreSelector from './components/GenreSelector';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
 import DiscoverPage from './components/DiscoverPage';
@@ -55,6 +56,7 @@ export default function App() {
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
   const [mode, setMode] = useState('focus');
+  const [genre, setGenre] = useState('');
   const [projectName, setProjectName] = useState('足球经理游戏');
   const [projectDesc, setProjectDesc] = useState('复古像素风格的足球经理策略游戏，强调竞技与战术');
   const [projectAnalysis, setProjectAnalysis] = useState(null);
@@ -581,6 +583,7 @@ export default function App() {
                   onRadioToggle={handleRadioToggle}
                 />
               </div>
+              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
             </div>
 
             {/* 右 Deck：模式 + Prompt 监视器 */}

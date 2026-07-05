@@ -328,6 +328,12 @@ export function updateRadioNowPlaying(id, track) {
   });
 }
 
+// ── 音乐流派/风格 ──
+
+export function getStyles() {
+  return request('/api/styles');
+}
+
 // ── 收藏 + 评分 ──
 
 export function getFavorites({ page = 1, limit = 20 } = {}) {
