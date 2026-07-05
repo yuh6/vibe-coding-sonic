@@ -6,6 +6,7 @@
 import { randomUUID } from 'crypto';
 import { composePrompt } from '../promptComposer.js';
 import { isSunoConfigured, submitGeneration, pollGeneration } from '../sunoClient.js';
+import { generateLyrics } from '../lyricsGenerator.js';
 import { pickTrack } from '../libraryStore.js';
 import { storage } from '../../storage/index.js';
 import * as trackPool from './trackPool.js';
@@ -109,17 +110,47 @@ export class GenerationScheduler {
     return ready;
   }
 
+  async withGeneratedLyrics(promptOpts) {
+    if (!promptOpts.vocals?.enabled || promptOpts.vocals.lyrics) return promptOpts;
+
+    const composed = composePrompt(promptOpts);
+    try {
+      const generated = await generateLyrics({
+        mbtiType: composed.mbti,
+        mode: composed.mode,
+        projectAnalysis: promptOpts.projectAnalysis,
+        notes: promptOpts.notes,
+        language: promptOpts.vocals.language || 'zh',
+      });
+      if (!generated?.lyrics) return promptOpts;
+      return {
+        ...promptOpts,
+        vocals: {
+          ...promptOpts.vocals,
+          lyrics: generated.lyrics,
+          vocalStyle: generated.vocalStyle,
+          vocalDesc: generated.vocalDesc,
+          lyricsStructure: generated.structure,
+        },
+      };
+    } catch (err) {
+      console.warn('[arranger] lyrics generation skipped:', err.message);
+      return promptOpts;
+    }
+  }
+
   async startGeneration(promptOpts) {
     this.activeCount += 1;
-    const composed = composePrompt(promptOpts);
+    const generationPromptOpts = isSunoConfigured() ? await this.withGeneratedLyrics(promptOpts) : promptOpts;
+    const composed = composePrompt(generationPromptOpts);
 
     // 曲库池先插入一条"生成中"记录（audioUrl 为 null），供 pool-status 展示进度
     const track = await trackPool.createTrack(this.sessionId, {
       phase: composed.mode,
-      moodTag: promptOpts.style?.moodTag || composed.mode,
-      energyLevel: promptOpts.targetEnergy ?? 50,
+      moodTag: generationPromptOpts.style?.moodTag || composed.mode,
+      energyLevel: generationPromptOpts.targetEnergy ?? 50,
       genre: composed.profile?.genres || 'Unknown',
-      instruments: promptOpts.instruments || [],
+      instruments: generationPromptOpts.instruments || [],
       promptConfig: composed,
     });
 
@@ -134,6 +165,11 @@ export class GenerationScheduler {
         tags: composed.layers?.mbti || '',
         weirdnessConstraint: composed.weirdnessConstraint,
         styleWeight: composed.styleWeight,
+        instrumental: !generationPromptOpts.vocals?.enabled,
+        lyrics: generationPromptOpts.vocals?.enabled && generationPromptOpts.vocals?.lyrics
+          ? generationPromptOpts.vocals.lyrics
+          : undefined,
+        negativeTags: composed.negativeTags || '',
       });
 
       const result = await this.waitForCompletion(taskId);

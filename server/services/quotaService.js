@@ -2,7 +2,7 @@ import { db, today } from '../db.js';
 import { getSetting } from '../config/runtimeConfig.js';
 
 const TOTAL_QUOTA_KEY = 'total';
-const DEFAULT_GENERATION_LIMIT = 5;
+const DEFAULT_GENERATION_LIMIT = 10;
 const GLOBAL_DAILY_LIMIT = Number(process.env.GLOBAL_DAILY_LIMIT || 100);
 
 function positiveInt(value, fallback = DEFAULT_GENERATION_LIMIT) {

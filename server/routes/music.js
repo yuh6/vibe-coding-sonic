@@ -13,6 +13,7 @@ import {
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
 import { isSunoConfigured } from '../services/sunoClient.js';
+import { generateLyrics } from '../services/lyricsGenerator.js';
 import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { libraryHasTrackUrl } from '../services/libraryStore.js';
@@ -180,6 +181,32 @@ function requireGenerateUser(req, res, next) {
   return requireIdentity(req, res, next);
 }
 
+async function withGeneratedLyrics({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals }) {
+  if (!vocals?.enabled || vocals.lyrics) return vocals;
+
+  const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
+  try {
+    const generated = await generateLyrics({
+      mbtiType: composed.mbti,
+      mode: composed.mode,
+      projectAnalysis,
+      notes,
+      language: vocals.language || 'zh',
+    });
+    if (!generated?.lyrics) return vocals;
+    return {
+      ...vocals,
+      lyrics: generated.lyrics,
+      vocalStyle: generated.vocalStyle,
+      vocalDesc: generated.vocalDesc,
+      lyricsStructure: generated.structure,
+    };
+  } catch (err) {
+    console.warn('[music/generate] lyrics generation skipped:', err.message);
+    return vocals;
+  }
+}
+
 router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, res) => {
   try {
     const {
@@ -220,6 +247,19 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       }
     }
 
+    const resolvedVocals = !useFallback && isSunoConfigured()
+      ? await withGeneratedLyrics({
+        mbti,
+        axes,
+        mode,
+        projectAnalysis,
+        style,
+        selectedGenre,
+        notes,
+        vocals,
+      })
+      : vocals;
+
     const job = createMusicJob({
       userId: req.identity.id,
       mbti,
@@ -229,7 +269,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       style,
       selectedGenre,
       notes,
-      vocals,
+      vocals: resolvedVocals,
       forceFallback: useFallback,
       splitStems,
     });
@@ -244,6 +284,10 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       mode: job.mode,
       mbti: job.mbti,
       profile: job.profile,
+      hasLyrics: job.hasLyrics,
+      lyrics: job.lyrics,
+      vocalStyle: job.vocalStyle,
+      vocalDesc: job.vocalDesc,
       splitStems: job.splitStems,
       quota: await getQuota(req.identity),
       quotaNotice,
@@ -315,6 +359,10 @@ router.get('/status/:id', requireIdentity, async (req, res) => {
       mode: job.mode,
       mbti: job.mbti,
       profile: job.profile,
+      hasLyrics: job.hasLyrics,
+      lyrics: job.lyrics,
+      vocalStyle: job.vocalStyle,
+      vocalDesc: job.vocalDesc,
       error: job.error,
     });
   } catch (err) {
