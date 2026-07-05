@@ -219,20 +219,9 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.genre-title {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  font-size: 1.6rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: #fff;
-  text-shadow: 0 0 30px rgba(189, 0, 255, 0.35);
-}
-
 .genre-subtitle {
-  margin-top: 0.25rem;
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.06em;
 }
 

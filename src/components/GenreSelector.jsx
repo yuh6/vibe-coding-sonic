@@ -39,9 +39,9 @@ export default function GenreSelector({ value, onChange, theme }) {
   return (
     <div className="genre-panel">
       {/* 标题区 */}
-      <div className="mb-4">
-        <h3 className="genre-title">Explore Genres</h3>
-        <p className="genre-subtitle">选择流派 · 影响生成的音乐风格</p>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="deck-label">Explore Genres</span>
+        <span className="genre-subtitle">选择流派 · 影响生成的音乐风格</span>
       </div>
 
       {error && <div className="mb-2 text-xs text-red-300">{error}</div>}

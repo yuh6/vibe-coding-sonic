@@ -554,6 +554,7 @@ export default function App() {
             }}
           />
         ) : (
+          <>
           <div className="grid gap-4 lg:grid-cols-12">
             {/* 左 Deck：MBTI Remix + 风格 */}
             <div className="space-y-4 lg:col-span-4">
@@ -561,7 +562,7 @@ export default function App() {
               <StyleFaders style={style} onStyleChange={setStyle} />
             </div>
 
-            {/* 中 Deck：播放器改为悬浮窗口，此列其余模块紧凑上移 */}
+            {/* 中 Deck */}
             <div className="space-y-4 lg:col-span-5">
               <ProjectDeck
                 name={projectName}
@@ -597,23 +598,23 @@ export default function App() {
                 loading={promptLoading}
               />
             </div>
-
-            {/* Main Deck 悬浮窗口 */}
-            <FloatingWindow
-              title="MAIN DECK"
-              width={420}
-              storageKey="dj-main-deck-pos-v2"
-              anchorId="dj-arranger-anchor"
-              initial={{
-                x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
-                y: 400,
-              }}
-            >
-              {mainDeck}
-            </FloatingWindow>
           </div>
-        )}
-      </div>
+
+          {/* Main Deck 悬浮窗口（在 grid 外，fixed 定位不受布局影响） */}
+          <FloatingWindow
+            title="MAIN DECK"
+            width={420}
+            storageKey="dj-main-deck-pos-v2"
+            anchorId="dj-arranger-anchor"
+            initial={{
+              x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
+              y: 400,
+            }}
+          >
+            {mainDeck}
+          </FloatingWindow>
+          </>
+        )}      </div>
     </div>
   );
 }
