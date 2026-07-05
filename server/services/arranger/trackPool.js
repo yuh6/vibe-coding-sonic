@@ -30,6 +30,12 @@ const countReadyByPhaseStmt = db.prepare(`
   SELECT COUNT(*) AS n FROM track_pool WHERE session_id = ? AND phase = ? AND audio_url IS NOT NULL
 `);
 
+const countUnplayedReadyByPhaseStmt = db.prepare(`
+  SELECT COUNT(*) AS n
+  FROM track_pool
+  WHERE session_id = ? AND phase = ? AND audio_url IS NOT NULL AND COALESCE(play_count, 0) = 0
+`);
+
 const countPendingByPhaseStmt = db.prepare(`
   SELECT COUNT(*) AS n FROM track_pool WHERE session_id = ? AND phase = ? AND audio_url IS NULL
 `);
@@ -58,7 +64,12 @@ const recentHistoryStmt = db.prepare(`
 `);
 
 const poolCountBySessionStmt = db.prepare(`
-  SELECT phase, COUNT(*) AS total, SUM(CASE WHEN audio_url IS NOT NULL THEN 1 ELSE 0 END) AS ready
+  SELECT
+    phase,
+    COUNT(*) AS total,
+    SUM(CASE WHEN audio_url IS NOT NULL THEN 1 ELSE 0 END) AS ready,
+    SUM(CASE WHEN audio_url IS NULL THEN 1 ELSE 0 END) AS pending,
+    SUM(CASE WHEN audio_url IS NOT NULL AND COALESCE(play_count, 0) = 0 THEN 1 ELSE 0 END) AS available
   FROM track_pool WHERE session_id = ? GROUP BY phase
 `);
 
@@ -138,6 +149,10 @@ export async function countReady(sessionId, phase) {
   return Number((await countReadyByPhaseStmt.get(sessionId, phase))?.n || 0);
 }
 
+export async function countUnplayedReady(sessionId, phase) {
+  return Number((await countUnplayedReadyByPhaseStmt.get(sessionId, phase))?.n || 0);
+}
+
 export async function countPending(sessionId, phase) {
   return Number((await countPendingByPhaseStmt.get(sessionId, phase))?.n || 0);
 }
@@ -169,12 +184,17 @@ export async function recentHistory(sessionId, limit = 10) {
   }));
 }
 
-/** 曲库池状态汇总（按阶段分组的 total/ready），供 GET /api/arranger/pool-status */
+/** 曲库池状态汇总（按阶段分组），供 GET /api/arranger/pool-status */
 export async function poolStatus(sessionId) {
   const rows = await poolCountBySessionStmt.all(sessionId);
   const byPhase = {};
   for (const row of rows) {
-    byPhase[row.phase] = { total: Number(row.total || 0), ready: Number(row.ready || 0) };
+    byPhase[row.phase] = {
+      total: Number(row.total || 0),
+      ready: Number(row.ready || 0),
+      pending: Number(row.pending || 0),
+      available: Number(row.available || 0),
+    };
   }
   return byPhase;
 }

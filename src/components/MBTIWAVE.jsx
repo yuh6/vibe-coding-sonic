@@ -350,7 +350,17 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
     }
   };
   const handleArrangerStart = () => {
-    arranger.start({ name: projectName || 'MBTIWAVE Solo', mbtiType: soloMbti, mbtiSliders: soloAxes, schedule: schedule?.phases });
+    arranger.start({
+      name: projectName || 'MBTIWAVE Solo',
+      mbtiType: soloMbti,
+      mbtiSliders: soloAxes,
+      schedule: schedule?.phases,
+      generationParams: {
+        projectAnalysis: projectAnalysis || null,
+        style: soloStyle,
+        vocals: vocalModeToVocals(vocalMode),
+      },
+    });
   };
 
   // 轮询出音频后自动播放
@@ -387,6 +397,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
   const handleSoloGenerate = async (opts = {}) => {
     const nextModeId = opts.mode || soloModeId;
     const nextModeLabel = opts.label || activeModePad;
+    const nextVocalMode = opts.vocalMode || vocalMode;
     const shouldPlayStartupHold = Boolean(
       opts.allowStartupHold &&
       !startupHoldPlayedRef.current &&
@@ -399,6 +410,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
       mode: nextModeId,
       style: soloStyle,
       projectAnalysis,
+      vocalMode: nextVocalMode,
     });
 
     // 参数未变时，主播放键沿用播放/暂停；参数变化后重新生成新声轨。
@@ -427,8 +439,8 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
         mode: nextModeId,
         style: soloStyle,
         projectAnalysis: projectAnalysis || undefined,
-        vocals: vocalModeToVocals(vocalMode),
-        splitStems: vocalMode === 'mixed',
+        vocals: vocalModeToVocals(nextVocalMode),
+        splitStems: nextVocalMode === 'mixed',
         forceFallback: false,
       });
       if (seq !== soloGenerationSeqRef.current) return;

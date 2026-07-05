@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import net from 'node:net';
 import Database from 'better-sqlite3';
+import { buildGenerationRequestBody } from '../server/services/sunoClient.js';
 
 async function getFreePort() {
   const server = net.createServer();
@@ -89,6 +90,18 @@ async function waitForCompletedJob(client, jobId, timeoutMs = 8_000) {
     await new Promise((resolve) => setTimeout(resolve, 350));
   }
   throw new Error(`Music job did not complete in time; latest status: ${latest?.status || 'unknown'}`);
+}
+
+async function waitForPoolPhase(client, sessionId, phase, predicate, timeoutMs = 8_000) {
+  const deadline = Date.now() + timeoutMs;
+  let latest;
+  while (Date.now() < deadline) {
+    latest = await client.request(`/api/arranger/pool-status?sessionId=${sessionId}`);
+    const info = latest.phases?.[phase];
+    if (info && predicate(info, latest)) return latest;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Pool phase ${phase} did not reach expected state; latest: ${JSON.stringify(latest?.phases?.[phase] || null)}`);
 }
 
 function seedSharedLibraryTrack(dbFilePath) {
@@ -267,9 +280,32 @@ try {
       mbtiType: 'INTJ',
       mbtiSliders: axes,
       schedule: { phases: [] },
+      generationParams: {
+        style,
+        projectAnalysis,
+        selectedGenre: 'city-pop',
+        vocals: { enabled: true },
+      },
     },
   });
   assert.ok(session.id);
+  assert.equal(session.generationParams.selectedGenre, 'city-pop');
+  assert.equal(session.generationParams.vocals.enabled, true);
+
+  const updatedSession = await client.request(`/api/session/${session.id}/generation-params`, {
+    method: 'PUT',
+    body: {
+      generationParams: {
+        style: { energy: 72, texture: 24, brightness: 80 },
+        projectAnalysis,
+        selectedGenre: 'city-pop',
+        vocals: { enabled: true },
+      },
+    },
+  });
+  assert.equal(updatedSession.generationParams.style.energy, 72);
+  assert.equal(updatedSession.generationParams.selectedGenre, 'city-pop');
+
   const poolStatus = await client.request(`/api/arranger/pool-status?sessionId=${session.id}`);
   assert.equal(typeof poolStatus.budgetLimit, 'number');
   assert.equal(typeof poolStatus.phases, 'object');
@@ -281,6 +317,31 @@ try {
   assert.equal(arrangerStarted.ok, true);
   assert.ok(arrangerStarted.decision?.track?.audioUrl?.startsWith('/samples/'));
   assert.equal(arrangerStarted.decision.track.promptConfig?.fallback, true);
+  assert.equal(arrangerStarted.decision.track.promptConfig?.selectedGenre, 'city-pop');
+  assert.equal(arrangerStarted.decision.track.promptConfig?.negativeTags, '');
+
+  const filledPool = await waitForPoolPhase(
+    client,
+    session.id,
+    'focus',
+    (info) => (info.available || 0) >= 4
+  );
+  const totalBeforeRefill = filledPool.phases.focus.total;
+  await client.request('/api/arranger/advance', {
+    method: 'POST',
+    body: { sessionId: session.id },
+  });
+  await client.request('/api/arranger/advance', {
+    method: 'POST',
+    body: { sessionId: session.id },
+  });
+  const refilledPool = await waitForPoolPhase(
+    client,
+    session.id,
+    'focus',
+    (info) => (info.total || 0) >= totalBeforeRefill + 2
+  );
+  assert.ok(refilledPool.phases.focus.available + refilledPool.phases.focus.pending > 2);
 
   // ── 电台合约测试（需要 session.id）──
   const station = await client.request('/api/radio', {
@@ -325,6 +386,30 @@ try {
   assert.ok(preview.fullPrompt.length > 20);
   assert.ok(preview.layers?.mbti);
   assert.ok(preview.layers?.project);
+
+  const sprintPreview = await client.request('/api/music/generate', {
+    method: 'POST',
+    body: { axes, mode: 'sprint', style, previewOnly: true },
+  });
+  assert.equal(sprintPreview.mode, 'sprint');
+  assert.match(sprintPreview.layers.mode, /Driving/);
+
+  const vocalPreview = await client.request('/api/music/generate', {
+    method: 'POST',
+    body: { axes, mode: 'focus', style, vocals: { enabled: true }, previewOnly: true },
+  });
+  assert.equal(vocalPreview.negativeTags, '');
+  assert.ok(!/Instrumental/i.test(vocalPreview.fullPrompt));
+  const vocalPayload = buildGenerationRequestBody({
+    prompt: vocalPreview.fullPrompt,
+    title: 'Smoke Vocal',
+    instrumental: false,
+    negativeTags: vocalPreview.negativeTags,
+    modelVersion: 'chirp-v5',
+  });
+  assert.equal(vocalPayload.custom, false);
+  assert.equal(vocalPayload.instrumental, false);
+  assert.equal(vocalPayload.negative_tags, '');
 
   const genrePreview = await client.request('/api/music/generate', {
     method: 'POST',

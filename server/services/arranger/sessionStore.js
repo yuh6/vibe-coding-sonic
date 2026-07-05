@@ -8,13 +8,17 @@ import { randomUUID } from 'crypto';
 import { db } from '../../db.js';
 
 const insertStmt = db.prepare(`
-  INSERT INTO sessions (id, user_id, name, mbti_type, mbti_sliders, schedule_json, budget_limit, budget_spent)
-  VALUES (@id, @userId, @name, @mbtiType, @mbtiSliders, @scheduleJson, @budgetLimit, 0)
+  INSERT INTO sessions
+    (id, user_id, name, mbti_type, mbti_sliders, schedule_json, generation_params_json, budget_limit, budget_spent)
+  VALUES
+    (@id, @userId, @name, @mbtiType, @mbtiSliders, @scheduleJson, @generationParamsJson, @budgetLimit, 0)
 `);
 
 const getStmt = db.prepare(`SELECT * FROM sessions WHERE id = ?`);
 
 const updateScheduleStmt = db.prepare(`UPDATE sessions SET schedule_json = ? WHERE id = ?`);
+
+const updateGenerationParamsStmt = db.prepare(`UPDATE sessions SET generation_params_json = ? WHERE id = ?`);
 
 const addSpendStmt = db.prepare(`UPDATE sessions SET budget_spent = budget_spent + ? WHERE id = ?`);
 
@@ -31,6 +35,7 @@ function parseSession(row) {
     mbtiType: row.mbti_type,
     mbtiSliders: safeParse(row.mbti_sliders, null),
     schedule: safeParse(row.schedule_json, null),
+    generationParams: safeParse(row.generation_params_json, null),
     budgetLimit: row.budget_limit,
     budgetSpent: row.budget_spent,
     createdAt: row.created_at,
@@ -46,7 +51,15 @@ function safeParse(value, fallback) {
   }
 }
 
-export async function createSession({ userId = null, name, mbtiType, mbtiSliders, schedule, budgetLimit = 10.0 }) {
+export async function createSession({
+  userId = null,
+  name,
+  mbtiType,
+  mbtiSliders,
+  schedule,
+  generationParams = null,
+  budgetLimit = 10.0,
+}) {
   const id = randomUUID();
   await insertStmt.run({
     id,
@@ -55,6 +68,7 @@ export async function createSession({ userId = null, name, mbtiType, mbtiSliders
     mbtiType: mbtiType || null,
     mbtiSliders: mbtiSliders ? JSON.stringify(mbtiSliders) : null,
     scheduleJson: schedule ? JSON.stringify(schedule) : null,
+    generationParamsJson: generationParams ? JSON.stringify(generationParams) : null,
     budgetLimit,
   });
 
@@ -62,6 +76,7 @@ export async function createSession({ userId = null, name, mbtiType, mbtiSliders
     schedule: schedule || null,
     manualPhase: null,
     feedbackLog: [],
+    generationParams: generationParams || null,
     startedAt: Date.now(),
     durationMs: 8 * 60 * 60 * 1000, // 默认按 8 小时估算，可由 schedule 覆盖
     state: 'IDLE',
@@ -85,6 +100,13 @@ export async function updateSchedule(sessionId, schedule) {
   return getSession(sessionId);
 }
 
+export async function updateGenerationParams(sessionId, generationParams) {
+  await updateGenerationParamsStmt.run(generationParams ? JSON.stringify(generationParams) : null, sessionId);
+  const rt = runtime.get(sessionId);
+  if (rt) rt.generationParams = generationParams || null;
+  return getSession(sessionId);
+}
+
 export async function addBudgetSpend(sessionId, cost) {
   await addSpendStmt.run(cost, sessionId);
 }
@@ -99,6 +121,7 @@ export async function getRuntime(sessionId) {
       schedule: session.schedule,
       manualPhase: null,
       feedbackLog: [],
+      generationParams: session.generationParams || null,
       startedAt: Date.now(),
       durationMs: 8 * 60 * 60 * 1000,
       state: 'IDLE',

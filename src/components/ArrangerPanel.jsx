@@ -89,14 +89,17 @@ function PoolStatus({ poolStatus }) {
       <div className="flex flex-wrap gap-1.5">
         {Object.entries(phases).map(([phase, info]) => {
           const modeInfo = MODES.find((m) => m.id === phase);
+          const available = info.available ?? info.ready ?? 0;
+          const pending = info.pending ?? 0;
           return (
             <div
               key={phase}
               className="rounded-lg border border-theme bg-led-panel px-2 py-1 text-center text-[10px]"
+              title={`未播 ${available} / 生成中 ${pending} / 可播 ${info.ready || 0}`}
             >
               <span className="mr-1">{modeInfo?.emoji || phase}</span>
               <span className="font-mono text-faint">
-                {info.ready}/{info.total}
+                {available}+{pending}/{info.total}
               </span>
             </div>
           );

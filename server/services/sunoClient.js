@@ -205,6 +205,7 @@ export async function submitGeneration({
   title = 'Vibe Coding BGM',
   tags = '',
   lyrics = null,
+  instrumental,
   weirdnessConstraint,
   styleWeight,
   audioWeight,
@@ -215,29 +216,19 @@ export async function submitGeneration({
     throw new Error('TTAPI_KEY not configured');
   }
 
-  const custom = Boolean(lyrics);
   const url = `${cfg.baseUrl}${cfg.musicPath}`;
-  const body = {
-    custom,
-    instrumental: !custom,
-    mv: cfg.modelVersion,
+  const body = buildGenerationRequestBody({
+    prompt,
     title,
-    tags: tags || prompt.slice(0, 200),
-    // custom:false 时 TTAPI 强制要求该字段（400: "gpt_description_prompt is required
-    // when generate audio and custom is false."，已用真实 Key 验证）；custom:true 时可忽略。
-    gpt_description_prompt: prompt,
-    negative_tags: negativeTags || 'vocals, lyrics, speech, singing',
-  };
-
-  if (custom) {
-    // Custom 模式：prompt 字段承载歌词文本（含 [Verse]/[Chorus] 等结构标签）。
-    body.prompt = lyrics;
-  }
-
-  // V5 高级参数：已用真实 TTAPI Key 验证可用（weirdnessConstraint=80, styleWeight=30 → HTTP 200）。
-  if (Number.isFinite(weirdnessConstraint)) body.weirdnessConstraint = weirdnessConstraint;
-  if (Number.isFinite(styleWeight)) body.styleWeight = styleWeight;
-  if (Number.isFinite(audioWeight)) body.audioWeight = audioWeight;
+    tags,
+    lyrics,
+    instrumental,
+    weirdnessConstraint,
+    styleWeight,
+    audioWeight,
+    negativeTags,
+    modelVersion: cfg.modelVersion,
+  });
 
   const res = await fetch(url, {
     method: 'POST',
@@ -263,6 +254,44 @@ export async function submitGeneration({
   }
 
   return { taskId: jobId, raw: data };
+}
+
+export function buildGenerationRequestBody({
+  prompt,
+  title = 'Vibe Coding BGM',
+  tags = '',
+  lyrics = null,
+  instrumental,
+  weirdnessConstraint,
+  styleWeight,
+  audioWeight,
+  negativeTags,
+  modelVersion,
+}) {
+  const custom = Boolean(lyrics);
+  const useInstrumental = custom ? false : instrumental ?? true;
+  const body = {
+    custom,
+    instrumental: useInstrumental,
+    mv: modelVersion,
+    title,
+    tags: tags || prompt.slice(0, 200),
+    // custom:false 时 TTAPI 强制要求该字段（400: "gpt_description_prompt is required
+    // when generate audio and custom is false."，已用真实 Key 验证）；custom:true 时可忽略。
+    gpt_description_prompt: prompt,
+    negative_tags: negativeTags ?? (useInstrumental ? 'vocals, lyrics, speech, singing' : ''),
+  };
+
+  if (custom) {
+    // Custom 模式：prompt 字段承载歌词文本（含 [Verse]/[Chorus] 等结构标签）。
+    body.prompt = lyrics;
+  }
+
+  // V5 高级参数：已用真实 TTAPI Key 验证可用（weirdnessConstraint=80, styleWeight=30 → HTTP 200）。
+  if (Number.isFinite(weirdnessConstraint)) body.weirdnessConstraint = weirdnessConstraint;
+  if (Number.isFinite(styleWeight)) body.styleWeight = styleWeight;
+  if (Number.isFinite(audioWeight)) body.audioWeight = audioWeight;
+  return body;
 }
 
 export async function submitStemSeparation({ musicId }) {

@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   mbti_type     TEXT,
   mbti_sliders  TEXT,
   schedule_json TEXT,
+  generation_params_json TEXT,
   budget_limit  REAL DEFAULT 10.0,
   budget_spent  REAL DEFAULT 0,
   created_at    TEXT DEFAULT CURRENT_TIMESTAMP
@@ -294,6 +295,10 @@ const FALLBACK_TRACK_COLUMNS = [
   ['mbti', 'TEXT'],
 ];
 
+const SESSION_COLUMNS = [
+  ['generation_params_json', 'TEXT'],
+];
+
 export async function applyCompatibilityMigrations(dal, driver) {
   if (driver === 'pg') {
     await dal.exec(`
@@ -302,6 +307,7 @@ export async function applyCompatibilityMigrations(dal, driver) {
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_bpm INTEGER;
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_audio_url TEXT;
       ALTER TABLE fallback_tracks ADD COLUMN IF NOT EXISTS mbti TEXT;
+      ALTER TABLE sessions ADD COLUMN IF NOT EXISTS generation_params_json TEXT;
       CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);
     `);
     return;
@@ -322,5 +328,14 @@ export async function applyCompatibilityMigrations(dal, driver) {
       await dal.exec(`ALTER TABLE fallback_tracks ADD COLUMN ${name} ${type};`);
     }
   }
+
+  const sessionRows = await dal.query('PRAGMA table_info(sessions)');
+  const existingSession = new Set(sessionRows.map((row) => row.name));
+  for (const [name, type] of SESSION_COLUMNS) {
+    if (!existingSession.has(name)) {
+      await dal.exec(`ALTER TABLE sessions ADD COLUMN ${name} ${type};`);
+    }
+  }
+
   await dal.exec('CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);');
 }

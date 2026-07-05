@@ -20,6 +20,7 @@ import { cache } from '../../cache/index.js';
 const COLD_START_COUNT = 2;
 const REFILL_THRESHOLD = 2; // 当前阶段剩余 ≤2 首 → 后台补货
 const REFILL_COUNT = 2;
+const REFILL_TARGET = REFILL_THRESHOLD + REFILL_COUNT;
 
 // 全局事件总线：routes/ws.js 订阅后转发到 /ws/events
 export const arrangerEvents = new EventEmitter();
@@ -64,12 +65,15 @@ async function getEngineBundle(sessionId) {
 }
 
 function buildGenerationOpts(session, phase, targetEnergy) {
+  const generationParams = session?.generationParams || {};
   return {
     mbti: session.mbtiType,
     axes: session.mbtiSliders,
     mode: phase,
-    projectAnalysis: null,
-    style: null,
+    projectAnalysis: generationParams.projectAnalysis || null,
+    style: generationParams.style || null,
+    selectedGenre: generationParams.selectedGenre || undefined,
+    vocals: generationParams.vocals || { enabled: false },
     targetEnergy,
   };
 }
@@ -85,14 +89,16 @@ export async function startEngine(sessionId) {
 
   const phase = rt.sensing.getCurrentPhase();
   const targetEnergy = rt.sensing.getTargetEnergy();
-  const existing = await trackPool.countReady(sessionId, phase);
+  const existing = await trackPool.countUnplayedReady(sessionId, phase);
+  const existingPending = await trackPool.countPending(sessionId, phase);
   const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
-  if (existing === 0) {
+  if (existing + existingPending === 0) {
     await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'cold-start' });
   }
 
-  const readyAfterFallback = await trackPool.countReady(sessionId, phase);
-  const need = Math.max(0, COLD_START_COUNT - readyAfterFallback);
+  const readyAfterFallback = await trackPool.countUnplayedReady(sessionId, phase);
+  const pendingAfterFallback = await trackPool.countPending(sessionId, phase);
+  const need = Math.max(0, COLD_START_COUNT - readyAfterFallback - pendingAfterFallback);
   for (let i = 0; i < need; i += 1) {
     rt.scheduler
       .submit(generationOpts, { urgency: 'immediate' })
@@ -149,13 +155,15 @@ export async function decideNext(sessionId) {
 /** §8.5 后台补货：当前阶段就绪曲目 ≤2 首 → 异步补 1-2 首；不阻塞当前决策返回 */
 async function maybeRefill(sessionId, rt, session, phase, targetEnergy) {
   const ready = await trackPool.countReady(sessionId, phase);
+  const available = await trackPool.countUnplayedReady(sessionId, phase);
   const pending = await trackPool.countPending(sessionId, phase);
-  if (ready + pending >= REFILL_THRESHOLD + 1) return;
+  const buffered = available + pending;
+  if (buffered > REFILL_THRESHOLD) return;
 
   await sessionStore.setState(sessionId, 'GENERATING');
-  emit(sessionId, 'pool_refill', { phase, ready, pending });
+  emit(sessionId, 'pool_refill', { phase, ready, available, pending, target: REFILL_TARGET });
 
-  const need = REFILL_COUNT - pending;
+  const need = Math.max(0, REFILL_TARGET - buffered);
   for (let i = 0; i < need; i += 1) {
     rt.scheduler
       .submit(buildGenerationOpts(session, phase, targetEnergy))
@@ -172,13 +180,16 @@ export async function setManualPhase(sessionId, phase) {
 
   const session = await sessionStore.getSession(sessionId);
   const targetEnergy = rt.sensing.getTargetEnergy();
-  const ready = await trackPool.countReady(sessionId, phase);
+  const ready = await trackPool.countUnplayedReady(sessionId, phase);
+  const pending = await trackPool.countPending(sessionId, phase);
   const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
-  if (ready === 0) {
+  if (ready + pending === 0) {
     await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'phase-change' });
   }
-  const readyAfterFallback = await trackPool.countReady(sessionId, phase);
-  if (readyAfterFallback < COLD_START_COUNT) {
+  const readyAfterFallback = await trackPool.countUnplayedReady(sessionId, phase);
+  const pendingAfterFallback = await trackPool.countPending(sessionId, phase);
+  const need = Math.max(0, COLD_START_COUNT - readyAfterFallback - pendingAfterFallback);
+  for (let i = 0; i < need; i += 1) {
     rt.scheduler
       .submit(generationOpts, { urgency: 'immediate' })
       .catch((err) => console.error('[arranger] phase refill failed:', err.message));

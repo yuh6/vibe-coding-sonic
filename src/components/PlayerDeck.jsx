@@ -8,6 +8,32 @@ const STATUS_LABEL = {
   failed: 'ERROR',
 };
 
+const ENGINE_LABEL = {
+  IDLE: 'OFF',
+  BOOTSTRAP: 'BOOTING',
+  PLAYING: 'READY',
+  TRANSITION: 'MIXING',
+  DECIDING: 'DECIDING',
+  GENERATING: 'GENERATING',
+  CACHED: 'READY',
+  PHASE_CHANGE: 'SWITCHING',
+};
+
+const JOB_ENGINE_LABEL = {
+  processing: 'GENERATING',
+  splitting: 'SPLITTING',
+};
+
+function summarizePool(poolStatus, phase) {
+  const phases = poolStatus?.phases || {};
+  const current = phases[phase] || Object.values(phases)[0] || null;
+  const values = Object.values(phases);
+  return {
+    remaining: current ? Number(current.available ?? current.ready ?? 0) : null,
+    pending: values.reduce((sum, info) => sum + Number(info.pending || 0), 0),
+  };
+}
+
 export default function PlayerDeck({
   playing,
   volume,
@@ -24,9 +50,27 @@ export default function PlayerDeck({
   onToggleMute,
   onGenerate,
   generating,
+  engineSessionId,
+  engineState = 'IDLE',
+  enginePhase,
+  poolStatus,
 }) {
   const busy = status === 'processing' || status === 'splitting';
   const statusColor = busy ? '#facc15' : playing ? '#4ade80' : undefined;
+  const pool = summarizePool(poolStatus, enginePhase || mode);
+  const arrangerGenerating = pool.pending > 0;
+  const jobGenerating = busy || generating;
+  const engineBusy = jobGenerating || arrangerGenerating;
+  const bufferLabel = engineSessionId ? (pool.remaining == null ? 'SYNC' : String(pool.remaining)) : 'OFF';
+  let engineLabel = 'OFF';
+  if (jobGenerating) {
+    engineLabel = JOB_ENGINE_LABEL[status] || 'GENERATING';
+  } else if (engineSessionId) {
+    engineLabel = arrangerGenerating
+      ? `GENERATING ${pool.pending}`
+      : (ENGINE_LABEL[engineState] || engineState || 'READY');
+  }
+  const engineColor = engineBusy ? '#facc15' : engineSessionId ? '#4ade80' : undefined;
 
   return (
     <div className="glass relative overflow-hidden rounded-2xl p-4">
@@ -39,16 +83,37 @@ export default function PlayerDeck({
       <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Main Deck</span>
-        <div
-          className={`flex items-center gap-2 font-mono text-[10px] tracking-widest ${!statusColor ? 'text-faint' : ''}`}
-          style={statusColor ? { color: statusColor } : undefined}
-        >
+        <div className="flex flex-wrap items-center justify-end gap-1.5 font-mono text-[9px] tracking-widest">
+          <div
+            className={`flex items-center gap-2 ${!statusColor ? 'text-faint' : ''}`}
+            style={statusColor ? { color: statusColor } : undefined}
+          >
+            <span
+              className={`led-dot ${busy ? 'animate-pulse' : ''}`}
+              style={{ color: statusColor || 'currentColor' }}
+            />
+            {STATUS_LABEL[status] || status}
+            {fallback && <span className="text-amber-500">· CACHED</span>}
+          </div>
           <span
-            className={`led-dot ${busy ? 'animate-pulse' : ''}`}
-            style={{ color: statusColor || 'currentColor' }}
-          />
-          {STATUS_LABEL[status] || status}
-          {fallback && <span className="text-amber-500">· CACHED</span>}
+            className="rounded-full border border-theme bg-led-panel px-2 py-0.5 text-faint"
+            title="Arranger 曲库池当前阶段未播音乐数量；OFF 表示缓冲池未启动"
+          >
+            BUF {bufferLabel}
+          </span>
+          <span
+            className={`flex items-center gap-1 rounded-full border border-theme bg-led-panel px-2 py-0.5 ${
+              !engineColor ? 'text-faint' : ''
+            }`}
+            style={engineColor ? { color: engineColor } : undefined}
+            title="编排引擎生成状态"
+          >
+            <span
+              className={`led-dot ${engineBusy ? 'animate-pulse' : ''}`}
+              style={{ color: engineColor || 'currentColor' }}
+            />
+            ENGINE {engineLabel}
+          </span>
         </div>
       </div>
 

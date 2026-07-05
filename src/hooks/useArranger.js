@@ -4,6 +4,7 @@ import { CrossfadeDeck } from '../audio/crossfadeDeck';
 import { proxiedUrl } from './useMixer';
 import {
   createArrangerSession,
+  updateArrangerGenerationParams,
   startArranger,
   advanceArranger,
   stopArranger,
@@ -52,10 +53,17 @@ export function useArranger() {
   const advancingRef = useRef(false);
   const lastRecheckRef = useRef(0);
   const sessionIdRef = useRef(null);
+  const stateRef = useRef(state);
+  const playbackEnabledRef = useRef(true);
+  const startPromiseRef = useRef(null);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const refreshPoolStatus = useCallback((sid) => {
     if (!sid) return;
@@ -74,8 +82,12 @@ export function useArranger() {
   }, []);
 
   /** 决策引擎给出新曲目后：还没有 current → 直接播；已有 current → 只 preload，等 95% 再切 */
-  const handleDecision = useCallback(async (decision) => {
+  const handleDecision = useCallback(async (decision, { playback = playbackEnabledRef.current } = {}) => {
     if (!decision?.track) return;
+    if (!playback) {
+      applyTrack(decision.track);
+      return;
+    }
     const url = proxiedUrl(decision.track.audioLocal || decision.track.audioUrl);
     if (!deckRef.current.current) {
       applyTrack(decision.track);
@@ -164,7 +176,7 @@ export function useArranger() {
         const { type, payload } = msg;
         if (type === 'track_changed' && payload?.track) {
           if (!deckRef.current.current) {
-            handleDecision({ track: payload.track });
+            handleDecision({ track: payload.track }, { playback: playbackEnabledRef.current });
           }
         } else if (type === 'phase_changed') {
           if (payload?.phase) setPhase(payload.phase);
@@ -201,34 +213,67 @@ export function useArranger() {
   }, [sessionId, handleDecision, refreshPoolStatus, refreshHistory]);
 
   const start = useCallback(
-    async ({ name, mbtiType, mbtiSliders, schedule, budgetLimit } = {}) => {
+    async ({ name, mbtiType, mbtiSliders, schedule, budgetLimit, generationParams, playback = true } = {}) => {
+      playbackEnabledRef.current = playback;
+      if (startPromiseRef.current) return startPromiseRef.current;
       setStarting(true);
       setError('');
-      try {
+      startPromiseRef.current = (async () => {
         let sid = sessionIdRef.current;
         if (!sid) {
-          const created = await createArrangerSession({ name, mbtiType, mbtiSliders, schedule, budgetLimit });
+          const created = await createArrangerSession({
+            name,
+            mbtiType,
+            mbtiSliders,
+            schedule,
+            budgetLimit,
+            generationParams,
+          });
           sid = created.id || created.sessionId;
           setSessionId(sid);
           sessionIdRef.current = sid;
+        } else if (generationParams) {
+          await updateArrangerGenerationParams(sid, generationParams);
         }
+
+        if (stateRef.current !== 'IDLE') {
+          refreshPoolStatus(sid);
+          refreshHistory(sid);
+          if (playback && !deckRef.current.current) {
+            const result = await advanceArranger(sid);
+            if (result?.decision) await handleDecision(result.decision, { playback: true });
+          }
+          return sid;
+        }
+
         const result = await startArranger(sid);
         setState('PLAYING');
-        if (result?.decision) await handleDecision(result.decision);
+        stateRef.current = 'PLAYING';
+        if (result?.decision) await handleDecision(result.decision, { playback });
         refreshPoolStatus(sid);
         refreshHistory(sid);
         getArrangerEnergyCurve().then((data) => setEnergyCurve(data.curve)).catch(() => {});
         return sid;
+      })();
+      try {
+        return await startPromiseRef.current;
       } catch (err) {
         console.error('[arranger] start', err);
         setError(err.message);
         throw err;
       } finally {
+        startPromiseRef.current = null;
         setStarting(false);
       }
     },
     [handleDecision, refreshPoolStatus, refreshHistory]
   );
+
+  const syncGenerationParams = useCallback(async (generationParams) => {
+    const sid = sessionIdRef.current;
+    if (!sid) return null;
+    return updateArrangerGenerationParams(sid, generationParams);
+  }, []);
 
   const stop = useCallback(async () => {
     const sid = sessionIdRef.current;
@@ -294,5 +339,6 @@ export function useArranger() {
     stop,
     changePhase,
     feedback,
+    syncGenerationParams,
   };
 }

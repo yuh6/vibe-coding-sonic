@@ -317,6 +317,7 @@ export function createMusicJob({
       negativeTags: composed.negativeTags || '',
       weirdnessConstraint: composed.weirdnessConstraint,
       styleWeight: composed.styleWeight,
+      instrumental: !vocals?.enabled,
       lyrics: vocals?.enabled && vocals?.lyrics ? vocals.lyrics : undefined,
     })
       .then(({ taskId }) => {

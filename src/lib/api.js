@@ -192,10 +192,10 @@ export function deleteLibraryTrack(mode, id) {
 
 // ── 编排引擎 (Arranger) ──
 
-export function createArrangerSession({ name, mbtiType, mbtiSliders, schedule, budgetLimit }) {
+export function createArrangerSession({ name, mbtiType, mbtiSliders, schedule, budgetLimit, generationParams }) {
   return request('/api/session', {
     method: 'POST',
-    body: JSON.stringify({ name, mbtiType, mbtiSliders, schedule, budgetLimit }),
+    body: JSON.stringify({ name, mbtiType, mbtiSliders, schedule, budgetLimit, generationParams }),
   });
 }
 
@@ -207,6 +207,13 @@ export function updateArrangerSchedule(sessionId, schedule) {
   return request(`/api/session/${sessionId}/schedule`, {
     method: 'PUT',
     body: JSON.stringify({ schedule }),
+  });
+}
+
+export function updateArrangerGenerationParams(sessionId, generationParams) {
+  return request(`/api/session/${sessionId}/generation-params`, {
+    method: 'PUT',
+    body: JSON.stringify({ generationParams }),
   });
 }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import ModePads from './components/ModePads';
@@ -92,7 +92,6 @@ export default function App() {
   const profileTimer = useRef(null);
   const profileLoadedRef = useRef(false);
   const skipAnalyzeRef = useRef(false);
-  const autoRoutedJobRef = useRef(null);
   const generationSeqRef = useRef(0);
   const startupHoldPlayedRef = useRef(false);
 
@@ -160,6 +159,13 @@ export default function App() {
     return { enabled: false };
   }, []);
 
+  const arrangerGenerationParams = useMemo(() => ({
+    projectAnalysis: projectAnalysis || null,
+    style,
+    selectedGenre: genre || null,
+    vocals: vocalModeToVocals(vocalMode),
+  }), [projectAnalysis, style, genre, vocalMode, vocalModeToVocals]);
+
   const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle, nextGenre, nextVocalMode) => {
     setPromptLoading(true);
     try {
@@ -213,6 +219,16 @@ export default function App() {
   }, [axes, mode, projectAnalysis, style, genre, vocalMode, refreshPrompt]);
 
   useEffect(() => {
+    if (!arranger.sessionId) return undefined;
+    const timer = setTimeout(() => {
+      arranger.syncGenerationParams(arrangerGenerationParams).catch((err) => {
+        console.error('[arranger params]', err);
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [arranger.sessionId, arrangerGenerationParams, arranger.syncGenerationParams]);
+
+  useEffect(() => {
     if (poll.audioUrl) {
       setFallback(Boolean(poll.meta?.fallback));
       player.playUrl(poll.audioUrl, {
@@ -240,11 +256,6 @@ export default function App() {
       fallback: Boolean(poll.meta?.fallback),
       tracks,
     });
-
-    if (!poll.meta?.fallback && autoRoutedJobRef.current !== poll.jobId) {
-      autoRoutedJobRef.current = poll.jobId;
-      window.location.hash = '#/mixer';
-    }
   }, [poll.jobId, poll.status, poll.meta, mbti, mode]);
 
   const playFallbackNow = useCallback(
@@ -277,6 +288,20 @@ export default function App() {
 
   const handleGenerate = async (opts = {}) => {
     const nextMode = opts.mode || mode;
+    const nextVocalMode = opts.vocalMode || vocalMode;
+    if (!opts.skipArrangerStart) {
+      arranger.start({
+        name: projectName || 'Main Deck',
+        mbtiType: mbti,
+        mbtiSliders: axes,
+        schedule: schedule?.phases,
+        generationParams: arrangerGenerationParams,
+        playback: false,
+      }).catch((err) => {
+        console.error('[arranger linked start]', err);
+        setNotice('编排缓冲池启动失败，Main Deck 仍会继续生成');
+      });
+    }
     const shouldPlayStartupHold = Boolean(
       opts.allowStartupHold &&
       !startupHoldPlayedRef.current &&
@@ -307,8 +332,8 @@ export default function App() {
         projectAnalysis,
         style,
         selectedGenre: genre || undefined,
-        vocals: vocalModeToVocals(vocalMode),
-        splitStems: vocalMode === 'mixed',
+        vocals: vocalModeToVocals(nextVocalMode),
+        splitStems: nextVocalMode === 'mixed',
         forceFallback: opts.forceFallback,
       });
       if (seq !== generationSeqRef.current) return;
@@ -347,8 +372,20 @@ export default function App() {
     handleGenerate({ mode: 'behind' });
   };
 
+  const handleVocalModeChange = (nextVocalMode) => {
+    setVocalMode(nextVocalMode);
+    handleGenerate({ vocalMode: nextVocalMode });
+  };
+
   const handleArrangerStart = () => {
-    arranger.start({ name: projectName, mbtiType: mbti, mbtiSliders: axes, schedule: schedule?.phases });
+    arranger.start({
+      name: projectName,
+      mbtiType: mbti,
+      mbtiSliders: axes,
+      schedule: schedule?.phases,
+      generationParams: arrangerGenerationParams,
+      playback: true,
+    });
   };
 
   const stopLiveStation = useCallback(async (message = '电台已下线') => {
@@ -487,6 +524,10 @@ export default function App() {
       onToggleMute={player.toggleMute}
       onGenerate={() => handleGenerate({ forceFallback: false, allowStartupHold: true })}
       generating={generating}
+      engineSessionId={arranger.sessionId}
+      engineState={arranger.state}
+      enginePhase={arranger.phase || arranger.nowPlayingTrack?.phase || mode}
+      poolStatus={arranger.poolStatus}
     />
   );
 
@@ -641,13 +682,13 @@ export default function App() {
             {/* 右 Deck：模式 + Prompt 监视器 + Arranger */}
             <div className="space-y-4 lg:col-span-3">
               <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
-              <VocalMode vocalMode={vocalMode} onVocalModeChange={setVocalMode} />
+              <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
               <PromptCard
                 layers={promptData?.layers}
                 fullPrompt={promptData?.fullPrompt}
                 loading={promptLoading}
               />
-              {/* <div id="dj-arranger-anchor">
+              <div id="dj-arranger-anchor">
                 <ArrangerPanel
                   arranger={arranger}
                   theme={theme}
@@ -659,7 +700,7 @@ export default function App() {
                   radioBusy={radioBusy}
                   onRadioToggle={handleRadioToggle}
                 />
-              </div> */}
+              </div>
             </div>
           </div>
 
