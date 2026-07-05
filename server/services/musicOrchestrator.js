@@ -154,39 +154,53 @@ function mergeStemTracks(job, stemTracks = []) {
 
 // ── 音频持久化 ──
 
+async function upsertSharedLibraryTrack(job, { audioLocal = job.audioLocal || null } = {}) {
+  if (!job.audioUrl || job.fallback) return;
+  await dal.run(
+    `INSERT INTO shared_library
+     (id, user_id, title, mbti, mode, genre, tags, mood, bpm, audio_url, audio_local, duration_sec, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET
+       title = excluded.title,
+       genre = excluded.genre,
+       tags = excluded.tags,
+       mood = excluded.mood,
+       bpm = excluded.bpm,
+       audio_url = excluded.audio_url,
+       audio_local = COALESCE(excluded.audio_local, shared_library.audio_local),
+       duration_sec = excluded.duration_sec`,
+    [
+      job.id, job.userId || null,
+      job.title || `${job.mbti} · ${job.mode}`,
+      job.mbti, job.mode,
+      job.selectedGenre || job.profile?.genre || null,
+      job.fullPrompt || null,
+      job.layers?.mode || null,
+      job.bpm || null,
+      job.audioUrl,
+      audioLocal,
+      normalizeDurationSec(job.duration),
+      Date.now(),
+    ]
+  );
+}
+
 async function persistTrackAsync(job) {
   if (!job.audioUrl || job.fallback) return;
+  await upsertSharedLibraryTrack(job);
+
   try {
     const res = await fetch(job.audioUrl);
-    if (!res.ok || !res.body) return;
+    if (!res.ok || !res.body) {
+      console.warn('[persist] audio fetch failed:', res.status);
+      return;
+    }
     const key = `audio/${job.id}.mp3`;
     const publicUrl = await storage.upload(key, res.body, 'audio/mpeg');
     job.audioLocal = publicUrl;
     job.tracks = getPlaybackTracks(job);
 
-    // 入库歌曲总库
-    await dal.run(
-      `INSERT INTO shared_library
-       (id, user_id, title, mbti, mode, genre, tags, mood, bpm, audio_url, audio_local, duration_sec, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(id) DO UPDATE SET
-         audio_url = excluded.audio_url,
-         audio_local = excluded.audio_local,
-         duration_sec = excluded.duration_sec`,
-      [
-        job.id, job.userId || null,
-        job.title || `${job.mbti} · ${job.mode}`,
-        job.mbti, job.mode,
-        job.selectedGenre || job.profile?.genre || null,
-        job.fullPrompt || null,
-        job.layers?.mode || null,
-        job.bpm || null,
-        job.audioUrl,
-        publicUrl,
-        normalizeDurationSec(job.duration),
-        Date.now(),
-      ]
-    );
+    await upsertSharedLibraryTrack(job, { audioLocal: publicUrl });
 
     // 更新 job 的 audio_local
     await dal.run('UPDATE generation_jobs SET audio_local = ? WHERE id = ?', [publicUrl, job.id]);

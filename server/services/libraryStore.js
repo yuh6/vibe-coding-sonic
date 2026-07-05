@@ -361,7 +361,7 @@ function hashPick(seed, modulo) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
-  const baseWhere = "audio_local IS NOT NULL AND audio_local != ''";
+  const baseWhere = "((audio_local IS NOT NULL AND audio_local != '') OR (audio_url IS NOT NULL AND audio_url != ''))";
 
   let candidates = await db.prepare(
     `SELECT * FROM shared_library WHERE mode = ? AND genre LIKE ? AND ${baseWhere}
@@ -403,7 +403,7 @@ export async function pickFromSharedLibrary({ mode, mbti, genre, bpm }) {
   await db.prepare('UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?').run(picked.id);
 
   return {
-    id: picked.id, title: picked.title, url: picked.audio_local,
+    id: picked.id, title: picked.title, url: picked.audio_local || picked.audio_url,
     mbti: picked.mbti, mode: picked.mode, genre: picked.genre, bpm: picked.bpm,
   };
 }
