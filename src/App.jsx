@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
-import ModePads from './components/ModePads';
 import VocalMode from './components/VocalMode';
 import PlayerDeck from './components/PlayerDeck';
 import FloatingWindow from './components/FloatingWindow';
@@ -362,16 +361,6 @@ export default function App() {
     }
   };
 
-  const handleModeChange = (nextMode) => {
-    setMode(nextMode);
-    handleGenerate({ mode: nextMode });
-  };
-
-  const handlePanic = () => {
-    setMode('behind');
-    handleGenerate({ mode: 'behind' });
-  };
-
   const handleVocalModeChange = (nextVocalMode) => {
     setVocalMode(nextVocalMode);
     handleGenerate({ vocalMode: nextVocalMode });
@@ -679,15 +668,8 @@ export default function App() {
               <GenreSelector value={genre} onChange={setGenre} theme={theme} />
             </div>
 
-            {/* 右 Deck：模式 + Prompt 监视器 + Arranger */}
+            {/* 右 Deck：Arranger + Prompt 监视器 */}
             <div className="space-y-4 lg:col-span-3">
-              <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
-              <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
-              <PromptCard
-                layers={promptData?.layers}
-                fullPrompt={promptData?.fullPrompt}
-                loading={promptLoading}
-              />
               <div id="dj-arranger-anchor">
                 <ArrangerPanel
                   arranger={arranger}
@@ -701,6 +683,12 @@ export default function App() {
                   onRadioToggle={handleRadioToggle}
                 />
               </div>
+              <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
+              <PromptCard
+                layers={promptData?.layers}
+                fullPrompt={promptData?.fullPrompt}
+                loading={promptLoading}
+              />
             </div>
           </div>
 
