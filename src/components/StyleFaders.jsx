@@ -14,7 +14,9 @@ export default function StyleFaders({ style, onStyleChange }) {
       />
       <div className="pointer-events-none absolute inset-0 bg-black/45"></div>
       <div className="relative z-10">
-        <span className="deck-label">Style FX</span>
+        <div className="mb-3 flex items-center justify-between">
+          <span className="deck-label">Style FX</span>
+        </div>
         <div className="mt-3 space-y-3">
           {STYLE_AXES.map((axis) => (
             <div key={axis.key}>

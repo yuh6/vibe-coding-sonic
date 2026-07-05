@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Vibe Coding 有歌声** — MBTI × Hackathon AI DJ Console. Generates personalized BGM during hackathons based on MBTI personality, project context, and work phase. Uses TTAPI proxy to Suno API (V5/chirp-v5) for music generation with a multi-tier fallback system.
+**MBTIWAVE** — MBTI × Hackathon AI DJ Console. Generates personalized BGM during hackathons based on MBTI personality, project context, and work phase. Uses TTAPI proxy to Suno API (V5/chirp-v5) for music generation with a multi-tier fallback system.
 
 ## Commands
 

@@ -12,9 +12,9 @@ public/hero2.mp4
 public/hero3.mp4
 ```
 
-RoomWave 首页顶部会显示一个可翻页的播放器（左右箭头 + 底部圆点），
+MBTIWAVE 首页顶部会显示一个可翻页的播放器（左右箭头 + 底部圆点），
 当前这个自动播放。
 
-- 想改文件名、增减数量：改 `src/components/RoomWave.jsx` 顶部的 `HERO_VIDEOS` 数组。
+- 想改文件名、增减数量：改 `src/components/MBTIWAVE.jsx` 顶部的 `HERO_VIDEOS` 数组。
 - 浏览器强制：带声音的视频不能自动播放，所以默认静音自动播；点一下即可出声。
 - 建议用 `.mp4`（H.264）格式，兼容性最好。文件别太大（几十 MB 以内），否则加载慢。

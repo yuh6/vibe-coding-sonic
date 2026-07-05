@@ -1,42 +1,42 @@
-/* ── RoomWave 专有样式 ──
-   仅作用于 <div class="roomwave-scope">，不影响站内其它页面。
+/* ── MBTIWAVE 专有样式 ──
+   仅作用于 <div class="mbtiwave-scope">，不影响站内其它页面。
    等宽字体，从 Google Fonts 载入（与原 Eazo 版一致）。 */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&display=swap');
 
-.roomwave-scope {
+.mbtiwave-scope {
   font-family: 'Noto Sans SC', system-ui, sans-serif;
 }
 
-.roomwave-scope .mono-font {
+.mbtiwave-scope .mono-font {
   font-family: 'JetBrains Mono', monospace;
 }
 
 /* 隐藏滚动条 */
-.roomwave-scope ::-webkit-scrollbar {
+.mbtiwave-scope ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
-.roomwave-scope ::-webkit-scrollbar-track {
+.mbtiwave-scope ::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.02);
 }
-.roomwave-scope ::-webkit-scrollbar-thumb {
+.mbtiwave-scope ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
 }
-.roomwave-scope ::-webkit-scrollbar-thumb:hover {
+.mbtiwave-scope ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 
 /* 炫酷流光效果 */
-@keyframes roomwave-slow-spin {
+@keyframes mbtiwave-slow-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-@keyframes roomwave-radial-wave {
+@keyframes mbtiwave-radial-wave {
   0%, 100% { transform: scaleY(0.45); opacity: 0.35; }
   50% { transform: scaleY(1); opacity: 1; }
 }
-.roomwave-scope .radial-wave-bar {
+.mbtiwave-scope .radial-wave-bar {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -49,28 +49,28 @@
   box-shadow: 0 0 14px rgba(251,191,36,0.45);
   opacity: 0.3;
 }
-.roomwave-scope .radial-wave-bar.playing {
-  animation: roomwave-radial-wave var(--wave-speed) ease-in-out infinite;
+.mbtiwave-scope .radial-wave-bar.playing {
+  animation: mbtiwave-radial-wave var(--wave-speed) ease-in-out infinite;
   animation-delay: var(--wave-delay);
 }
 
-@keyframes roomwave-ambient-flow {
+@keyframes mbtiwave-ambient-flow {
   0%   { transform: translate(0, 0) rotate(0deg); }
   50%  { transform: translate(40px, 30px) rotate(180deg); }
   100% { transform: translate(0, 0) rotate(360deg); }
 }
-.roomwave-scope .ambient-flow {
+.mbtiwave-scope .ambient-flow {
   position: absolute;
   width: 600px;
   height: 600px;
   background: radial-gradient(circle, rgba(0,255,102,0.08) 0%, rgba(127,86,217,0.05) 50%, rgba(0,0,0,0) 100%);
   filter: blur(80px);
   pointer-events: none;
-  animation: roomwave-ambient-flow 45s linear infinite;
+  animation: mbtiwave-ambient-flow 45s linear infinite;
 }
 
 /* 扫描线氛围 */
-.roomwave-scope .scanline::before {
+.mbtiwave-scope .scanline::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -88,9 +88,9 @@
 
 /* ── 嵌入的 DJ 控制台面板 ──
    ModePads / ProjectDeck / PromptCard / ArrangerPanel 直接复用 DJ 组件，
-   它们依赖全局主题变量。RoomWave 首页恒为深色，这里固定为暗色变量集，
-   避免用户把全站切到浅色时，这些玻璃面板在 RoomWave 黑底上发白突兀。 */
-.roomwave-scope .roomwave-dj-embed {
+   它们依赖全局主题变量。MBTIWAVE 首页恒为深色，这里固定为暗色变量集，
+   避免用户把全站切到浅色时，这些玻璃面板在 MBTIWAVE 黑底上发白突兀。 */
+.mbtiwave-scope .mbtiwave-dj-embed {
   color-scheme: dark;
   --text-primary: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.6);
@@ -119,7 +119,7 @@
   --layer-console: rgb(240, 171, 252);
 }
 /* DJ 组件根节点自带 mt/间距，嵌入时统一留白 */
-.roomwave-scope .roomwave-dj-embed + .roomwave-dj-embed {
+.mbtiwave-scope .mbtiwave-dj-embed + .mbtiwave-dj-embed {
   margin-top: 1.25rem;
 }
 

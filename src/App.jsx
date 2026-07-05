@@ -2,18 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import ModePads from './components/ModePads';
+import VocalMode from './components/VocalMode';
 import PlayerDeck from './components/PlayerDeck';
 import FloatingWindow from './components/FloatingWindow';
 import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
 import ArrangerPanel from './components/ArrangerPanel';
+import GenreSelector from './components/GenreSelector';
 import AdminPanel from './components/AdminPanel';
 import MixerPage from './components/mixer/MixerPage';
 import DiscoverPage from './components/DiscoverPage';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
-import RoomWave from './components/RoomWave';
+import MBTIWAVE from './components/MBTIWAVE';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
 import {
@@ -52,11 +54,13 @@ export default function App() {
   const isAdmin = hash === '#/admin';
   const isMixer = hash === '#/mixer';
   const isDiscover = hash === '#/discover';
-  const isRoomWave = hash === '#/roomwave';
+  const isMBTIWAVE = hash === '#/mbtiwave';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
   const [mode, setMode] = useState('focus');
+  const [vocalMode, setVocalMode] = useState('instrumental'); // 'vocal' | 'instrumental' | 'mixed'
+  const [genre, setGenre] = useState('');
   const [projectName, setProjectName] = useState('足球经理游戏');
   const [projectDesc, setProjectDesc] = useState('复古像素风格的足球经理策略游戏，强调竞技与战术');
   const [projectAnalysis, setProjectAnalysis] = useState(null);
@@ -90,11 +94,11 @@ export default function App() {
   const autoRoutedJobRef = useRef(null);
   const generationSeqRef = useRef(0);
 
-  // 首次加载若没有任何路由（空 hash），默认进 RoomWave 主页。
+  // 首次加载若没有任何路由（空 hash），默认进 MBTIWAVE 主页。
   // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
   useEffect(() => {
     if (!window.location.hash) {
-      window.location.replace('#/roomwave');
+      window.location.replace('#/mbtiwave');
     }
   }, []);
 
@@ -148,7 +152,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [schedule]);
 
-  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle) => {
+  const vocalModeToVocals = useCallback((vm) => {
+    if (vm === 'vocal') return { enabled: true };
+    if (vm === 'mixed') return { enabled: true };
+    return { enabled: false };
+  }, []);
+
+  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle, nextGenre, nextVocalMode) => {
     setPromptLoading(true);
     try {
       const data = await previewPrompt({
@@ -156,6 +166,8 @@ export default function App() {
         mode: nextMode,
         projectAnalysis: analysis,
         style: nextStyle,
+        selectedGenre: nextGenre || undefined,
+        vocals: vocalModeToVocals(nextVocalMode),
       });
       setPromptData(data);
     } catch (err) {
@@ -163,7 +175,7 @@ export default function App() {
     } finally {
       setPromptLoading(false);
     }
-  }, []);
+  }, [vocalModeToVocals]);
 
   // 项目文本变化 → LLM/模板分析（防抖）
   useEffect(() => {
@@ -193,10 +205,10 @@ export default function App() {
   useEffect(() => {
     clearTimeout(promptTimer.current);
     promptTimer.current = setTimeout(() => {
-      refreshPrompt(axes, mode, projectAnalysis, style);
+      refreshPrompt(axes, mode, projectAnalysis, style, genre, vocalMode);
     }, 250);
     return () => clearTimeout(promptTimer.current);
-  }, [axes, mode, projectAnalysis, style, refreshPrompt]);
+  }, [axes, mode, projectAnalysis, style, genre, vocalMode, refreshPrompt]);
 
   useEffect(() => {
     if (poll.audioUrl) {
@@ -281,6 +293,9 @@ export default function App() {
         mode: nextMode,
         projectAnalysis,
         style,
+        selectedGenre: genre || undefined,
+        vocals: vocalModeToVocals(vocalMode),
+        splitStems: vocalMode === 'mixed',
         forceFallback: opts.forceFallback,
       });
       if (seq !== generationSeqRef.current) return;
@@ -433,9 +448,9 @@ export default function App() {
        radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
        var(--page-bg)`;
 
-  // RoomWave 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
-  if (isRoomWave) {
-    return <RoomWave isDark={isDark} onToggleColorMode={toggleColorMode} />;
+  // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
+  if (isMBTIWAVE) {
+    return <MBTIWAVE isDark={isDark} onToggleColorMode={toggleColorMode} />;
   }
 
   const mainDeck = (
@@ -478,7 +493,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-display text-xl font-bold tracking-tight text-theme sm:text-2xl">
-                Vibe Coding 有歌声
+                MBTIWAVE
               </h1>
               <p className="text-[11px] text-subtle">MBTI × 项目 × 节奏 · AI DJ 控制台</p>
             </div>
@@ -523,35 +538,35 @@ export default function App() {
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
-              href="#/roomwave"
-              className="pad px-3.5 py-2 text-xs text-muted no-underline"
+              href="#/mbtiwave"
+              className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              🌊 RoomWave
+              🌊 MBTIWAVE
             </a>
-            {!isDiscover && (
+            {/* {!isDiscover && (
               <a
                 href="#/discover"
-                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🌍 发现
               </a>
-            )}
-            {!isMixer && (
+            )} */}
+            {/* {!isMixer && (
               <a
                 href="#/mixer"
-                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🎚 调音台
               </a>
-            )}
-            {!isAdmin && (
+            )} */}
+            {/* {!isAdmin && (
               <a
                 href="#/admin"
                 className="pad px-3.5 py-2 text-xs text-muted no-underline"
               >
                 ⚙️ 管理后台
               </a>
-            )}
+            )} */}
           </div>
         </header>
 
@@ -578,15 +593,12 @@ export default function App() {
             }}
           />
         ) : (
+          <>
           <div className="grid gap-4 lg:grid-cols-12">
-            {/* 左 Deck：MBTI Remix + 风格 */}
+            {/* 左 Deck：MBTI Remix + 风格 + Project Input */}
             <div className="space-y-4 lg:col-span-4">
               <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
               <StyleFaders style={style} onStyleChange={setStyle} />
-            </div>
-
-            {/* 中 Deck：播放器改为悬浮窗口，此列其余模块紧凑上移 */}
-            <div className="space-y-4 lg:col-span-5">
               <ProjectDeck
                 name={projectName}
                 description={projectDesc}
@@ -596,7 +608,23 @@ export default function App() {
                 onGithubAnalyze={handleGithubAnalyze}
                 analysisSource={analysisSource}
               />
-              <div id="dj-arranger-anchor">
+            </div>
+
+            {/* 中 Deck：Genre 选择器 + 留空给 FloatingWindow */}
+            <div className="space-y-4 lg:col-span-5">
+              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
+            </div>
+
+            {/* 右 Deck：模式 + Prompt 监视器 + Arranger */}
+            <div className="space-y-4 lg:col-span-3">
+              <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
+              <VocalMode vocalMode={vocalMode} onVocalModeChange={setVocalMode} />
+              <PromptCard
+                layers={promptData?.layers}
+                fullPrompt={promptData?.fullPrompt}
+                loading={promptLoading}
+              />
+              {/* <div id="dj-arranger-anchor">
                 <ArrangerPanel
                   arranger={arranger}
                   theme={theme}
@@ -608,42 +636,25 @@ export default function App() {
                   radioBusy={radioBusy}
                   onRadioToggle={handleRadioToggle}
                 />
-              </div>
+              </div> */}
             </div>
-
-            {/* 右 Deck：模式 + Prompt 监视器 */}
-            <div className="space-y-4 lg:col-span-3">
-              <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
-              <PromptCard
-                layers={promptData?.layers}
-                fullPrompt={promptData?.fullPrompt}
-                loading={promptLoading}
-              />
-            </div>
-
-            {/* 底部：日程 */}
-            {schedule && (
-              <div className="lg:col-span-12">
-                <Timeline phases={schedule.phases} currentPhase={currentPhase} />
-              </div>
-            )}
-
-            {/* Main Deck 悬浮窗口 */}
-            <FloatingWindow
-              title="MAIN DECK"
-              width={420}
-              storageKey="dj-main-deck-pos-v2"
-              anchorId="dj-arranger-anchor"
-              initial={{
-                x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
-                y: 400,
-              }}
-            >
-              {mainDeck}
-            </FloatingWindow>
           </div>
-        )}
-      </div>
+
+          {/* Main Deck 悬浮窗口（在 grid 外，fixed 定位不受布局影响） */}
+          <FloatingWindow
+            title="MAIN DECK"
+            width={420}
+            storageKey="dj-main-deck-pos-v2"
+            anchorId="dj-arranger-anchor"
+            initial={{
+              x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
+              y: 400,
+            }}
+          >
+            {mainDeck}
+          </FloatingWindow>
+          </>
+        )}      </div>
     </div>
   );
 }

@@ -24,7 +24,9 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
       />
       <div className="pointer-events-none absolute inset-0 bg-black/55"></div>
       <div className="relative z-10">
-      <span className="deck-label">Mode Pads</span>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="deck-label">Mode Pads</span>
+      </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {GRID_MODES.map((m) => {
           const active = mode === m.id;

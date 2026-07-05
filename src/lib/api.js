@@ -59,17 +59,17 @@ export function analyzeGithub(url) {
   });
 }
 
-export function previewPrompt({ mbti, axes, mode, projectAnalysis, style }) {
+export function previewPrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, vocals }) {
   return request('/api/music/generate', {
     method: 'POST',
-    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, previewOnly: true }),
+    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, selectedGenre, vocals, previewOnly: true }),
   });
 }
 
-export function generateMusic({ mbti, axes, mode, projectAnalysis, style, forceFallback = false, splitStems = true }) {
+export function generateMusic({ mbti, axes, mode, projectAnalysis, style, selectedGenre, vocals, forceFallback = false, splitStems = true }) {
   return request('/api/music/generate', {
     method: 'POST',
-    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, forceFallback, splitStems }),
+    body: JSON.stringify({ mbti, axes, mode, projectAnalysis, style, selectedGenre, vocals, forceFallback, splitStems }),
   });
 }
 
@@ -349,6 +349,12 @@ export function updateRadioNowPlaying(id, track) {
     method: 'PATCH',
     body: JSON.stringify({ track }),
   });
+}
+
+// ── 音乐流派/风格 ──
+
+export function getStyles() {
+  return request('/api/styles');
 }
 
 // ── 收藏 + 评分 ──

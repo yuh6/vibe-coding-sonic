@@ -8,7 +8,9 @@ const LAYERS = [
 export default function PromptCard({ layers, fullPrompt, loading }) {
   return (
     <div className="glass rounded-2xl p-4">
-      <span className="deck-label">Prompt Monitor</span>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="deck-label">Prompt Monitor</span>
+      </div>
 
       {loading && (
         <div className="mt-3 animate-pulse space-y-2">
