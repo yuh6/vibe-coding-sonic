@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/mbtiwave.css';
 import { usePlayer, useMusicPoll } from '../hooks/usePlayer';
 import { useArranger } from '../hooks/useArranger';
-import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getHealth, authMe, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
+import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getHealth, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
 import { mbtiFromAxes, getTheme, MODES } from '../lib/mbti';
 import AuthPanel from './AuthPanel';
 import AudioVisualizer from './AudioVisualizer';
@@ -201,7 +201,18 @@ const commentsPool = [
   { user: 'Rhythm_R', text: '深夜俱乐部既视感，太对味了。', type: 'ISTP' }
 ];
 
-export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }) {
+export default function MBTIWAVE({
+  isDark = true,
+  onToggleColorMode = () => {},
+  user = null,
+  quota = null,
+  authOpen = false,
+  onAuthOpenChange = () => {},
+  onAuth = () => {},
+  onLogout = () => {},
+  onQuotaChange = () => {},
+  onBeforeLogout,
+}) {
   const [currentView, setCurrentView] = useState('home'); // "home" | "room" | "mbti-hub" | "solo"
   const [selectedMBTI, setSelectedMBTI] = useState(mbtiData[0]);
   const [isMuted, setIsMuted] = useState(true);
@@ -444,7 +455,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
         forceFallback: false,
       });
       if (seq !== soloGenerationSeqRef.current) return;
-      if (job.quota) setQuota(job.quota);
+      if (job.quota) onQuotaChange(job.quota);
       if (job.quotaNotice) setSoloNotice(job.quotaNotice);
       lastSoloSignatureRef.current = nextSignature;
       poll.startPolling(job.jobId);
@@ -475,9 +486,6 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
 
   // ── 顶栏：登录 / TTAPI·LLM 状态 / 主题切换（接真实接口）──
   const [health, setHealth] = useState(null);
-  const [user, setUser] = useState(null);
-  const [quota, setQuota] = useState(null);
-  const [authOpen, setAuthOpen] = useState(false);
 
   const applyProfile = useCallback(() => {
     getMyProfile()
@@ -509,14 +517,11 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => {});
-    authMe()
-      .then((data) => {
-        setUser(data.user);
-        setQuota(data.quota);
-        if (data.user) applyProfile();
-      })
-      .catch(() => {});
-  }, [applyProfile]);
+  }, []);
+
+  useEffect(() => {
+    if (user) applyProfile();
+  }, [user?.id, applyProfile]);
 
   // 进入随机Room
   const enterRandomRoom = () => {
@@ -675,18 +680,12 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
             user={user}
             quota={quota}
             open={authOpen}
-            onOpenChange={setAuthOpen}
+            onOpenChange={onAuthOpenChange}
+            onBeforeLogout={onBeforeLogout}
             triggerClass="flex h-9 w-9 items-center justify-center text-base rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
             chipClass="flex items-center gap-2 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5"
-            onAuth={(data) => {
-              setUser(data.user);
-              setQuota(data.quota);
-              applyProfile();
-            }}
-            onLogout={() => {
-              setUser(null);
-              setQuota(null);
-            }}
+            onAuth={onAuth}
+            onLogout={onLogout}
           />
           {health && (
             <div className="flex items-center gap-3 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 font-mono text-[10px]">

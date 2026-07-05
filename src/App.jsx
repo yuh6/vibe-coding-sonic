@@ -93,6 +93,36 @@ export default function App() {
   const skipAnalyzeRef = useRef(false);
   const generationSeqRef = useRef(0);
   const startupHoldPlayedRef = useRef(false);
+  const authRequestSeqRef = useRef(0);
+
+  const applyProfileToApp = useCallback((profile) => {
+    if (profile?.axes) setAxes(profile.axes);
+    if (profile?.style) setStyle((s) => ({ ...s, ...profile.style }));
+    if (profile?.mode) setMode(profile.mode);
+  }, []);
+
+  const handleAuthSuccess = useCallback((data) => {
+    const seq = authRequestSeqRef.current + 1;
+    authRequestSeqRef.current = seq;
+    setUser(data.user);
+    setQuota(data.quota);
+    getMyProfile()
+      .then((res) => {
+        if (seq !== authRequestSeqRef.current) return;
+        applyProfileToApp(res?.profile);
+        profileLoadedRef.current = true;
+      })
+      .catch(() => {
+        if (seq === authRequestSeqRef.current) profileLoadedRef.current = true;
+      });
+  }, [applyProfileToApp]);
+
+  const handleAuthLogout = useCallback(() => {
+    authRequestSeqRef.current += 1;
+    setUser(null);
+    setQuota(null);
+    setLiveStation(null);
+  }, []);
 
   // 首次加载若没有任何路由（空 hash），默认进 MBTIWAVE 主页。
   // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
@@ -103,26 +133,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const seq = authRequestSeqRef.current + 1;
+    authRequestSeqRef.current = seq;
     getHealth().then(setHealth).catch(() => {});
     getDemoSchedule().then(setSchedule).catch(() => {});
     // 恢复登录态 + 应用个人档案
     authMe()
       .then((data) => {
+        if (seq !== authRequestSeqRef.current) return null;
         setUser(data.user);
         setQuota(data.quota);
         return getMyProfile();
       })
       .then((data) => {
-        const profile = data?.profile;
-        if (profile?.axes) setAxes(profile.axes);
-        if (profile?.style) setStyle((s) => ({ ...s, ...profile.style }));
-        if (profile?.mode) setMode(profile.mode);
+        if (seq !== authRequestSeqRef.current || !data) return;
+        applyProfileToApp(data?.profile);
         profileLoadedRef.current = true;
       })
       .catch(() => {
-        profileLoadedRef.current = true;
+        if (seq === authRequestSeqRef.current) profileLoadedRef.current = true;
       });
-  }, []);
+  }, [applyProfileToApp]);
 
   // 档案自动保存（防抖，登录后才生效）
   useEffect(() => {
@@ -491,7 +522,18 @@ export default function App() {
   if (isMBTIWAVE) {
     return (
       <Suspense fallback={null}>
-        <MBTIWAVE isDark={isDark} onToggleColorMode={toggleColorMode} />
+        <MBTIWAVE
+          isDark={isDark}
+          onToggleColorMode={toggleColorMode}
+          user={user}
+          quota={quota}
+          authOpen={authOpen}
+          onAuthOpenChange={setAuthOpen}
+          onAuth={handleAuthSuccess}
+          onLogout={handleAuthLogout}
+          onQuotaChange={setQuota}
+          onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
+        />
       </Suspense>
     );
   }
@@ -553,23 +595,8 @@ export default function App() {
               open={authOpen}
               onOpenChange={setAuthOpen}
               onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
-              onAuth={(data) => {
-                setUser(data.user);
-                setQuota(data.quota);
-                getMyProfile()
-                  .then((res) => {
-                    const profile = res?.profile;
-                    if (profile?.axes) setAxes(profile.axes);
-                    if (profile?.style) setStyle((s) => ({ ...s, ...profile.style }));
-                    if (profile?.mode) setMode(profile.mode);
-                  })
-                  .catch(() => {});
-              }}
-              onLogout={() => {
-                setUser(null);
-                setQuota(null);
-                setLiveStation(null);
-              }}
+              onAuth={handleAuthSuccess}
+              onLogout={handleAuthLogout}
             />
             {health && (
               <div className="status-pill flex items-center gap-3 rounded-full px-3 py-1.5 font-mono text-[10px]">
