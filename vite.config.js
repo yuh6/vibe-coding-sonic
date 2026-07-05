@@ -1,8 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+function cloudflareRocketLoaderBypass() {
+  return {
+    name: 'cloudflare-rocket-loader-bypass',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      return html.replace(
+        /<script type="module" crossorigin src="\/assets\//g,
+        '<script data-cfasync="false" type="module" crossorigin src="/assets/'
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cloudflareRocketLoaderBypass()],
   server: {
     port: 5173,
     proxy: {
