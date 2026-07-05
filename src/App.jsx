@@ -582,11 +582,12 @@ export default function App() {
                   onRadioToggle={handleRadioToggle}
                 />
               </div>
-              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
             </div>
 
-            {/* 中 Deck：留空给 FloatingWindow */}
-            <div className="lg:col-span-5" />
+            {/* 中 Deck：Genre 选择器 + 留空给 FloatingWindow */}
+            <div className="space-y-4 lg:col-span-5">
+              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
+            </div>
 
             {/* 右 Deck：模式 + Prompt 监视器 */}
             <div className="space-y-4 lg:col-span-3">
