@@ -578,7 +578,6 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
       {/* 顶栏 */}
       <header className={`relative z-50 border-b backdrop-blur-md px-4 md:px-6 py-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between transition-colors duration-500 ${isLightMode ? 'border-slate-300/50 bg-[#EEF1F7]/82' : 'border-zinc-900 bg-[#050505]/80'}`}>
         <div className="flex items-center gap-3">
-          <a href="#/" className="flex items-center gap-3 cursor-pointer no-underline" title="返回 DJ 控制台">
             <div className="relative w-8 h-8 rounded-lg bg-gradient-to-tr from-[#00FF66] to-[#7F56D9] p-[1.5px] flex items-center justify-center">
               <div className="w-full h-full bg-[#050505] rounded-md flex items-center justify-center">
                 <Activity className="w-4 h-4 text-[#00FF66] animate-pulse" />
@@ -588,7 +587,6 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
               <span className="mono-font tracking-widest text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-300 to-zinc-500">ROOMWAVE</span>
               <span className="text-[9px] block text-zinc-500 tracking-[0.2em] uppercase mono-font">Basement Audio-Visual System</span>
             </div>
-          </a>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap justify-end">
@@ -651,7 +649,6 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
           <a href="#/discover" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">🌍 发现</a>
           <a href="#/mixer" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">🎚 调音台</a>
           <a href="#/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">⚙️ 管理后台</a>
-          <a href="#/" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors" title="返回 DJ 控制台">🎛 DJ 台</a>
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="w-9 h-9 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 flex items-center justify-center text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
