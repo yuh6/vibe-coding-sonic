@@ -593,13 +593,6 @@ export default function App() {
               />
             </div>
 
-            {/* 底部：日程 */}
-            {schedule && (
-              <div className="lg:col-span-12">
-                <Timeline phases={schedule.phases} currentPhase={currentPhase} />
-              </div>
-            )}
-
             {/* Main Deck 悬浮窗口 */}
             <FloatingWindow
               title="MAIN DECK"
