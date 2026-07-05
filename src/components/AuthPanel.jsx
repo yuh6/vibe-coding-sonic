@@ -99,7 +99,18 @@ function AuthModal({ onClose, onSuccess }) {
   );
 }
 
-export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout, onBeforeLogout, triggerClass, chipClass }) {
+export default function AuthPanel({
+  user,
+  quota,
+  open,
+  onOpenChange,
+  onAuth,
+  onLogout,
+  onBeforeLogout,
+  triggerClass,
+  chipClass,
+  loading = false,
+}) {
   const isGuest = user?.isGuest || user?.role === 'guest';
   const handleLogout = async () => {
     try {
@@ -116,7 +127,24 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
 
   // 默认沿用 DJ 台原样式；传入自定义类时（如 MBTIWAVE 绿色主题）覆盖。
   const btnClass = triggerClass || 'pad flex h-9 w-9 items-center justify-center text-base';
-  const userChipClass = chipClass || 'flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5';
+  const userChipClass = chipClass || 'flex min-w-[108px] items-center justify-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5';
+
+  if (loading) {
+    return (
+      <>
+        <div className="flex items-center gap-2" aria-busy="true">
+          <div className={`${userChipClass} opacity-60`}>
+            <span className="font-display text-xs font-semibold text-white/85">...</span>
+            <span className="font-mono text-[10px] text-white/45">♪ --/--</span>
+          </div>
+          <button type="button" disabled className={`${btnClass} opacity-60`} title="登录状态加载中">
+            🔑
+          </button>
+        </div>
+        {open && <AuthModal onClose={() => onOpenChange(false)} onSuccess={onAuth} />}
+      </>
+    );
+  }
 
   return (
     <>

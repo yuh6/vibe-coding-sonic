@@ -206,6 +206,7 @@ export default function MBTIWAVE({
   onToggleColorMode = () => {},
   user = null,
   quota = null,
+  authReady = false,
   authOpen = false,
   onAuthOpenChange = () => {},
   onAuth = () => {},
@@ -247,7 +248,7 @@ export default function MBTIWAVE({
   const [projectAnalysis, setProjectAnalysis] = useState(null);
   const [analysisSource, setAnalysisSource] = useState('');
   const [promptData, setPromptData] = useState(null);
-  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptLoading, setPromptLoading] = useState(true);
   const [schedule, setSchedule] = useState(null);
   const [currentPhase, setCurrentPhase] = useState(null);
   const analyzeTimer = useRef(null);
@@ -679,6 +680,7 @@ export default function MBTIWAVE({
           <AuthPanel
             user={user}
             quota={quota}
+            loading={!authReady}
             open={authOpen}
             onOpenChange={onAuthOpenChange}
             onBeforeLogout={onBeforeLogout}

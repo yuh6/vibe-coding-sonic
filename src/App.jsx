@@ -66,7 +66,7 @@ export default function App() {
   const [projectAnalysis, setProjectAnalysis] = useState(null);
   const [analysisSource, setAnalysisSource] = useState('');
   const [promptData, setPromptData] = useState(null);
-  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptLoading, setPromptLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [health, setHealth] = useState(null);
@@ -75,6 +75,7 @@ export default function App() {
   const [mixerImport, setMixerImport] = useState(null);
   const [user, setUser] = useState(null);
   const [quota, setQuota] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [liveStation, setLiveStation] = useState(null);
@@ -106,6 +107,7 @@ export default function App() {
     authRequestSeqRef.current = seq;
     setUser(data.user);
     setQuota(data.quota);
+    setAuthReady(true);
     getMyProfile()
       .then((res) => {
         if (seq !== authRequestSeqRef.current) return;
@@ -121,6 +123,7 @@ export default function App() {
     authRequestSeqRef.current += 1;
     setUser(null);
     setQuota(null);
+    setAuthReady(true);
     setLiveStation(null);
   }, []);
 
@@ -143,6 +146,7 @@ export default function App() {
         if (seq !== authRequestSeqRef.current) return null;
         setUser(data.user);
         setQuota(data.quota);
+        setAuthReady(true);
         return getMyProfile();
       })
       .then((data) => {
@@ -151,7 +155,10 @@ export default function App() {
         profileLoadedRef.current = true;
       })
       .catch(() => {
-        if (seq === authRequestSeqRef.current) profileLoadedRef.current = true;
+        if (seq === authRequestSeqRef.current) {
+          setAuthReady(true);
+          profileLoadedRef.current = true;
+        }
       });
   }, [applyProfileToApp]);
 
@@ -527,6 +534,7 @@ export default function App() {
           onToggleColorMode={toggleColorMode}
           user={user}
           quota={quota}
+          authReady={authReady}
           authOpen={authOpen}
           onAuthOpenChange={setAuthOpen}
           onAuth={handleAuthSuccess}
@@ -592,24 +600,23 @@ export default function App() {
             <AuthPanel
               user={user}
               quota={quota}
+              loading={!authReady}
               open={authOpen}
               onOpenChange={setAuthOpen}
               onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
               onAuth={handleAuthSuccess}
               onLogout={handleAuthLogout}
             />
-            {health && (
-              <div className="status-pill flex items-center gap-3 rounded-full px-3 py-1.5 font-mono text-[10px]">
+            <div className="status-pill flex min-w-[104px] items-center justify-center gap-3 rounded-full px-3 py-1.5 font-mono text-[10px]">
                 <span className="flex items-center gap-1.5">
-                  <span className="led-dot" style={{ color: health.ttapi ? '#4ade80' : '#f59e0b' }} />
+                  <span className="led-dot" style={{ color: !health ? 'var(--text-faint)' : health.ttapi ? '#4ade80' : '#f59e0b' }} />
                   <span className="text-muted">TTAPI</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="led-dot" style={{ color: health.llm ? '#4ade80' : '#f59e0b' }} />
+                  <span className="led-dot" style={{ color: !health ? 'var(--text-faint)' : health.llm ? '#4ade80' : '#f59e0b' }} />
                   <span className="text-muted">LLM</span>
                 </span>
               </div>
-            )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
               href="#/mbtiwave"

@@ -7,13 +7,15 @@ const LAYERS = [
 
 export default function PromptCard({ layers, fullPrompt, loading }) {
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass min-h-[300px] rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Prompt Monitor</span>
       </div>
 
       {loading && (
         <div className="mt-3 animate-pulse space-y-2">
+          <div className="h-12 rounded bg-chip" />
+          <div className="h-12 rounded bg-chip" />
           <div className="h-4 rounded bg-chip" />
           <div className="h-4 rounded bg-chip" />
         </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 
@@ -35,7 +35,7 @@ export default function FloatingWindow({
 
   // 首次挂载：无记忆位置时，把窗口放到锚点元素（Arranger）下方
   const placedRef = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (placedRef.current) return;
     placedRef.current = true;
     const hasSaved = storageKey && localStorage.getItem(storageKey);
