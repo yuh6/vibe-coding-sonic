@@ -8,11 +8,16 @@ import { dal } from '../db.js';
 
 // ── 播放记录 ──
 
+function normalizeDurationSec(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
 export async function recordPlay({ userId, trackId, durationSec = null, completed = false }) {
   await dal.run(
     `INSERT INTO user_play_history (user_id, track_id, duration_sec, completed, played_at)
      VALUES (?, ?, ?, ?, ?)`,
-    [userId, trackId, durationSec, completed ? 1 : 0, Date.now()]
+    [userId, trackId, normalizeDurationSec(durationSec), completed ? 1 : 0, Date.now()]
   );
   // 同步更新 shared_library play_count
   await dal.run('UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?', [trackId]);

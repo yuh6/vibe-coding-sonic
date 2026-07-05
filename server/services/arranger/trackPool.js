@@ -91,6 +91,11 @@ function safeJsonParse(value, fallback) {
   }
 }
 
+function normalizeDurationSec(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
 /** 新建一个曲库池条目（初始时可能还没有 audioUrl，异步生成完成后用 markTrackReady 回填） */
 export async function createTrack(sessionId, { phase, moodTag, energyLevel, genre, instruments, promptConfig, audioUrl = null, audioLocal = null, durationSec = null }) {
   const result = await insertTrackStmt.run({
@@ -103,14 +108,14 @@ export async function createTrack(sessionId, { phase, moodTag, energyLevel, genr
     promptConfig: JSON.stringify(promptConfig || {}),
     audioUrl,
     audioLocal,
-    durationSec,
+    durationSec: normalizeDurationSec(durationSec),
   });
   return parseTrack(await getTrackStmt.get(result.lastInsertRowid));
 }
 
 /** 生成完成后回填音频地址 */
 export async function markTrackReady(trackId, { audioUrl, audioLocal = null, durationSec = null }) {
-  await updateAudioStmt.run({ id: trackId, audioUrl, audioLocal, durationSec });
+  await updateAudioStmt.run({ id: trackId, audioUrl, audioLocal, durationSec: normalizeDurationSec(durationSec) });
   return parseTrack(await getTrackStmt.get(trackId));
 }
 

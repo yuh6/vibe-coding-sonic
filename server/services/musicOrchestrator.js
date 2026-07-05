@@ -30,6 +30,11 @@ function positiveMs(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function normalizeDurationSec(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
 function cleanupHotCache() {
   const now = Date.now();
   for (const [id, job] of hotCache) {
@@ -80,7 +85,7 @@ async function saveJobToDB(job) {
       job.fullPrompt, job.negativeTags, job.bpm,
       job.weirdnessConstraint, job.styleWeight,
       job.sunoTaskId, job.musicId, job.audioUrl, job.audioLocal || null,
-      job.title, job.duration || null,
+      job.title, normalizeDurationSec(job.duration),
       JSON.stringify(job.tracks || []), JSON.stringify(job.layers || {}),
       JSON.stringify(job.profile || {}),
       job.fallback ? 1 : 0, job.fallbackSource || null,
@@ -178,7 +183,7 @@ async function persistTrackAsync(job) {
         job.bpm || null,
         job.audioUrl,
         publicUrl,
-        job.duration || null,
+        normalizeDurationSec(job.duration),
         Date.now(),
       ]
     );
@@ -203,7 +208,7 @@ function applyGeneratedMusic(job, result) {
   job.audioUrl = result.audioUrl;
   job.musicId = result.musicId || music.musicId || null;
   job.title = music.title || job.title;
-  job.duration = music.duration || job.duration || null;
+  job.duration = normalizeDurationSec(music.duration || job.duration);
   job.tracks = masterTracks({ url: result.audioUrl, title: music.title || 'Master' });
   // 异步落盘（不阻塞）
   persistTrackAsync(job).catch(() => {});

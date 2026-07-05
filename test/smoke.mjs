@@ -214,6 +214,14 @@ try {
   assert.ok(sharedLibrary.tracks.some((t) => t.id === sharedTrack.id));
 
   await client.request(`/api/library/shared/${sharedTrack.id}/play`, { method: 'POST' });
+  await client.request('/api/recommend/play', {
+    method: 'POST',
+    body: { trackId: sharedTrack.id, durationSec: 12.7, completed: true },
+  });
+  const history = await client.request('/api/recommend/history?limit=5');
+  assert.equal(history.history[0].trackId, sharedTrack.id);
+  assert.equal(history.history[0].durationSec, 13);
+
   const popular = await client.request('/api/recommend/popular?limit=5');
   assert.ok(popular.tracks.some((t) => t.id === sharedTrack.id));
 
