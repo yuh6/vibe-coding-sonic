@@ -94,6 +94,7 @@ export default function App() {
   const skipAnalyzeRef = useRef(false);
   const autoRoutedJobRef = useRef(null);
   const generationSeqRef = useRef(0);
+  const startupHoldPlayedRef = useRef(false);
 
   // 首次加载若没有任何路由（空 hash），默认进 MBTIWAVE 主页。
   // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
@@ -276,17 +277,28 @@ export default function App() {
 
   const handleGenerate = async (opts = {}) => {
     const nextMode = opts.mode || mode;
+    const shouldPlayStartupHold = Boolean(
+      opts.allowStartupHold &&
+      !startupHoldPlayedRef.current &&
+      !player.currentTitle &&
+      !poll.audioUrl &&
+      !fallback &&
+      !mixerImport?.tracks?.length
+    );
     const seq = generationSeqRef.current + 1;
     generationSeqRef.current = seq;
     setGenerating(true);
     poll.setStatus('processing');
     setFallback(false);
-    await playFallbackNow(nextMode, seq, '正在生成，已先接入启动音效', {
-      fallbackMode: STARTUP_FALLBACK_MODE,
-    }).catch((err) => {
-      console.error('[fallback hold]', err);
-      return null;
-    });
+    if (shouldPlayStartupHold) {
+      startupHoldPlayedRef.current = true;
+      await playFallbackNow(nextMode, seq, '正在生成，已先接入启动音效', {
+        fallbackMode: STARTUP_FALLBACK_MODE,
+      }).catch((err) => {
+        console.error('[fallback hold]', err);
+        return null;
+      });
+    }
 
     try {
       const job = await generateMusic({
@@ -473,7 +485,7 @@ export default function App() {
       onTogglePlay={player.togglePlay}
       onVolumeChange={player.setVolume}
       onToggleMute={player.toggleMute}
-      onGenerate={() => handleGenerate({ forceFallback: false })}
+      onGenerate={() => handleGenerate({ forceFallback: false, allowStartupHold: true })}
       generating={generating}
     />
   );

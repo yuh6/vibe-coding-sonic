@@ -244,6 +244,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
   const skipAnalyzeRef = useRef(false);
   const lastSoloSignatureRef = useRef('');
   const soloGenerationSeqRef = useRef(0);
+  const startupHoldPlayedRef = useRef(false);
 
   const soloStyle = {
     energy: styleFx.chillHype,
@@ -386,6 +387,13 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
   const handleSoloGenerate = async (opts = {}) => {
     const nextModeId = opts.mode || soloModeId;
     const nextModeLabel = opts.label || activeModePad;
+    const shouldPlayStartupHold = Boolean(
+      opts.allowStartupHold &&
+      !startupHoldPlayedRef.current &&
+      !player.currentTitle &&
+      !poll.audioUrl &&
+      !soloFallback
+    );
     const nextSignature = JSON.stringify({
       axes: soloAxes,
       mode: nextModeId,
@@ -404,12 +412,15 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
     setSoloFallback(false);
     setSoloNotice('');
     poll.setStatus('processing');
-    await playSoloFallbackNow(nextModeId, nextModeLabel, seq, '正在生成，已先接入启动音效', {
-      fallbackMode: STARTUP_FALLBACK_MODE,
-    }).catch((err) => {
-      console.error('[roomwave fallback hold]', err);
-      return null;
-    });
+    if (shouldPlayStartupHold) {
+      startupHoldPlayedRef.current = true;
+      await playSoloFallbackNow(nextModeId, nextModeLabel, seq, '正在生成，已先接入启动音效', {
+        fallbackMode: STARTUP_FALLBACK_MODE,
+      }).catch((err) => {
+        console.error('[roomwave fallback hold]', err);
+        return null;
+      });
+    }
     try {
       const job = await generateMusic({
         axes: soloAxes,
