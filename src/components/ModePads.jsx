@@ -16,7 +16,14 @@ const BEHIND_MODE = MODES.find((m) => m.id === 'behind');
 
 export default function ModePads({ mode, onModeChange, onPanic }) {
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass relative overflow-hidden rounded-2xl p-4">
+      <img
+        src="/music.gif"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-black/55"></div>
+      <div className="relative z-10">
       <span className="deck-label">Mode Pads</span>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {GRID_MODES.map((m) => {
@@ -50,6 +57,7 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
       >
         {BEHIND_MODE?.emoji} 我们落后了!
       </button>
+      </div>
     </div>
   );
 }

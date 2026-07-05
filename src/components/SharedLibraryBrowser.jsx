@@ -1,15 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getSharedLibrary, recordSharedTrackPlay } from '../lib/api';
+import { getSharedLibrary, recordSharedTrackPlay, getSharedStats } from '../lib/api';
 import { MODES } from '../lib/mbti';
+import TrackActions from './TrackActions';
 
-export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack }) {
+export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack, user, onRequireAuth }) {
   const [mode, setMode] = useState('');
   const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
   const debounceRef = useRef(null);
   const requestSeqRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSharedStats()
+      .then((data) => { if (!cancelled) setStats(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const params = useMemo(() => ({ mode: mode || undefined, q: query || undefined, limit: 24 }), [mode, query]);
 
@@ -47,7 +57,16 @@ export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack }) {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-sm font-bold text-white/80">共享曲库</h3>
+        <div className="min-w-0">
+          <h3 className="font-display text-sm font-bold text-white/80">共享曲库</h3>
+          {stats && (
+            <div className="text-[10px] text-white/35">
+              共 {stats.total || 0} 首
+              {stats.cached ? ` · 本地缓存 ${stats.cached} 首` : ''}
+              {stats.byMode ? ` · ${Object.keys(stats.byMode).length} 种模式` : ''}
+            </div>
+          )}
+        </div>
         <div className="flex min-w-0 flex-1 justify-end gap-2">
           <select
             value={mode}
@@ -86,22 +105,25 @@ export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack }) {
                 </div>
                 <span className="shrink-0 text-[10px] text-white/30">▶ {track.playCount || 0}</span>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={!track.audioUrl}
-                  onClick={() => play(track)}
-                  className="rounded-lg bg-green-500/15 px-3 py-1.5 text-xs text-green-300 disabled:opacity-40"
-                >
-                  播放
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectTrack?.(track)}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/60 hover:text-white"
-                >
-                  加入歌单
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!track.audioUrl}
+                    onClick={() => play(track)}
+                    className="rounded-lg bg-green-500/15 px-3 py-1.5 text-xs text-green-300 disabled:opacity-40"
+                  >
+                    播放
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectTrack?.(track)}
+                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/60 hover:text-white"
+                  >
+                    加入歌单
+                  </button>
+                </div>
+                <TrackActions trackId={track.id} user={user} onRequireAuth={onRequireAuth} compact />
               </div>
             </div>
           ))}

@@ -3,6 +3,7 @@ import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import ModePads from './components/ModePads';
 import PlayerDeck from './components/PlayerDeck';
+import FloatingWindow from './components/FloatingWindow';
 import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
@@ -85,6 +86,14 @@ export default function App() {
   const profileLoadedRef = useRef(false);
   const skipAnalyzeRef = useRef(false);
   const autoRoutedJobRef = useRef(null);
+
+  // 首次加载若没有任何路由（空 hash），默认进 RoomWave 主页。
+  // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
+  useEffect(() => {
+    if (!window.location.hash) {
+      window.location.replace('#/roomwave');
+    }
+  }, []);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => {});
@@ -401,6 +410,26 @@ export default function App() {
     return <RoomWave isDark={isDark} onToggleColorMode={toggleColorMode} />;
   }
 
+  const mainDeck = (
+    <PlayerDeck
+      playing={player.playing}
+      volume={player.volume}
+      muted={player.muted}
+      status={generating ? 'processing' : poll.status}
+      currentTitle={player.currentTitle}
+      fallback={fallback}
+      bpm={promptData?.bpm}
+      mbti={mbti}
+      mode={mode}
+      theme={theme}
+      onTogglePlay={player.togglePlay}
+      onVolumeChange={player.setVolume}
+      onToggleMute={player.toggleMute}
+      onGenerate={() => handleGenerate({ forceFallback: false })}
+      generating={generating}
+    />
+  );
+
   return (
     <div className="min-h-screen transition-colors duration-300" style={{ background: pageBg }}>
       <div className="mx-auto max-w-7xl px-4 py-6">
@@ -471,24 +500,30 @@ export default function App() {
             >
               🌊 RoomWave
             </a>
-            <a
-              href={isDiscover ? '#/' : '#/discover'}
-              className="pad px-3.5 py-2 text-xs text-muted no-underline"
-            >
-              {isDiscover ? '🎛 DJ 台' : '🌍 发现'}
-            </a>
-            <a
-              href={isMixer ? '#/' : '#/mixer'}
-              className="pad px-3.5 py-2 text-xs text-muted no-underline"
-            >
-              {isMixer ? '🎛 DJ 台' : '🎚 调音台'}
-            </a>
-            <a
-              href={isAdmin ? '#/' : '#/admin'}
-              className="pad px-3.5 py-2 text-xs text-muted no-underline"
-            >
-              {isAdmin ? '🎛 返回控制台' : '⚙️ 管理后台'}
-            </a>
+            {!isDiscover && (
+              <a
+                href="#/discover"
+                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+              >
+                🌍 发现
+              </a>
+            )}
+            {!isMixer && (
+              <a
+                href="#/mixer"
+                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+              >
+                🎚 调音台
+              </a>
+            )}
+            {!isAdmin && (
+              <a
+                href="#/admin"
+                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+              >
+                ⚙️ 管理后台
+              </a>
+            )}
           </div>
         </header>
 
@@ -522,25 +557,8 @@ export default function App() {
               <StyleFaders style={style} onStyleChange={setStyle} />
             </div>
 
-            {/* 中 Deck：播放器 */}
+            {/* 中 Deck：播放器改为悬浮窗口，此列其余模块紧凑上移 */}
             <div className="space-y-4 lg:col-span-5">
-              <PlayerDeck
-                playing={player.playing}
-                volume={player.volume}
-                muted={player.muted}
-                status={generating ? 'processing' : poll.status}
-                currentTitle={player.currentTitle}
-                fallback={fallback}
-                bpm={promptData?.bpm}
-                mbti={mbti}
-                mode={mode}
-                theme={theme}
-                onTogglePlay={player.togglePlay}
-                onVolumeChange={player.setVolume}
-                onToggleMute={player.toggleMute}
-                onGenerate={() => handleGenerate({ forceFallback: false })}
-                generating={generating}
-              />
               <ProjectDeck
                 name={projectName}
                 description={projectDesc}
@@ -550,26 +568,28 @@ export default function App() {
                 onGithubAnalyze={handleGithubAnalyze}
                 analysisSource={analysisSource}
               />
+              <div id="dj-arranger-anchor">
+                <ArrangerPanel
+                  arranger={arranger}
+                  theme={theme}
+                  onStart={handleArrangerStart}
+                  onStop={handleArrangerStop}
+                  onPhaseChange={handleArrangerPhaseChange}
+                  onFeedback={handleArrangerFeedback}
+                  liveStation={liveStation}
+                  radioBusy={radioBusy}
+                  onRadioToggle={handleRadioToggle}
+                />
+              </div>
             </div>
 
-            {/* 右 Deck：模式 + Prompt 监视器 + 编排引擎 */}
+            {/* 右 Deck：模式 + Prompt 监视器 */}
             <div className="space-y-4 lg:col-span-3">
               <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
               <PromptCard
                 layers={promptData?.layers}
                 fullPrompt={promptData?.fullPrompt}
                 loading={promptLoading}
-              />
-              <ArrangerPanel
-                arranger={arranger}
-                theme={theme}
-                onStart={handleArrangerStart}
-                onStop={handleArrangerStop}
-                onPhaseChange={handleArrangerPhaseChange}
-                onFeedback={handleArrangerFeedback}
-                liveStation={liveStation}
-                radioBusy={radioBusy}
-                onRadioToggle={handleRadioToggle}
               />
             </div>
 
@@ -579,6 +599,20 @@ export default function App() {
                 <Timeline phases={schedule.phases} currentPhase={currentPhase} />
               </div>
             )}
+
+            {/* Main Deck 悬浮窗口 */}
+            <FloatingWindow
+              title="MAIN DECK"
+              width={420}
+              storageKey="dj-main-deck-pos-v2"
+              anchorId="dj-arranger-anchor"
+              initial={{
+                x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
+                y: 400,
+              }}
+            >
+              {mainDeck}
+            </FloatingWindow>
           </div>
         )}
       </div>

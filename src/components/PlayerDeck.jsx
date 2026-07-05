@@ -29,7 +29,14 @@ export default function PlayerDeck({
   const statusColor = busy ? '#facc15' : playing ? '#4ade80' : undefined;
 
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass relative overflow-hidden rounded-2xl p-4">
+      <img
+        src="/player.gif"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-black/45"></div>
+      <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Main Deck</span>
         <div
@@ -123,7 +130,7 @@ export default function PlayerDeck({
         type="button"
         onClick={onGenerate}
         disabled={generating}
-        className="w-full rounded-xl py-3.5 font-display text-sm font-bold tracking-wider text-white transition active:scale-[0.98] disabled:opacity-50"
+        className="w-full rounded-full py-3.5 font-display text-sm font-extrabold uppercase tracking-wider text-white transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50 disabled:hover:scale-100"
         style={{
           background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
           boxShadow: `0 4px 24px ${theme.accent}55`,
@@ -131,6 +138,7 @@ export default function PlayerDeck({
       >
         {generating ? '◉ GENERATING...' : '⏻ DROP THE BEAT'}
       </button>
+      </div>
     </div>
   );
 }

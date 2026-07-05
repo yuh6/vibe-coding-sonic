@@ -67,10 +67,16 @@ export default function MBTIRemixDeck({ axes, onAxesChange, theme }) {
       </div>
 
       <div
-        className="led-display mb-4 rounded-xl border border-theme bg-led-panel py-3 text-center text-4xl font-bold"
+        className="led-display relative mb-4 overflow-hidden rounded-xl border border-theme bg-led-panel py-3 text-center text-4xl font-bold"
         style={{ color: theme.glow }}
       >
-        {currentType}
+        <img
+          src="/mbti.gif"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-black/35"></div>
+        <span className="relative z-10">{currentType}</span>
       </div>
 
       {showGrid && (

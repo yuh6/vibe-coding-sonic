@@ -328,3 +328,79 @@ export function updateRadioNowPlaying(id, track) {
   });
 }
 
+// ── 收藏 + 评分 ──
+
+export function getFavorites({ page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams({ page, limit });
+  return request(`/api/favorites?${params}`);
+}
+
+export function addFavorite(trackId) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}`, { method: 'POST' });
+}
+
+export function removeFavorite(trackId) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}`, { method: 'DELETE' });
+}
+
+export function getFavoriteStatus(trackId) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}/status`);
+}
+
+export function rateTrack(trackId, score) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ score }),
+  });
+}
+
+export function getMyRating(trackId) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}/my-rating`);
+}
+
+export function getTrackRatings(trackId) {
+  return request(`/api/favorites/${encodeURIComponent(trackId)}/ratings`);
+}
+
+// ── 推荐 + 历史 ──
+
+export function getForYou(limit = 12) {
+  const params = new URLSearchParams({ limit });
+  return request(`/api/recommend/for-you?${params}`);
+}
+
+export function getMyHistory({ page = 1, limit = 30 } = {}) {
+  const params = new URLSearchParams({ page, limit });
+  return request(`/api/recommend/history?${params}`);
+}
+
+// ── 歌单管理 ──
+
+export function updatePlaylist(id, { title, description, isPublic } = {}) {
+  return request(`/api/playlists/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ title, description, isPublic }),
+  });
+}
+
+export function deletePlaylist(id) {
+  return request(`/api/playlists/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function removeFromPlaylist(playlistId, trackId) {
+  return request(
+    `/api/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+// ── 曲库补全 ──
+
+export function getSharedStats() {
+  return request('/api/library/shared/stats');
+}
+
+export function getSharedTrack(id) {
+  return request(`/api/library/shared/${encodeURIComponent(id)}`);
+}
+

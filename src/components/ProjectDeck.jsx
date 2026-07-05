@@ -62,6 +62,8 @@ export default function ProjectDeck({
   const [githubUrl, setGithubUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  // 初始预设值显示很浅；用户一旦编辑就恢复正常亮度
+  const [pristine, setPristine] = useState(true);
   const folderRef = useRef(null);
 
   const handleFolder = async (e) => {
@@ -97,7 +99,14 @@ export default function ProjectDeck({
   };
 
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass relative overflow-hidden rounded-2xl p-4">
+      <img
+        src="/tape.jpg"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-black/55"></div>
+      <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
         <span className="deck-label">Project Input</span>
         {analysisSource && (
@@ -125,23 +134,25 @@ export default function ProjectDeck({
           <input
             type="text"
             value={name}
-            onChange={(e) => onNameChange(e.target.value)}
+            onChange={(e) => { setPristine(false); onNameChange(e.target.value); }}
             placeholder="项目名称"
             className="bg-input mb-2 w-full rounded-xl px-3 py-2 text-sm"
+            style={pristine ? { color: 'var(--text-inactive)' } : undefined}
           />
           <textarea
             value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
+            onChange={(e) => { setPristine(false); onDescriptionChange(e.target.value); }}
             placeholder="一句话描述你在做什么..."
             rows={2}
             className="bg-input w-full resize-none rounded-xl px-3 py-2 text-sm"
+            style={pristine ? { color: 'var(--text-inactive)' } : undefined}
           />
           <div className="mt-2 flex flex-wrap gap-1.5">
             {PRESETS.map((preset) => (
               <button
                 key={preset.name}
                 type="button"
-                onClick={() => onApplyPreset(preset)}
+                onClick={() => { setPristine(true); onApplyPreset(preset); }}
                 className="btn-ghost rounded-full px-2.5 py-1 text-[11px]"
               >
                 {preset.name}
@@ -199,6 +210,7 @@ export default function ProjectDeck({
       )}
 
       {message && <p className="mt-2 text-[11px] text-subtle">{message}</p>}
+      </div>
     </div>
   );
 }

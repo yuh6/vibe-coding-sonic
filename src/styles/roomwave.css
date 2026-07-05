@@ -122,3 +122,24 @@
 .roomwave-scope .roomwave-dj-embed + .roomwave-dj-embed {
   margin-top: 1.25rem;
 }
+
+/* 首页专辑滚动墙 */
+@keyframes album-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.album-marquee {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.album-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: album-scroll 45s linear infinite;
+}
+.album-marquee:hover .album-marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-marquee-track { animation: none; }
+}
