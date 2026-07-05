@@ -14,6 +14,7 @@ import { mbtiFromAxes, getTheme, MODES } from '../lib/mbti';
 import AuthPanel from './AuthPanel';
 import AudioVisualizer from './AudioVisualizer';
 import ModePads from './ModePads';
+import VocalMode from './VocalMode';
 import ProjectDeck from './ProjectDeck';
 import PromptCard from './PromptCard';
 import ArrangerPanel from './ArrangerPanel';
@@ -210,6 +211,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
   const [soloDims, setSoloDims] = useState({ ei: 35, ns: 62, tf: 48, jp: 70 });
   const [styleFx, setStyleFx] = useState({ chillHype: 59, synthAcoustic: 35, darkBright: 40 });
   const [activeModePad, setActiveModePad] = useState('专注构思');
+  const [vocalMode, setVocalMode] = useState('instrumental');
   const videoRef = useRef(null);
   const isLightMode = !isDark;
 
@@ -244,6 +246,12 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
     energy: styleFx.chillHype,
     texture: styleFx.synthAcoustic,
     brightness: styleFx.darkBright,
+  };
+
+  const vocalModeToVocals = (vm) => {
+    if (vm === 'vocal') return { enabled: true };
+    if (vm === 'mixed') return { enabled: true };
+    return { enabled: false };
   };
 
   useEffect(() => {
@@ -299,7 +307,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
     promptTimer.current = setTimeout(async () => {
       setPromptLoading(true);
       try {
-        const data = await previewPrompt({ axes: soloAxes, mode: soloModeId, projectAnalysis, style: soloStyle });
+        const data = await previewPrompt({ axes: soloAxes, mode: soloModeId, projectAnalysis, style: soloStyle, vocals: vocalModeToVocals(vocalMode) });
         setPromptData(data);
       } catch (err) {
         console.error('[mbtiwave prompt]', err);
@@ -309,7 +317,7 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
     }, 500);
     return () => clearTimeout(promptTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soloDims, styleFx, activeModePad, projectAnalysis]);
+  }, [soloDims, styleFx, activeModePad, vocalMode, projectAnalysis]);
 
   const handleModePadChange = (modeId) => {
     const label = MODES.find((m) => m.id === modeId)?.label;
@@ -375,6 +383,8 @@ export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }
         mode: nextModeId,
         style: soloStyle,
         projectAnalysis: projectAnalysis || undefined,
+        vocals: vocalModeToVocals(vocalMode),
+        splitStems: vocalMode === 'mixed',
         forceFallback: opts.force || false,
       });
       if (job.quota) setQuota(job.quota);

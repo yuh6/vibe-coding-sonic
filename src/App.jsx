@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import ModePads from './components/ModePads';
+import VocalMode from './components/VocalMode';
 import PlayerDeck from './components/PlayerDeck';
 import FloatingWindow from './components/FloatingWindow';
 import ProjectDeck from './components/ProjectDeck';
@@ -56,6 +57,7 @@ export default function App() {
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
   const [mode, setMode] = useState('focus');
+  const [vocalMode, setVocalMode] = useState('instrumental'); // 'vocal' | 'instrumental' | 'mixed'
   const [genre, setGenre] = useState('');
   const [projectName, setProjectName] = useState('足球经理游戏');
   const [projectDesc, setProjectDesc] = useState('复古像素风格的足球经理策略游戏，强调竞技与战术');
@@ -147,7 +149,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [schedule]);
 
-  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle, nextGenre) => {
+  const vocalModeToVocals = useCallback((vm) => {
+    if (vm === 'vocal') return { enabled: true };
+    if (vm === 'mixed') return { enabled: true };
+    return { enabled: false };
+  }, []);
+
+  const refreshPrompt = useCallback(async (nextAxes, nextMode, analysis, nextStyle, nextGenre, nextVocalMode) => {
     setPromptLoading(true);
     try {
       const data = await previewPrompt({
@@ -156,6 +164,7 @@ export default function App() {
         projectAnalysis: analysis,
         style: nextStyle,
         selectedGenre: nextGenre || undefined,
+        vocals: vocalModeToVocals(nextVocalMode),
       });
       setPromptData(data);
     } catch (err) {
@@ -163,7 +172,7 @@ export default function App() {
     } finally {
       setPromptLoading(false);
     }
-  }, []);
+  }, [vocalModeToVocals]);
 
   // 项目文本变化 → LLM/模板分析（防抖）
   useEffect(() => {
@@ -193,10 +202,10 @@ export default function App() {
   useEffect(() => {
     clearTimeout(promptTimer.current);
     promptTimer.current = setTimeout(() => {
-      refreshPrompt(axes, mode, projectAnalysis, style, genre);
+      refreshPrompt(axes, mode, projectAnalysis, style, genre, vocalMode);
     }, 250);
     return () => clearTimeout(promptTimer.current);
-  }, [axes, mode, projectAnalysis, style, genre, refreshPrompt]);
+  }, [axes, mode, projectAnalysis, style, genre, vocalMode, refreshPrompt]);
 
   useEffect(() => {
     if (poll.audioUrl) {
@@ -246,6 +255,8 @@ export default function App() {
         projectAnalysis,
         style,
         selectedGenre: genre || undefined,
+        vocals: vocalModeToVocals(vocalMode),
+        splitStems: vocalMode === 'mixed',
         forceFallback: opts.forceFallback,
       });
       setPromptData(job);
@@ -579,6 +590,7 @@ export default function App() {
             {/* 右 Deck：模式 + Prompt 监视器 + Arranger */}
             <div className="space-y-4 lg:col-span-3">
               <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
+              <VocalMode vocalMode={vocalMode} onVocalModeChange={setVocalMode} />
               <PromptCard
                 layers={promptData?.layers}
                 fullPrompt={promptData?.fullPrompt}
