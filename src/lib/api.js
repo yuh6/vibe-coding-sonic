@@ -144,6 +144,28 @@ export function saveConfigKeys(patch) {
   });
 }
 
+export function getQuotaSettings() {
+  return request('/api/config/quota-settings');
+}
+
+export function saveQuotaSettings({ guestLimit, userLimit }) {
+  return request('/api/config/quota-settings', {
+    method: 'POST',
+    body: JSON.stringify({ guestLimit, userLimit }),
+  });
+}
+
+export function getAdminUsers() {
+  return request('/api/config/users');
+}
+
+export function updateAdminUser(id, patch) {
+  return request(`/api/config/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
 export function getConfigStatus() {
   return request('/api/config/status');
 }
@@ -156,10 +178,10 @@ export function getLibrary() {
   return request('/api/library');
 }
 
-export function addLibraryTrack({ mode, title, url }) {
+export function addLibraryTrack({ mode, title, url, mbti }) {
   return request('/api/library', {
     method: 'POST',
-    body: JSON.stringify({ mode, title, url }),
+    body: JSON.stringify({ mode, title, url, mbti }),
   });
 }
 
@@ -403,4 +425,3 @@ export function getSharedStats() {
 export function getSharedTrack(id) {
   return request(`/api/library/shared/${encodeURIComponent(id)}`);
 }
-

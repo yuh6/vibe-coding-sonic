@@ -6,7 +6,7 @@
  */
 import { createWsServer } from './wsServer.js';
 import { arrangerEvents } from '../services/arranger/index.js';
-import { getUserBySession } from '../services/authService.js';
+import { getOrCreateGuestUser, getUserBySession, GUEST_COOKIE, SESSION_COOKIE } from '../services/authService.js';
 import { parseCookies } from '../middleware/userAuth.js';
 
 // sessionId -> Set<WsConnection>
@@ -43,8 +43,12 @@ export function attachWsEvents(httpServer) {
       const sessionId = url.searchParams.get('sessionId');
 
       // 认证：优先 query token，其次 cookie
-      const token = url.searchParams.get('token') || parseCookies(req)?.[('vibe_session')] || null;
-      const user = await getUserBySession(token);
+      const cookies = parseCookies(req);
+      const token = url.searchParams.get('token') || cookies?.[SESSION_COOKIE] || null;
+      let user = await getUserBySession(token);
+      if (!user && cookies?.[GUEST_COOKIE]) {
+        user = (await getOrCreateGuestUser(cookies[GUEST_COOKIE])).user;
+      }
       if (!user) {
         conn.send({ type: 'error', payload: { code: 'UNAUTHORIZED', message: '未认证' } });
         conn.close();

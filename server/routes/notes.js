@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { parseNotes } from '../services/llm/index.js';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
@@ -10,7 +10,7 @@ const notesLimit = createRateLimit({
   keyPrefix: 'notes-parse',
 });
 
-router.post('/parse', requireUser, notesLimit, async (req, res) => {
+router.post('/parse', requireIdentity, notesLimit, async (req, res) => {
   const { text } = req.body || {};
   if (!text || !text.trim()) {
     return res.json({ keywords: [], mood: [], avoid: [] });

@@ -1,22 +1,22 @@
 import { Router } from 'express';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { getProfile, saveProfile, listTracks } from '../services/quotaService.js';
 
 const router = Router();
-router.use(requireUser);
+router.use(requireIdentity);
 
 router.get('/profile', async (req, res) => {
-  res.json({ profile: await getProfile(req.user.id) });
+  res.json({ profile: await getProfile(req.identity.id) });
 });
 
 router.put('/profile', async (req, res) => {
   const { axes, style, mode } = req.body || {};
-  await saveProfile(req.user.id, { axes, style, mode });
+  await saveProfile(req.identity.id, { axes, style, mode });
   res.json({ ok: true });
 });
 
 router.get('/tracks', async (req, res) => {
-  res.json({ tracks: await listTracks(req.user.id) });
+  res.json({ tracks: await listTracks(req.identity.id) });
 });
 
 export default router;

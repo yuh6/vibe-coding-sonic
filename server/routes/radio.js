@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import {
   goLive, goOffline, updateStationInfo, getStation,
   listLiveStations, joinStation, leaveStation,
@@ -36,10 +36,10 @@ router.post('/:id/leave', async (req, res) => {
 });
 
 // 需登录：开始广播
-router.post('/', requireUser, async (req, res) => {
+router.post('/', requireIdentity, async (req, res) => {
   const { title, description, sessionId, mode, mbti } = req.body || {};
   if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
-  const station = await goLive(req.user.id, {
+  const station = await goLive(req.identity.id, {
     title: title.trim(), description: description?.trim(),
     sessionId, mode, mbti,
   });
@@ -47,23 +47,23 @@ router.post('/', requireUser, async (req, res) => {
 });
 
 // 需登录：更新电台
-router.put('/:id', requireUser, async (req, res) => {
+router.put('/:id', requireIdentity, async (req, res) => {
   const { title, description, mode } = req.body || {};
-  const ok = await updateStationInfo(req.params.id, req.user.id, { title, description, mode });
+  const ok = await updateStationInfo(req.params.id, req.identity.id, { title, description, mode });
   if (!ok) return res.status(404).json({ error: 'Station not found or not owned' });
   res.json(await getStation(req.params.id));
 });
 
 // 需登录：更新电台正在播放 snapshot
-router.patch('/:id/now-playing', requireUser, async (req, res) => {
-  const ok = await updateNowPlayingSnapshot(req.params.id, req.user.id, req.body?.track);
+router.patch('/:id/now-playing', requireIdentity, async (req, res) => {
+  const ok = await updateNowPlayingSnapshot(req.params.id, req.identity.id, req.body?.track);
   if (!ok) return res.status(404).json({ error: 'Station not found, offline, or track has no audioUrl' });
   res.json(await getStation(req.params.id));
 });
 
 // 需登录：下线电台
-router.delete('/:id', requireUser, async (req, res) => {
-  const ok = await goOffline(req.params.id, req.user.id);
+router.delete('/:id', requireIdentity, async (req, res) => {
+  const ok = await goOffline(req.params.id, req.identity.id);
   if (!ok) return res.status(404).json({ error: 'Station not found or not owned' });
   res.json({ ok: true });
 });

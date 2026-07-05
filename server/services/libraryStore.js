@@ -14,55 +14,96 @@ const LIBRARY_PATH = join(__dirname, '../data/runtime-library.json');
 
 // 七阶段体系（v3 替换原 focus/spark/sprint/charge 四模式）
 const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
+const PERSONALITY_BUCKET = 'personality';
+const MANIFEST_BUCKETS = [...MODES, PERSONALITY_BUCKET];
+const MBTI_TYPES = [
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP',
+];
+const MBTI_SEED_FLAG = 'fallback_mbti_seed_v1';
 
 let manifest = await load();
 
 function emptyManifest() {
-  return { brainstorm: [], focus: [], sprint: [], charge: [], behind: [], break: [], celebrate: [] };
+  return Object.fromEntries(MANIFEST_BUCKETS.map((mode) => [mode, []]));
+}
+
+function normalizeMbti(value) {
+  const type = String(value || '').trim().toUpperCase();
+  return MBTI_TYPES.includes(type) ? type : null;
+}
+
+function normalizeTrack(track) {
+  const next = {
+    id: String(track.id || '').trim(),
+    title: String(track.title || track.url || '').trim(),
+    url: String(track.url || '').trim(),
+  };
+  const mbti = normalizeMbti(track.mbti);
+  if (mbti) next.mbti = mbti;
+  return next;
 }
 
 function normalizeManifest(raw) {
   const next = emptyManifest();
-  for (const mode of MODES) {
-    next[mode] = Array.isArray(raw?.[mode]) ? raw[mode] : [];
+  for (const mode of MANIFEST_BUCKETS) {
+    next[mode] = Array.isArray(raw?.[mode])
+      ? raw[mode].map(normalizeTrack).filter((track) => track.id && track.url)
+      : [];
   }
   return next;
 }
 
 function loadManifestFile() {
-  const path = existsSync(LIBRARY_PATH) ? LIBRARY_PATH : DEFAULT_MANIFEST_PATH;
+  let defaults = emptyManifest();
   try {
-    return normalizeManifest(JSON.parse(readFileSync(path, 'utf-8')));
+    defaults = normalizeManifest(JSON.parse(readFileSync(DEFAULT_MANIFEST_PATH, 'utf-8')));
   } catch {
-    return emptyManifest();
+    // Fall back to an empty manifest below.
+  }
+
+  if (!existsSync(LIBRARY_PATH)) return defaults;
+
+  try {
+    const runtime = normalizeManifest(JSON.parse(readFileSync(LIBRARY_PATH, 'utf-8')));
+    if (!runtime[PERSONALITY_BUCKET]?.length) runtime[PERSONALITY_BUCKET] = defaults[PERSONALITY_BUCKET];
+    return runtime;
+  } catch {
+    return defaults;
   }
 }
 
 function rowsToManifest(rows) {
   const next = emptyManifest();
   for (const row of rows) {
-    if (!MODES.includes(row.mode)) continue;
-    next[row.mode].push({ id: row.id, title: row.title, url: row.url });
+    if (!MANIFEST_BUCKETS.includes(row.mode)) continue;
+    const track = { id: row.id, title: row.title, url: row.url };
+    const mbti = normalizeMbti(row.mbti);
+    if (mbti) track.mbti = mbti;
+    next[row.mode].push(track);
   }
   return next;
 }
 
-async function seedFallbackTracksIfEmpty() {
-  const row = await db.prepare('SELECT COUNT(*) as cnt FROM fallback_tracks').get();
-  if (Number(row?.cnt || 0) > 0) return;
-
-  const seed = loadManifestFile();
+async function insertSeedTracks(seed, { onlyMbti = false } = {}) {
   const now = Date.now();
   for (const [mode, tracks] of Object.entries(seed)) {
+    if (!MANIFEST_BUCKETS.includes(mode)) continue;
     for (const track of tracks) {
       if (!track?.id || !track?.url) continue;
+      const mbti = normalizeMbti(track.mbti);
+      if (onlyMbti && !mbti) continue;
+      if (mode === PERSONALITY_BUCKET && !mbti) continue;
       await db.prepare(
-        `INSERT INTO fallback_tracks (id, mode, title, url, created_at)
-         VALUES (@id, @mode, @title, @url, @createdAt)
+        `INSERT INTO fallback_tracks (id, mode, mbti, title, url, created_at)
+         VALUES (@id, @mode, @mbti, @title, @url, @createdAt)
          ON CONFLICT(id) DO NOTHING`
       ).run({
         id: String(track.id),
         mode,
+        mbti,
         title: String(track.title || track.url).slice(0, 120),
         url: String(track.url),
         createdAt: now,
@@ -71,10 +112,34 @@ async function seedFallbackTracksIfEmpty() {
   }
 }
 
+async function markMbtiSeeded() {
+  await db.prepare(
+    `INSERT INTO app_settings (name, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).run(MBTI_SEED_FLAG, 'true', Date.now());
+}
+
+async function seedFallbackTracksIfNeeded() {
+  const seed = loadManifestFile();
+  const row = await db.prepare('SELECT COUNT(*) as cnt FROM fallback_tracks').get();
+  if (Number(row?.cnt || 0) === 0) {
+    await insertSeedTracks(seed);
+    await markMbtiSeeded();
+    return;
+  }
+
+  const mbtiSeeded = await db.prepare('SELECT value FROM app_settings WHERE name = ?').get(MBTI_SEED_FLAG);
+  if (!mbtiSeeded) {
+    await insertSeedTracks(seed, { onlyMbti: true });
+    await markMbtiSeeded();
+  }
+}
+
 async function load() {
-  await seedFallbackTracksIfEmpty();
+  await seedFallbackTracksIfNeeded();
   const rows = await db.prepare(
-    'SELECT id, mode, title, url FROM fallback_tracks ORDER BY mode, created_at, id'
+    'SELECT id, mode, mbti, title, url FROM fallback_tracks ORDER BY mode, mbti, created_at, id'
   ).all();
   return rowsToManifest(rows);
 }
@@ -108,18 +173,26 @@ export function getTracks(mode) {
   return manifest[key] || manifest.focus || [];
 }
 
-export async function addTrack({ mode, title, url }) {
+export async function addTrack({ mode, title, url, mbti }) {
   const key = String(mode || '').toLowerCase();
-  if (!MODES.includes(key)) {
+  if (!MANIFEST_BUCKETS.includes(key)) {
     throw new Error(`Invalid mode: ${mode}`);
   }
   const safeUrl = validateTrackUrl(url);
   const safeTitle = String(title || safeUrl).trim().slice(0, 120);
+  const safeMbti = normalizeMbti(mbti);
+  if (mbti && !safeMbti) {
+    throw new Error(`Invalid MBTI type: ${mbti}`);
+  }
+  if (key === PERSONALITY_BUCKET && !safeMbti) {
+    throw new Error('MBTI type is required for personality fallback tracks');
+  }
   const track = { id: `${key}-${randomUUID().slice(0, 8)}`, title: safeTitle, url: safeUrl };
+  if (safeMbti) track.mbti = safeMbti;
   await db.prepare(
-    `INSERT INTO fallback_tracks (id, mode, title, url, created_at)
-     VALUES (@id, @mode, @title, @url, @createdAt)`
-  ).run({ ...track, mode: key, createdAt: Date.now() });
+    `INSERT INTO fallback_tracks (id, mode, mbti, title, url, created_at)
+     VALUES (@id, @mode, @mbti, @title, @url, @createdAt)`
+  ).run({ ...track, mode: key, mbti: safeMbti, createdAt: Date.now() });
   manifest[key] = [...(manifest[key] || []), track];
   return track;
 }
@@ -135,14 +208,35 @@ export async function removeTrack(mode, id) {
 }
 
 export async function pickTrack(mode, mbti) {
-  const tracks = getTracks(mode);
-  if (!tracks.length) return null;
-  const index = mbti ? mbti.charCodeAt(0) % tracks.length : 0;
-  return tracks[index];
+  const key = String(mode || 'focus').toLowerCase();
+  const type = normalizeMbti(mbti);
+  const phaseTracks = getTracks(key);
+  const exactPhaseTracks = type ? phaseTracks.filter((track) => normalizeMbti(track.mbti) === type) : [];
+  const personalityTracks = type ? getTracks(PERSONALITY_BUCKET).filter((track) => normalizeMbti(track.mbti) === type) : [];
+  const genericPhaseTracks = phaseTracks.filter((track) => !track.mbti);
+  const fallbackTracks = getTracks('focus').filter((track) => !track.mbti);
+  const candidates = exactPhaseTracks.length
+    ? exactPhaseTracks
+    : personalityTracks.length
+      ? personalityTracks
+      : genericPhaseTracks.length
+        ? genericPhaseTracks
+        : fallbackTracks;
+  if (!candidates.length) return null;
+  const index = hashPick(`${type || 'generic'}:${key}`, candidates.length);
+  return candidates[index];
 }
 
 export async function libraryHasTrackUrl(url) {
   return Object.values(manifest).some((tracks) => tracks.some((track) => track?.url === url));
+}
+
+function hashPick(seed, modulo) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return modulo ? hash % modulo : 0;
 }
 
 // ═══════════════════════════════════════════════════════════════

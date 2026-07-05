@@ -16,8 +16,8 @@ router.get('/', requireAdmin, (_req, res) => {
 
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { mode, title, url } = req.body || {};
-    const track = await addTrack({ mode, title, url });
+    const { mode, title, url, mbti } = req.body || {};
+    const track = await addTrack({ mode, title, url, mbti });
     res.json(track);
   } catch (err) {
     res.status(400).json({ error: err.message });

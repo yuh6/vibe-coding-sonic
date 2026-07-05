@@ -4,7 +4,7 @@
  * 播放本身发生在浏览器 Web Audio（§9.3 Crossfade），这里只负责"下一首选哪首"。
  */
 import { Router } from 'express';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { getSession } from '../services/arranger/sessionStore.js';
 import {
   startEngine,
@@ -34,7 +34,7 @@ async function requireOwnedSession(req, res, next) {
       return res.status(400).json({ error: 'sessionId is required' });
     }
     const session = await getSession(sessionId);
-    if (!session || session.userId !== req.user.id) {
+    if (!session || session.userId !== req.identity.id) {
       return res.status(404).json({ error: 'Session not found' });
     }
     req.arrangerSession = session;
@@ -44,7 +44,7 @@ async function requireOwnedSession(req, res, next) {
   }
 }
 
-router.use(requireUser, requireOwnedSession);
+router.use(requireIdentity, requireOwnedSession);
 
 router.post('/start', async (req, res) => {
   try {

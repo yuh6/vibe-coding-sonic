@@ -4,6 +4,10 @@ import {
   saveConfigKeys,
   getConfigStatus,
   getProviders,
+  getQuotaSettings,
+  saveQuotaSettings,
+  getAdminUsers,
+  updateAdminUser,
   getLibrary,
   addLibraryTrack,
   deleteLibraryTrack,
@@ -24,7 +28,7 @@ const PROVIDER_KEY_MAP = {
   'cli-kimi': 'KIMI_API_KEY',
 };
 
-const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
+const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate', 'personality'];
 const MODE_LABELS = {
   brainstorm: '💡 头脑风暴',
   focus: '🎯 专注构思',
@@ -33,6 +37,18 @@ const MODE_LABELS = {
   behind: '⏰ 落后了',
   break: '☕ 休息一下',
   celebrate: '🎉 完成了！',
+  personality: '🧬 人格底色',
+};
+const MBTI_TYPES = [
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP',
+];
+const ROLE_LABELS = {
+  guest: '普通用户',
+  user: '登录用户',
+  vip: 'VIP',
 };
 
 function SecretInput({ label, placeholder, value, onChange, hint }) {
@@ -57,26 +73,37 @@ export default function AdminPanel() {
   const [status, setStatus] = useState(null);
   const [providers, setProviders] = useState([]);
   const [library, setLibrary] = useState(null);
+  const [quotaSettings, setQuotaSettings] = useState(null);
+  const [users, setUsers] = useState([]);
 
   const [form, setForm] = useState({});
+  const [quotaForm, setQuotaForm] = useState({ guestLimit: '5', userLimit: '5' });
   const [libMode, setLibMode] = useState('focus');
-  const [newTrack, setNewTrack] = useState({ title: '', url: '' });
+  const [newTrack, setNewTrack] = useState({ title: '', url: '', mbti: '' });
   const [toast, setToast] = useState('');
   const [authToken, setAuthToken] = useState(getStoredAdminToken());
   const [loadError, setLoadError] = useState('');
 
   const refresh = async () => {
     setLoadError('');
-    const [keys, st, prov, lib] = await Promise.all([
+    const [keys, st, prov, lib, quotaCfg, adminUsers] = await Promise.all([
       getConfigKeys(),
       getConfigStatus(),
       getProviders(),
       getLibrary(),
+      getQuotaSettings(),
+      getAdminUsers(),
     ]);
     setSettings(keys.settings);
     setStatus(st);
     setProviders(prov.llm || []);
     setLibrary(lib);
+    setQuotaSettings(quotaCfg);
+    setQuotaForm({
+      guestLimit: String(quotaCfg.guestLimit ?? 5),
+      userLimit: String(quotaCfg.userLimit ?? 5),
+    });
+    setUsers(adminUsers.users || []);
   };
 
   useEffect(() => {
@@ -115,10 +142,43 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSaveQuota = async () => {
+    try {
+      const guestLimit = Number(quotaForm.guestLimit);
+      const userLimit = Number(quotaForm.userLimit);
+      if (!Number.isFinite(guestLimit) || guestLimit < 0 || !Number.isFinite(userLimit) || userLimit < 0) {
+        showToast('额度必须是 0 或正整数');
+        return;
+      }
+      const next = await saveQuotaSettings({
+        guestLimit: Math.floor(guestLimit),
+        userLimit: Math.floor(userLimit),
+      });
+      setQuotaSettings(next);
+      setQuotaForm({
+        guestLimit: String(next.guestLimit ?? 5),
+        userLimit: String(next.userLimit ?? 5),
+      });
+      showToast('生成额度已保存');
+    } catch (err) {
+      showToast(`保存额度失败: ${err.message}`);
+    }
+  };
+
+  const handleUserRoleChange = async (userId, role) => {
+    try {
+      const result = await updateAdminUser(userId, { role });
+      setUsers((items) => items.map((item) => (item.id === userId ? result.user : item)));
+      showToast('用户身份已更新');
+    } catch (err) {
+      showToast(`更新用户失败: ${err.message}`);
+    }
+  };
+
   const handleAddTrack = async () => {
     try {
-      await addLibraryTrack({ mode: libMode, title: newTrack.title, url: newTrack.url });
-      setNewTrack({ title: '', url: '' });
+      await addLibraryTrack({ mode: libMode, title: newTrack.title, url: newTrack.url, mbti: newTrack.mbti });
+      setNewTrack({ title: '', url: '', mbti: '' });
       setLibrary(await getLibrary());
       showToast('曲目已添加');
     } catch (err) {
@@ -296,6 +356,108 @@ export default function AdminPanel() {
         </div>
       </div>
 
+      {/* 生成额度 */}
+      <div className="glass rounded-2xl p-4">
+        <span className="deck-label">生成额度</span>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
+              普通用户总生成数
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={quotaForm.guestLimit}
+              onChange={(e) => setQuotaForm({ ...quotaForm, guestLimit: e.target.value })}
+              className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
+              登录用户总生成数
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={quotaForm.userLimit}
+              onChange={(e) => setQuotaForm({ ...quotaForm, userLimit: e.target.value })}
+              className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
+            />
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-[10px] text-faint">
+            当前：普通 {quotaSettings?.guestLimit ?? 5} 首，登录 {quotaSettings?.userLimit ?? 5} 首；VIP 不限制。
+          </p>
+          <button type="button" onClick={handleSaveQuota} className="pad px-4 py-2 text-sm">
+            保存额度
+          </button>
+        </div>
+      </div>
+
+      {/* 用户身份 */}
+      <div className="glass rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="deck-label">用户身份</span>
+          <button type="button" onClick={() => refresh().then(() => showToast('用户列表已刷新')).catch((err) => showToast(err.message))} className="pad px-3 py-1.5 text-xs">
+            刷新
+          </button>
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-xs">
+            <thead className="font-mono text-[10px] uppercase tracking-widest text-faint">
+              <tr>
+                <th className="px-2 py-2">用户</th>
+                <th className="px-2 py-2">身份</th>
+                <th className="px-2 py-2">生成数</th>
+                <th className="px-2 py-2">曲目</th>
+                <th className="px-2 py-2">创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((item) => (
+                <tr key={item.id} className="border-t border-theme">
+                  <td className="px-2 py-2">
+                    <div className="font-medium text-theme">{item.role === 'guest' ? item.name || '游客' : item.name}</div>
+                    <div className="font-mono text-[10px] text-faint">{item.email}</div>
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={item.role}
+                      onChange={(e) => handleUserRoleChange(item.id, e.target.value)}
+                      className="bg-input rounded-lg px-2 py-1.5 text-xs"
+                      aria-label="用户身份"
+                    >
+                      {['guest', 'user', 'vip'].map((role) => (
+                        <option key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2 font-mono text-[11px]">
+                    {item.role === 'vip' ? '不限' : item.generationCount}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-[11px]">{item.trackCount}</td>
+                  <td className="px-2 py-2 font-mono text-[10px] text-faint">
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : '-'}
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 && (
+                <tr>
+                  <td className="px-2 py-6 text-center text-faint" colSpan={5}>
+                    暂无用户身份记录
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* 音乐库管理 */}
       <div className="glass rounded-2xl p-4">
         <span className="deck-label">预生成音乐库</span>
@@ -324,7 +486,10 @@ export default function AdminPanel() {
               className="flex items-center gap-2 rounded-xl border border-theme bg-input px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-medium text-theme">{track.title}</div>
+                <div className="truncate text-xs font-medium text-theme">
+                  {track.title}
+                  {track.mbti && <span className="ml-1 font-mono text-[10px] text-subtle">{track.mbti}</span>}
+                </div>
                 <div className="truncate font-mono text-[10px] text-faint">{track.url}</div>
               </div>
               <audio src={track.url} controls preload="none" className="h-8 w-40" />
@@ -348,6 +513,19 @@ export default function AdminPanel() {
             placeholder="曲目名称"
             className="bg-input w-32 rounded-xl px-3 py-2 text-xs"
           />
+          <select
+            value={newTrack.mbti}
+            onChange={(e) => setNewTrack({ ...newTrack, mbti: e.target.value })}
+            className="bg-input w-28 rounded-xl px-2 py-2 font-mono text-xs"
+            aria-label="人格类型"
+          >
+            <option value="">{libMode === 'personality' ? '选择人格' : '通用'}</option>
+            {MBTI_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             value={newTrack.url}

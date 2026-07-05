@@ -3,7 +3,7 @@
  * 创建/更新黑客松会话（Arranger 引擎的运行单元）。
  */
 import { Router } from 'express';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { createSession, getSession, updateSchedule } from '../services/arranger/sessionStore.js';
 
 const router = Router();
@@ -19,14 +19,14 @@ function sanitizeMbtiSliders(sliders) {
 }
 
 function ownsSession(req, session) {
-  return Boolean(session) && session.userId === req.user.id;
+  return Boolean(session) && session.userId === req.identity.id;
 }
 
-router.post('/', requireUser, async (req, res) => {
+router.post('/', requireIdentity, async (req, res) => {
   try {
     const { name, mbtiType, mbtiSliders, schedule, budgetLimit } = req.body || {};
     const session = await createSession({
-      userId: req.user.id,
+      userId: req.identity.id,
       name,
       mbtiType,
       mbtiSliders: sanitizeMbtiSliders(mbtiSliders),
@@ -40,7 +40,7 @@ router.post('/', requireUser, async (req, res) => {
   }
 });
 
-router.get('/:id', requireUser, async (req, res) => {
+router.get('/:id', requireIdentity, async (req, res) => {
   const session = await getSession(req.params.id);
   if (!ownsSession(req, session)) {
     return res.status(404).json({ error: 'Session not found' });
@@ -48,7 +48,7 @@ router.get('/:id', requireUser, async (req, res) => {
   res.json(session);
 });
 
-router.put('/:id/schedule', requireUser, async (req, res) => {
+router.put('/:id/schedule', requireIdentity, async (req, res) => {
   const session = await getSession(req.params.id);
   if (!ownsSession(req, session)) {
     return res.status(404).json({ error: 'Session not found' });

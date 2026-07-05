@@ -22,7 +22,7 @@ npm run dev
 │  Vibe Coding 有歌声          [TTAPI ●] [LLM ●]  [⚙️ 管理后台] │
 ├──────────────┬──────────────────────┬───────────────────────┤
 │ MBTI Remix   │  Main Deck           │  Mode Pads            │
-│ 四轴推子      │  LED: BPM/TYPE/MODE  │  Focus / Spark        │
+│ 四轴推子      │  LED: BPM/TYPE/MODE  │  七阶段打击垫          │
 │ I/E N/S T/F  │  波形 + 黑胶转盘      │  Sprint / Charge      │
 │ Style FX     │  DROP THE BEAT       │  [我们落后了!]         │
 │ CHILL↔HYPE   │                      │  Prompt Monitor       │
@@ -94,10 +94,12 @@ GET  https://api.ttapi.io/suno/v2/fetch?jobId=...  →  audioUrl
 ## 兜底音乐库
 
 - 默认数据：`server/data/fallback-manifest.json`
-- 运行时增删写入：`server/data/runtime-library.json`（已 gitignore）
-- 管理后台可按模式（focus / spark / sprint / charge）增删曲目
+- 运行时增删写入数据库 `fallback_tracks`；旧 `server/data/runtime-library.json` 仅作为首次导入源
+- 管理后台可按七阶段模式（brainstorm / focus / sprint / charge / behind / break / celebrate）增删曲目
+- 另有 `personality` 人格底色兜底，每首曲目可标记一个 MBTI 类型
 - 本地文件放 `public/samples/`，URL 填 `/samples/xxx.mp3`
-- 赛前用 Suno 批量生成好听的曲，在后台登记
+- 最小准备清单见 [docs/fallback-music-minimum-checklist.md](docs/fallback-music-minimum-checklist.md)
+- 提交前运行 `npm run test:fallback`，确认每个阶段至少 2 首兜底曲，且 16 人格都有底色曲
 
 ## API 参考
 
@@ -160,4 +162,5 @@ server/data/        # MBTI 画像、兜底曲库、运行时配置
 |------|------|
 | `npm run dev` | 同时启动前端 (5173) + 后端 (3001) |
 | `npm run build` | 构建前端到 dist/ |
+| `npm run test:fallback` | 检查七阶段 + 16 人格兜底曲库覆盖 |
 | `npm start` | 生产模式启动后端（含静态文件） |

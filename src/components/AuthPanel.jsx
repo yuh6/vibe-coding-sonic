@@ -100,6 +100,7 @@ function AuthModal({ onClose, onSuccess }) {
 }
 
 export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onLogout, onBeforeLogout, triggerClass, chipClass }) {
+  const isGuest = user?.isGuest || user?.role === 'guest';
   const handleLogout = async () => {
     try {
       await onBeforeLogout?.();
@@ -122,18 +123,25 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
       {user ? (
         <div className="flex items-center gap-2">
           <div className={userChipClass}>
-            <span className="font-display text-xs font-semibold text-white/85">{user.name}</span>
+            <span className="font-display text-xs font-semibold text-white/85">
+              {isGuest ? '游客' : user.name}
+              {user.isVip && <span className="ml-1 text-amber-300">VIP</span>}
+            </span>
             {quota && (
               <span
                 className="font-mono text-[10px] text-white/45"
-                title={`今日生成配额：已用 ${quota.used} / ${quota.limit}`}
+                title={quota.unlimited ? 'VIP 生成不限量' : `生成总额度：已用 ${quota.used} / ${quota.limit}`}
               >
-                ♪ {quota.remaining}/{quota.limit}
+                {quota.unlimited ? '♪ ∞' : `♪ ${quota.remaining}/${quota.limit}`}
               </span>
             )}
           </div>
-          <button type="button" onClick={handleLogout} className={btnClass}>
-            登出
+          <button
+            type="button"
+            onClick={isGuest ? () => onOpenChange(true) : handleLogout}
+            className={btnClass}
+          >
+            {isGuest ? '登录' : '登出'}
           </button>
         </div>
       ) : (

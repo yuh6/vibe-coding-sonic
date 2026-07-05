@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 CREATE TABLE IF NOT EXISTS fallback_tracks (
   id         TEXT PRIMARY KEY,
   mode       TEXT NOT NULL,
+  mbti       TEXT,
   title      TEXT NOT NULL,
   url        TEXT NOT NULL,
   created_at INTEGER NOT NULL
@@ -289,6 +290,10 @@ const RADIO_SNAPSHOT_COLUMNS = [
   ['current_track_audio_url', 'TEXT'],
 ];
 
+const FALLBACK_TRACK_COLUMNS = [
+  ['mbti', 'TEXT'],
+];
+
 export async function applyCompatibilityMigrations(dal, driver) {
   if (driver === 'pg') {
     await dal.exec(`
@@ -296,15 +301,26 @@ export async function applyCompatibilityMigrations(dal, driver) {
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_genre TEXT;
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_bpm INTEGER;
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_audio_url TEXT;
+      ALTER TABLE fallback_tracks ADD COLUMN IF NOT EXISTS mbti TEXT;
+      CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);
     `);
     return;
   }
 
-  const rows = await dal.query('PRAGMA table_info(radio_stations)');
-  const existing = new Set(rows.map((row) => row.name));
+  const radioRows = await dal.query('PRAGMA table_info(radio_stations)');
+  const existingRadio = new Set(radioRows.map((row) => row.name));
   for (const [name, type] of RADIO_SNAPSHOT_COLUMNS) {
-    if (!existing.has(name)) {
+    if (!existingRadio.has(name)) {
       await dal.exec(`ALTER TABLE radio_stations ADD COLUMN ${name} ${type};`);
     }
   }
+
+  const fallbackRows = await dal.query('PRAGMA table_info(fallback_tracks)');
+  const existingFallback = new Set(fallbackRows.map((row) => row.name));
+  for (const [name, type] of FALLBACK_TRACK_COLUMNS) {
+    if (!existingFallback.has(name)) {
+      await dal.exec(`ALTER TABLE fallback_tracks ADD COLUMN ${name} ${type};`);
+    }
+  }
+  await dal.exec('CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);');
 }

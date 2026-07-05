@@ -1,34 +1,204 @@
 {
   "brainstorm": [
-    { "id": "brainstorm-1", "title": "Creative Spark", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
-    { "id": "brainstorm-2", "title": "Brainstorm Beat", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
-    { "id": "brainstorm-3", "title": "Idea Burst", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" }
+    {
+      "id": "brainstorm-1",
+      "title": "Creative Spark",
+      "url": "/samples/fallback-brainstorm-a.mp3"
+    },
+    {
+      "id": "brainstorm-2",
+      "title": "Brainstorm Beat",
+      "url": "/samples/fallback-brainstorm-b.mp3"
+    },
+    {
+      "id": "brainstorm-3",
+      "title": "Idea Burst",
+      "url": "/samples/fallback-brainstorm-c.mp3"
+    }
   ],
   "focus": [
-    { "id": "focus-1", "title": "Lo-fi Study", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-    { "id": "focus-2", "title": "Ambient Flow", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-    { "id": "focus-3", "title": "Deep Focus", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+    {
+      "id": "focus-1",
+      "title": "Lo-fi Study",
+      "url": "/samples/fallback-focus-a.mp3"
+    },
+    {
+      "id": "focus-2",
+      "title": "Ambient Flow",
+      "url": "/samples/fallback-focus-b.mp3"
+    },
+    {
+      "id": "focus-3",
+      "title": "Deep Focus",
+      "url": "/samples/fallback-focus-c.mp3"
+    }
   ],
   "sprint": [
-    { "id": "sprint-1", "title": "Sprint Drive", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3" },
-    { "id": "sprint-2", "title": "Deadline Rush", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
-    { "id": "sprint-3", "title": "Night Push", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3" }
+    {
+      "id": "sprint-1",
+      "title": "Sprint Drive",
+      "url": "/samples/fallback-sprint-a.mp3"
+    },
+    {
+      "id": "sprint-2",
+      "title": "Deadline Rush",
+      "url": "/samples/fallback-sprint-b.mp3"
+    },
+    {
+      "id": "sprint-3",
+      "title": "Night Push",
+      "url": "/samples/fallback-sprint-c.mp3"
+    }
   ],
   "charge": [
-    { "id": "charge-1", "title": "Epic Charge", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3" },
-    { "id": "charge-2", "title": "Stage Ready", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3" },
-    { "id": "charge-3", "title": "Final Boss", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3" }
+    {
+      "id": "charge-1",
+      "title": "Epic Charge",
+      "url": "/samples/fallback-charge-a.mp3"
+    },
+    {
+      "id": "charge-2",
+      "title": "Stage Ready",
+      "url": "/samples/fallback-charge-b.mp3"
+    },
+    {
+      "id": "charge-3",
+      "title": "Final Boss",
+      "url": "/samples/fallback-charge-c.mp3"
+    }
   ],
   "behind": [
-    { "id": "behind-1", "title": "Catch Up Countdown", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
-    { "id": "behind-2", "title": "Tense Push", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3" }
+    {
+      "id": "behind-1",
+      "title": "Catch Up Countdown",
+      "url": "/samples/fallback-behind-a.mp3"
+    },
+    {
+      "id": "behind-2",
+      "title": "Tense Push",
+      "url": "/samples/fallback-behind-b.mp3"
+    }
   ],
   "break": [
-    { "id": "break-1", "title": "Chill Breather", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-    { "id": "break-2", "title": "Mellow Pause", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+    {
+      "id": "break-1",
+      "title": "Chill Breather",
+      "url": "/samples/fallback-break-a.mp3"
+    },
+    {
+      "id": "break-2",
+      "title": "Mellow Pause",
+      "url": "/samples/fallback-break-b.mp3"
+    }
   ],
   "celebrate": [
-    { "id": "celebrate-1", "title": "Victory Lap", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3" },
-    { "id": "celebrate-2", "title": "Confetti Drop", "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3" }
+    {
+      "id": "celebrate-1",
+      "title": "Victory Lap",
+      "url": "/samples/fallback-celebrate-a.mp3"
+    },
+    {
+      "id": "celebrate-2",
+      "title": "Confetti Drop",
+      "url": "/samples/fallback-celebrate-b.mp3"
+    }
+  ],
+  "personality": [
+    {
+      "id": "personality-intj-a",
+      "mbti": "INTJ",
+      "title": "Strategic Depth",
+      "url": "/samples/fallback-personality-intj-a.mp3"
+    },
+    {
+      "id": "personality-intp-a",
+      "mbti": "INTP",
+      "title": "Logic Drift",
+      "url": "/samples/fallback-personality-intp-a.mp3"
+    },
+    {
+      "id": "personality-entj-a",
+      "mbti": "ENTJ",
+      "title": "Command Rise",
+      "url": "/samples/fallback-personality-entj-a.mp3"
+    },
+    {
+      "id": "personality-entp-a",
+      "mbti": "ENTP",
+      "title": "Voltage Debate",
+      "url": "/samples/fallback-personality-entp-a.mp3"
+    },
+    {
+      "id": "personality-infj-a",
+      "mbti": "INFJ",
+      "title": "Quiet Vision",
+      "url": "/samples/fallback-personality-infj-a.mp3"
+    },
+    {
+      "id": "personality-infp-a",
+      "mbti": "INFP",
+      "title": "Dream Archive",
+      "url": "/samples/fallback-personality-infp-a.mp3"
+    },
+    {
+      "id": "personality-enfj-a",
+      "mbti": "ENFJ",
+      "title": "Warm Signal",
+      "url": "/samples/fallback-personality-enfj-a.mp3"
+    },
+    {
+      "id": "personality-enfp-a",
+      "mbti": "ENFP",
+      "title": "Spark Carnival",
+      "url": "/samples/fallback-personality-enfp-a.mp3"
+    },
+    {
+      "id": "personality-istj-a",
+      "mbti": "ISTJ",
+      "title": "Steady Ledger",
+      "url": "/samples/fallback-personality-istj-a.mp3"
+    },
+    {
+      "id": "personality-isfj-a",
+      "mbti": "ISFJ",
+      "title": "Gentle Harbor",
+      "url": "/samples/fallback-personality-isfj-a.mp3"
+    },
+    {
+      "id": "personality-estj-a",
+      "mbti": "ESTJ",
+      "title": "Organized Drive",
+      "url": "/samples/fallback-personality-estj-a.mp3"
+    },
+    {
+      "id": "personality-esfj-a",
+      "mbti": "ESFJ",
+      "title": "United Hearts",
+      "url": "/samples/fallback-personality-esfj-a.mp3"
+    },
+    {
+      "id": "personality-istp-a",
+      "mbti": "ISTP",
+      "title": "Cool Mechanic",
+      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3"
+    },
+    {
+      "id": "personality-isfp-a",
+      "mbti": "ISFP",
+      "title": "Soft Prism",
+      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3"
+    },
+    {
+      "id": "personality-estp-a",
+      "mbti": "ESTP",
+      "title": "Action Pulse",
+      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3"
+    },
+    {
+      "id": "personality-esfp-a",
+      "mbti": "ESFP",
+      "title": "Spotlight Dance",
+      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3"
+    }
   ]
 }

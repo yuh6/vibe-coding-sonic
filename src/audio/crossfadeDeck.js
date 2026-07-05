@@ -5,6 +5,17 @@
  */
 
 const DEFAULT_FADE_SEC = 3;
+const AUDIO_EXT_RE = /\.(mp3|wav|m4a|aac|flac|ogg|opus)(\?|#|$)/i;
+
+function isLikelyAudioResponse(res, url) {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
+  if (!contentType) return AUDIO_EXT_RE.test(url);
+  return (
+    contentType.startsWith('audio/') ||
+    contentType === 'application/octet-stream' ||
+    contentType === 'binary/octet-stream'
+  );
+}
 
 function connectChain(ctx, buffer, destination) {
   const source = ctx.createBufferSource();
@@ -42,8 +53,16 @@ export class CrossfadeDeck {
     const ctx = this.ctx;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Crossfade decode failed (HTTP ${res.status}): ${url}`);
+    if (!isLikelyAudioResponse(res, url)) {
+      throw new Error(`Crossfade decode failed: unsupported response (${res.headers.get('content-type') || 'unknown content type'})`);
+    }
     const raw = await res.arrayBuffer();
-    const buffer = await ctx.decodeAudioData(raw);
+    let buffer;
+    try {
+      buffer = await ctx.decodeAudioData(raw);
+    } catch {
+      throw new Error('Crossfade decode failed: unsupported or invalid audio file');
+    }
     this.decodedCache.set(url, buffer);
     return buffer;
   }

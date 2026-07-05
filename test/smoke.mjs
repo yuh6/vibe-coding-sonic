@@ -151,13 +151,16 @@ try {
   await waitForServer(client);
   const sharedTrack = seedSharedLibraryTrack(dbPath);
 
-  await assert.rejects(
-    () => client.request('/api/notes/parse', {
-      method: 'POST',
-      body: { text: 'happy synth drive' },
-    }),
-    (err) => err.status === 401
-  );
+  const guestMe = await client.request('/api/auth/me');
+  assert.equal(guestMe.user.isGuest, true);
+  assert.equal(guestMe.quota.limit, 5);
+  assert.ok(client.cookies.has('vibe_guest'));
+
+  const guestNotes = await client.request('/api/notes/parse', {
+    method: 'POST',
+    body: { text: 'happy synth drive' },
+  });
+  assert.ok(Array.isArray(guestNotes.keywords));
 
   const email = `smoke-${Date.now()}@example.test`;
   const password = 'smoke-pass-123';
@@ -181,8 +184,22 @@ try {
   const me = await client.request('/api/auth/me');
   assert.equal(me.user.email, email);
 
+  const quotaSettings = await client.request('/api/config/quota-settings');
+  assert.equal(quotaSettings.guestLimit, 5);
+  assert.equal(quotaSettings.userLimit, 5);
+
+  const adminUsers = await client.request('/api/config/users');
+  assert.ok(adminUsers.users.some((user) => user.email === email));
+
   const sharedStats = await client.request('/api/library/shared/stats');
   assert.equal(typeof sharedStats.total, 'number');
+
+  const fallbackLibrary = await client.request('/api/library');
+  assert.ok(fallbackLibrary.personality?.some((track) => track.mbti === 'INTJ'));
+
+  const mbtiFallback = await client.request('/api/music/fallback?mode=focus&mbti=INTJ');
+  assert.equal(mbtiFallback.id, 'personality-intj-a');
+  assert.equal(mbtiFallback.mbti, 'INTJ');
 
   const playlists = await client.request('/api/playlists/mine/list');
   assert.ok(Array.isArray(playlists.playlists));

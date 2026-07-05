@@ -5,7 +5,7 @@ import {
   createSession,
   destroySession,
 } from '../services/authService.js';
-import { requireUser, sessionCookie, clearSessionCookie } from '../middleware/userAuth.js';
+import { requireIdentity, sessionCookie, clearSessionCookie } from '../middleware/userAuth.js';
 import { getQuota } from '../services/quotaService.js';
 
 const router = Router();
@@ -30,7 +30,7 @@ function authRateLimit(req, res, next) {
 async function issueSession(res, user) {
   const { token, maxAgeMs } = await createSession(user.id);
   res.setHeader('Set-Cookie', sessionCookie(token, maxAgeMs));
-  return { user, quota: await getQuota(user.id) };
+  return { user, quota: await getQuota(user), authenticated: true };
 }
 
 router.post('/register', authRateLimit, async (req, res) => {
@@ -57,8 +57,12 @@ router.post('/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/me', requireUser, async (req, res) => {
-  res.json({ user: req.user, quota: await getQuota(req.user.id) });
+router.get('/me', requireIdentity, async (req, res) => {
+  res.json({
+    user: req.identity,
+    quota: await getQuota(req.identity),
+    authenticated: !req.identity.isGuest,
+  });
 });
 
 export default router;

@@ -3,12 +3,27 @@ import { promisify } from 'util';
 import { db } from '../db.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
+const GUEST_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 年
 const MAX_EMAIL_LENGTH = 254;
 const MAX_NAME_LENGTH = 80;
 const MAX_PASSWORD_LENGTH = 128;
 const DUMMY_PASSWORD_HASH = `${'0'.repeat(32)}:${'0'.repeat(128)}`;
 const scryptAsync = promisify(scrypt);
 export const SESSION_COOKIE = 'vibe_session';
+export const GUEST_COOKIE = 'vibe_guest';
+
+function publicUser(row) {
+  if (!row) return null;
+  const role = row.role || 'user';
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role,
+    isGuest: role === 'guest',
+    isVip: role === 'vip' || role === 'admin',
+  };
+}
 
 function normalizeEmail(email) {
   const normalized = String(email || '').trim().toLowerCase();
@@ -60,7 +75,7 @@ export async function registerUser({ email, password, name }) {
   await db.prepare(
     'INSERT INTO users (id, email, password_hash, name, created_at) VALUES (@id, @email, @password_hash, @name, @created_at)'
   ).run(user);
-  return { id: user.id, email: user.email, name: user.name, role: 'user' };
+  return publicUser({ ...user, role: 'user' });
 }
 
 export async function loginUser({ email, password }) {
@@ -73,7 +88,7 @@ export async function loginUser({ email, password }) {
     throw new Error('邮箱或密码错误');
   }
   if (!(await verifyPassword(normalizedPassword, row.password_hash))) throw new Error('邮箱或密码错误');
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  return publicUser(row);
 }
 
 export async function createSession(userId) {
@@ -102,5 +117,31 @@ export async function getUserBySession(token) {
     await destroySession(token);
     return null;
   }
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  return publicUser(row);
 }
+
+export async function getOrCreateGuestUser(guestToken) {
+  const token = String(guestToken || '').trim();
+  if (token) {
+    const existing = await db.prepare('SELECT * FROM users WHERE id = ?').get(token);
+    if (existing) return { user: publicUser(existing), token, maxAgeMs: GUEST_TTL_MS, created: false };
+  }
+
+  const id = randomUUID();
+  const suffix = id.slice(0, 8);
+  const user = {
+    id,
+    email: `guest-${id}@guest.local`,
+    password_hash: 'guest',
+    name: `游客 ${suffix}`,
+    role: 'guest',
+    created_at: Date.now(),
+  };
+  await db.prepare(
+    `INSERT INTO users (id, email, password_hash, name, role, created_at)
+     VALUES (@id, @email, @password_hash, @name, @role, @created_at)`
+  ).run(user);
+  return { user: publicUser(user), token: id, maxAgeMs: GUEST_TTL_MS, created: true };
+}
+
+export { GUEST_TTL_MS };

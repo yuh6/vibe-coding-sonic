@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireUser, attachUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { recordPlay, getUserHistory, getRecommendations, getPopularTracks } from '../services/recommendService.js';
 
 const router = Router();
@@ -12,24 +12,24 @@ router.get('/popular', async (req, res) => {
 });
 
 // 需登录：个性化推荐
-router.get('/for-you', requireUser, async (req, res) => {
+router.get('/for-you', requireIdentity, async (req, res) => {
   const { limit = 10 } = req.query;
-  const tracks = await getRecommendations(req.user.id, { limit: Math.min(Number(limit) || 10, 50) });
+  const tracks = await getRecommendations(req.identity.id, { limit: Math.min(Number(limit) || 10, 50) });
   res.json({ tracks });
 });
 
 // 需登录：我的播放历史
-router.get('/history', requireUser, async (req, res) => {
+router.get('/history', requireIdentity, async (req, res) => {
   const { page = 1, limit = 30 } = req.query;
-  const result = await getUserHistory(req.user.id, { page: Number(page), limit: Math.min(Number(limit) || 30, 100) });
+  const result = await getUserHistory(req.identity.id, { page: Number(page), limit: Math.min(Number(limit) || 30, 100) });
   res.json(result);
 });
 
 // 需登录：记录播放
-router.post('/play', requireUser, async (req, res) => {
+router.post('/play', requireIdentity, async (req, res) => {
   const { trackId, durationSec, completed } = req.body || {};
   if (!trackId) return res.status(400).json({ error: 'trackId is required' });
-  await recordPlay({ userId: req.user.id, trackId, durationSec, completed });
+  await recordPlay({ userId: req.identity.id, trackId, durationSec, completed });
   res.json({ ok: true });
 });
 

@@ -15,6 +15,18 @@ const EQ_BANDS = {
   high: { type: 'highshelf', frequency: 3200 },
 };
 
+const AUDIO_EXT_RE = /\.(mp3|wav|m4a|aac|flac|ogg|opus)(\?|#|$)/i;
+
+function isLikelyAudioResponse(res, url) {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
+  if (!contentType) return AUDIO_EXT_RE.test(url);
+  return (
+    contentType.startsWith('audio/') ||
+    contentType === 'application/octet-stream' ||
+    contentType === 'binary/octet-stream'
+  );
+}
+
 const DEFAULT_TRACK_STATE = () => ({
   volume: 0.8,
   pan: 0,
@@ -94,8 +106,16 @@ export class MixerEngine {
     const ctx = this.ensureContext();
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Audio download failed (HTTP ${res.status})`);
+    if (!isLikelyAudioResponse(res, url)) {
+      throw new Error(`Unsupported audio response (${res.headers.get('content-type') || 'unknown content type'})`);
+    }
     const raw = await res.arrayBuffer();
-    const buffer = await ctx.decodeAudioData(raw);
+    let buffer;
+    try {
+      buffer = await ctx.decodeAudioData(raw);
+    } catch {
+      throw new Error('Audio decode failed: unsupported or invalid audio file');
+    }
 
     const id = `t${++uid}`;
     const gain = ctx.createGain();

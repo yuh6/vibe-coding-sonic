@@ -13,7 +13,7 @@ import {
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
 import { isSunoConfigured } from '../services/sunoClient.js';
-import { requireUser } from '../middleware/userAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { libraryHasTrackUrl } from '../services/libraryStore.js';
 import {
@@ -27,6 +27,7 @@ import {
 const router = Router();
 const AUDIO_PROXY_MAX_BYTES = positiveNumber(process.env.AUDIO_PROXY_MAX_BYTES, 50 * 1024 * 1024);
 const AUDIO_PROXY_TIMEOUT_MS = positiveNumber(process.env.AUDIO_PROXY_TIMEOUT_MS, 15_000);
+const DEFAULT_AUDIO_PROXY_ALLOWED_HOSTS = ['soundhelix.com', 'www.soundhelix.com'];
 const AUDIO_EXT_RE = /\.(mp3|wav|m4a|aac|flac|ogg|opus)(\?|#|$)/i;
 const paidGenerateLimit = createRateLimit({
   windowMs: 60_000,
@@ -40,10 +41,11 @@ function positiveNumber(value, fallback) {
 }
 
 function parseAllowedHosts(value = process.env.AUDIO_PROXY_ALLOWED_HOSTS || '') {
-  return String(value)
+  const configured = String(value)
     .split(',')
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean);
+  return [...new Set([...DEFAULT_AUDIO_PROXY_ALLOWED_HOSTS, ...configured])];
 }
 
 function hostMatches(pattern, hostname) {
@@ -100,6 +102,8 @@ function isPrivateAddress(address) {
 
 async function assertPublicNetworkTarget(url) {
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (isAllowedConfiguredHost(hostname)) return;
+
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
     throw Object.assign(new Error('private network targets are not allowed'), { status: 400 });
   }
@@ -173,7 +177,7 @@ function limitPaidGeneration(req, res, next) {
 
 function requireGenerateUser(req, res, next) {
   if (req.body?.previewOnly) return next();
-  return requireUser(req, res, next);
+  return requireIdentity(req, res, next);
 }
 
 router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, res) => {
@@ -207,7 +211,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
     let quotaNotice = null;
     let quotaCharged = false;
     if (!useFallback && isSunoConfigured()) {
-      const quota = await consumeQuota(req.user.id);
+      const quota = await consumeQuota(req.identity);
       if (!quota.ok) {
         useFallback = true;
         quotaNotice = quota.error;
@@ -217,7 +221,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
     }
 
     const job = createMusicJob({
-      userId: req.user.id,
+      userId: req.identity.id,
       mbti,
       axes,
       mode,
@@ -241,7 +245,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       mbti: job.mbti,
       profile: job.profile,
       splitStems: job.splitStems,
-      quota: await getQuota(req.user.id),
+      quota: await getQuota(req.identity),
       quotaNotice,
     });
   } catch (err) {
@@ -250,13 +254,13 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
   }
 });
 
-router.get('/status/:id', requireUser, async (req, res) => {
+router.get('/status/:id', requireIdentity, async (req, res) => {
   try {
     const job = await refreshJob(req.params.id);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
-    if (job.userId !== req.user.id) {
+    if (job.userId !== req.identity.id) {
       return res.status(404).json({ error: 'Job not found' });
     }
 
@@ -331,7 +335,7 @@ router.get('/fallback', async (req, res) => {
 });
 
 // 音频代理需登录：防止被当作公网开放代理滥用
-router.get('/proxy', requireUser, async (req, res) => {
+router.get('/proxy', requireIdentity, async (req, res) => {
   const { url } = req.query;
   let parsed;
   try {
@@ -342,7 +346,7 @@ router.get('/proxy', requireUser, async (req, res) => {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'only http/https allowed' });
   }
-  if (!(await isAuthorizedProxyUrl(req.user.id, parsed.href))) {
+  if (!(await isAuthorizedProxyUrl(req.identity.id, parsed.href))) {
     return res.status(403).json({ error: 'audio url is not available for this user' });
   }
 
