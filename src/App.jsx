@@ -556,14 +556,10 @@ export default function App() {
         ) : (
           <>
           <div className="grid gap-4 lg:grid-cols-12">
-            {/* 左 Deck：MBTI Remix + 风格 */}
+            {/* 左 Deck：MBTI Remix + 风格 + Project Input + Arranger + Genre */}
             <div className="space-y-4 lg:col-span-4">
               <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
               <StyleFaders style={style} onStyleChange={setStyle} />
-            </div>
-
-            {/* 中 Deck */}
-            <div className="space-y-4 lg:col-span-5">
               <ProjectDeck
                 name={projectName}
                 description={projectDesc}
@@ -588,6 +584,9 @@ export default function App() {
               </div>
               <GenreSelector value={genre} onChange={setGenre} theme={theme} />
             </div>
+
+            {/* 中 Deck：留空给 FloatingWindow */}
+            <div className="lg:col-span-5" />
 
             {/* 右 Deck：模式 + Prompt 监视器 */}
             <div className="space-y-4 lg:col-span-3">
