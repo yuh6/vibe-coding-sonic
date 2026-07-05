@@ -556,7 +556,7 @@ export default function App() {
         ) : (
           <>
           <div className="grid gap-4 lg:grid-cols-12">
-            {/* 左 Deck：MBTI Remix + 风格 + Project Input + Arranger + Genre */}
+            {/* 左 Deck：MBTI Remix + 风格 + Project Input */}
             <div className="space-y-4 lg:col-span-4">
               <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
               <StyleFaders style={style} onStyleChange={setStyle} />
@@ -568,6 +568,21 @@ export default function App() {
                 onApplyPreset={handleApplyPreset}
                 onGithubAnalyze={handleGithubAnalyze}
                 analysisSource={analysisSource}
+              />
+            </div>
+
+            {/* 中 Deck：Genre 选择器 + 留空给 FloatingWindow */}
+            <div className="space-y-4 lg:col-span-5">
+              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
+            </div>
+
+            {/* 右 Deck：模式 + Prompt 监视器 + Arranger */}
+            <div className="space-y-4 lg:col-span-3">
+              <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
+              <PromptCard
+                layers={promptData?.layers}
+                fullPrompt={promptData?.fullPrompt}
+                loading={promptLoading}
               />
               <div id="dj-arranger-anchor">
                 <ArrangerPanel
@@ -582,21 +597,6 @@ export default function App() {
                   onRadioToggle={handleRadioToggle}
                 />
               </div>
-            </div>
-
-            {/* 中 Deck：Genre 选择器 + 留空给 FloatingWindow */}
-            <div className="space-y-4 lg:col-span-5">
-              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
-            </div>
-
-            {/* 右 Deck：模式 + Prompt 监视器 */}
-            <div className="space-y-4 lg:col-span-3">
-              <ModePads mode={mode} onModeChange={handleModeChange} onPanic={handlePanic} />
-              <PromptCard
-                layers={promptData?.layers}
-                fullPrompt={promptData?.fullPrompt}
-                loading={promptLoading}
-              />
             </div>
           </div>
 
