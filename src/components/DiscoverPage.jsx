@@ -155,26 +155,34 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   }, []);
 
   const handleTune = useCallback(async (station) => {
-    if (tuned) await leaveRadio(tuned.id).catch(() => {});
-    const full = await joinRadio(station.id);
-    setTuned(full);
-    if (full.currentTrack?.audioUrl) {
-      onPlayTrack?.({ audioUrl: full.currentTrack.audioUrl, title: full.currentTrack.title });
+    try {
+      if (tuned) await leaveRadio(tuned.id).catch(() => {});
+      const full = await joinRadio(station.id);
+      setTuned(full);
+      if (full.currentTrack?.audioUrl) {
+        onPlayTrack?.({ audioUrl: full.currentTrack.audioUrl, title: full.currentTrack.title });
+      }
+    } catch (err) {
+      console.error('[discover] handleTune failed:', err);
     }
   }, [tuned, onPlayTrack]);
 
   const handlePlayPlaylist = useCallback(async (pl) => {
-    await recordPlaylistPlay(pl.id).catch(() => {});
-    setPlaylists((items) =>
-      items.map((item) => item.id === pl.id ? { ...item, playCount: (item.playCount || 0) + 1 } : item)
-    );
+    try {
+      await recordPlaylistPlay(pl.id).catch(() => {});
+      setPlaylists((items) =>
+        items.map((item) => item.id === pl.id ? { ...item, playCount: (item.playCount || 0) + 1 } : item)
+      );
 
-    const detail = await getPlaylist(pl.id);
-    setPlaylistDetail(detail);
-    if (detail?.tracks?.length) {
-      const first = detail.tracks[0];
-      if (first.id) recordSharedTrackPlay(first.id).catch(() => {});
-      onPlayTrack?.({ audioUrl: first.audioUrl, title: first.title, trackId: first.id });
+      const detail = await getPlaylist(pl.id);
+      setPlaylistDetail(detail);
+      if (detail?.tracks?.length) {
+        const first = detail.tracks[0];
+        if (first.id) recordSharedTrackPlay(first.id).catch(() => {});
+        onPlayTrack?.({ audioUrl: first.audioUrl, title: first.title, trackId: first.id });
+      }
+    } catch (err) {
+      console.error('[discover] handlePlayPlaylist failed:', err);
     }
   }, [onPlayTrack]);
 

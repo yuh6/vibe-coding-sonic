@@ -21,14 +21,15 @@ function shouldAttachAdminToken(path) {
 async function request(path, options = {}) {
   const method = options.method || 'GET';
   const token = shouldAttachAdminToken(path) ? getStoredAdminToken() : '';
+  const { headers: customHeaders, ...restOptions } = options;
   const res = await fetch(`${API_BASE}${path}`, {
+    ...restOptions,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'X-Admin-Token': token } : {}),
-      ...options.headers,
+      ...customHeaders,
     },
     credentials: 'same-origin',
-    ...options,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

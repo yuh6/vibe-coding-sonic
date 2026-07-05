@@ -39,9 +39,10 @@ router.get('/:trackId/status', requireIdentity, async (req, res) => {
 // 给歌曲评分 (1-5)
 router.post('/:trackId/rate', requireIdentity, async (req, res) => {
   const { score } = req.body || {};
-  if (!score || score < 1 || score > 5) return res.status(400).json({ error: 'score must be 1-5' });
+  const parsed = Number(score);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) return res.status(400).json({ error: 'score must be integer 1-5' });
   try {
-    const result = await rateTrack(req.identity.id, req.params.trackId, score);
+    const result = await rateTrack(req.identity.id, req.params.trackId, parsed);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });

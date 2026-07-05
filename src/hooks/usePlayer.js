@@ -61,6 +61,7 @@ export function useMusicPoll() {
 
 export function usePlayer() {
   const howlRef = useRef(null);
+  const currentUrlRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.7);
   const [muted, setMuted] = useState(false);
@@ -71,6 +72,7 @@ export function usePlayer() {
       howlRef.current.unload();
       howlRef.current = null;
     }
+    currentUrlRef.current = null;
     setPlaying(false);
     setCurrentTitle('');
   }, []);
@@ -78,6 +80,12 @@ export function usePlayer() {
   const playUrl = useCallback(
     (url, { title = '', loop = true, fadeIn = true } = {}) => {
       if (!url) return;
+
+      if (howlRef.current && currentUrlRef.current === url) {
+        if (title) setCurrentTitle(title);
+        if (!howlRef.current.playing()) howlRef.current.play();
+        return;
+      }
 
       const startNew = () => {
         const howl = new Howl({
@@ -94,20 +102,23 @@ export function usePlayer() {
         });
 
         howlRef.current = howl;
+        currentUrlRef.current = url;
         setCurrentTitle(title);
         howl.play();
         if (fadeIn) {
           howl.fade(0, muted ? 0 : volume, FADE_MS);
         }
+        return howl;
       };
 
       if (howlRef.current) {
         const prev = howlRef.current;
         prev.fade(prev.volume(), 0, FADE_MS);
-        setTimeout(() => {
-          prev.unload();
-          startNew();
-        }, FADE_MS);
+        prev.once('fade', () => {
+          // 只有当 prev 不再是当前播放实例时才卸载
+          if (howlRef.current !== prev) prev.unload();
+        });
+        startNew();
       } else {
         startNew();
       }

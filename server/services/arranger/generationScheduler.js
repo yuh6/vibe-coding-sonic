@@ -6,6 +6,7 @@
 import { randomUUID } from 'crypto';
 import { composePrompt } from '../promptComposer.js';
 import { isSunoConfigured, submitGeneration, pollGeneration } from '../sunoClient.js';
+import { pickTrack } from '../libraryStore.js';
 import { storage } from '../../storage/index.js';
 import * as trackPool from './trackPool.js';
 import * as sessionStore from './sessionStore.js';
@@ -69,7 +70,7 @@ export class GenerationScheduler {
   async submit(promptOpts, { urgency = 'normal' } = {}) {
     const gate = await this.budgetGate();
     if (gate && urgency !== 'immediate') {
-      return { skipped: true, reason: gate };
+      return this.createFallbackTrack(promptOpts, { reason: gate });
     }
 
     if (urgency === 'immediate') {
@@ -83,6 +84,29 @@ export class GenerationScheduler {
     }
 
     return this.startGeneration(promptOpts);
+  }
+
+  async createFallbackTrack(promptOpts, { reason = 'fallback' } = {}) {
+    const composed = composePrompt(promptOpts);
+    const fallback = await pickTrack(composed.mode, composed.mbti);
+    if (!fallback?.url) {
+      this.emit('music_ready', { track: null, error: 'No fallback track available', phase: composed.mode, reason });
+      return null;
+    }
+
+    const ready = await trackPool.createTrack(this.sessionId, {
+      phase: composed.mode,
+      moodTag: fallback.title || `${composed.mbti}-${composed.mode}`,
+      energyLevel: promptOpts.targetEnergy ?? 50,
+      genre: composed.profile?.genre || 'Fallback',
+      instruments: [],
+      promptConfig: { ...composed, fallback: true, fallbackReason: reason, fallbackTrackId: fallback.id },
+      audioUrl: fallback.url,
+      audioLocal: fallback.url,
+      durationSec: null,
+    });
+    this.emit('music_ready', { track: ready, fallback: true, phase: composed.mode, reason });
+    return ready;
   }
 
   async startGeneration(promptOpts) {
@@ -126,6 +150,16 @@ export class GenerationScheduler {
       return ready;
     } catch (err) {
       console.error('[arranger] generation failed:', err.message);
+      const fallback = await pickTrack(composed.mode, composed.mbti);
+      if (fallback?.url) {
+        const ready = await trackPool.markTrackReady(track.id, {
+          audioUrl: fallback.url,
+          audioLocal: fallback.url,
+          durationSec: null,
+        });
+        this.emit('music_ready', { track: ready, fallback: true, error: err.message, phase: composed.mode });
+        return ready;
+      }
       this.emit('music_ready', { track: null, error: err.message, phase: composed.mode });
       return null;
     } finally {

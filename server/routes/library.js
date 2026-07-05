@@ -42,7 +42,7 @@ router.get('/shared', async (req, res) => {
   const { mode, mbti, genre, q, page = 1, limit = 20 } = req.query;
   const result = await listSharedLibrary({
     mode: mode || undefined,
-    mbti: mbti?.toUpperCase() || undefined,
+    mbti: (typeof mbti === 'string' ? mbti : '')?.toUpperCase() || undefined,
     genre: genre || undefined,
     q: q || undefined,
     page: Number(page),

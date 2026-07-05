@@ -167,6 +167,8 @@ export default function MusicWheel({
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.45);
+      // 音效结束后关闭 AudioContext，释放系统音频资源
+      osc.onended = () => ctx.close().catch(() => {});
     } catch {
       // 用户尚未交互时浏览器可能拒绝播放，忽略即可
     }

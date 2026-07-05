@@ -180,25 +180,32 @@
       "id": "personality-istp-a",
       "mbti": "ISTP",
       "title": "Cool Mechanic",
-      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3"
+      "url": "/samples/fallback-personality-istp-a.mp3"
     },
     {
       "id": "personality-isfp-a",
       "mbti": "ISFP",
       "title": "Soft Prism",
-      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3"
+      "url": "/samples/fallback-personality-isfp-a.mp3"
     },
     {
       "id": "personality-estp-a",
       "mbti": "ESTP",
       "title": "Action Pulse",
-      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3"
+      "url": "/samples/fallback-personality-estp-a.mp3"
     },
     {
       "id": "personality-esfp-a",
       "mbti": "ESFP",
       "title": "Spotlight Dance",
-      "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3"
+      "url": "/samples/fallback-personality-esfp-a.mp3"
+    }
+  ],
+  "startup": [
+    {
+      "id": "startup-horizon-a",
+      "title": "Startup Horizon",
+      "url": "/samples/fallback-startup-horizon-a.mp3"
     }
   ]
 }

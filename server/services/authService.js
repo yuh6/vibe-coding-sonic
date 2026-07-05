@@ -123,7 +123,7 @@ export async function getUserBySession(token) {
 export async function getOrCreateGuestUser(guestToken) {
   const token = String(guestToken || '').trim();
   if (token) {
-    const existing = await db.prepare('SELECT * FROM users WHERE id = ?').get(token);
+    const existing = await db.prepare('SELECT * FROM users WHERE id = ? AND role = ?').get(token, 'guest');
     if (existing) return { user: publicUser(existing), token, maxAgeMs: GUEST_TTL_MS, created: false };
   }
 

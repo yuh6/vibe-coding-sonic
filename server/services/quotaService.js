@@ -10,9 +10,9 @@ function positiveInt(value, fallback = DEFAULT_GENERATION_LIMIT) {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
 }
 
-function normalizeUser(userOrId) {
+async function normalizeUser(userOrId) {
   if (userOrId && typeof userOrId === 'object') return userOrId;
-  const row = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(userOrId);
+  const row = await db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(userOrId);
   return row || { id: userOrId, role: 'user' };
 }
 
@@ -24,18 +24,18 @@ export function quotaSettings() {
   };
 }
 
-function quotaLimitFor(userOrId) {
-  const user = normalizeUser(userOrId);
+async function quotaLimitFor(userOrId) {
+  const user = await normalizeUser(userOrId);
   if (user?.role === 'vip' || user?.role === 'admin' || user?.isVip) return null;
   const settings = quotaSettings();
   return user?.role === 'guest' || user?.isGuest ? settings.guestLimit : settings.userLimit;
 }
 
 export async function getQuota(userOrId) {
-  const user = normalizeUser(userOrId);
+  const user = await normalizeUser(userOrId);
   const row = await db.prepare('SELECT used FROM quotas WHERE user_id = ? AND day = ?').get(user.id, TOTAL_QUOTA_KEY);
   const used = Number(row?.used || 0);
-  const limit = quotaLimitFor(user);
+  const limit = await quotaLimitFor(user);
   return {
     used,
     limit,
@@ -53,7 +53,7 @@ async function globalUsedToday() {
 
 // 检查并占用一次配额；返回 { ok } 或 { ok: false, status, error }
 export async function consumeQuota(userOrId) {
-  const user = normalizeUser(userOrId);
+  const user = await normalizeUser(userOrId);
   if (await globalUsedToday() >= GLOBAL_DAILY_LIMIT) {
     return {
       ok: false,

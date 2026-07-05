@@ -28,7 +28,7 @@ const PROVIDER_KEY_MAP = {
   'cli-kimi': 'KIMI_API_KEY',
 };
 
-const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate', 'personality'];
+const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate', 'personality', 'startup'];
 const MODE_LABELS = {
   brainstorm: '💡 头脑风暴',
   focus: '🎯 专注构思',
@@ -38,6 +38,7 @@ const MODE_LABELS = {
   break: '☕ 休息一下',
   celebrate: '🎉 完成了！',
   personality: '🧬 人格底色',
+  startup: '🚀 生成启动',
 };
 const MBTI_TYPES = [
   'INTJ', 'INTP', 'ENTJ', 'ENTP',

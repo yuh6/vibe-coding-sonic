@@ -20,6 +20,15 @@ import { storage } from '../storage/index.js';
 
 const hotCache = new Map(); // jobId → job object（活跃任务缓存）
 const HOT_CACHE_TTL_MS = 30 * 60 * 1000;
+const GENERATION_FALLBACK_AFTER_MS = positiveMs(
+  process.env.MUSIC_GENERATION_FALLBACK_AFTER_MS,
+  90_000
+);
+
+function positiveMs(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 function cleanupHotCache() {
   const now = Date.now();
@@ -230,6 +239,7 @@ async function completeWithFallback(job, delayMs = 0) {
     if (shared) {
       job.status = 'completed';
       job.audioUrl = shared.url;
+      job.title = shared.title || job.title;
       job.tracks = masterTracks({ url: shared.url, title: shared.title });
       job.fallback = true;
       job.fallbackSource = 'shared_library';
@@ -246,6 +256,7 @@ async function completeWithFallback(job, delayMs = 0) {
     }
     job.status = 'completed';
     job.audioUrl = track.url;
+    job.title = track.title || job.title;
     job.tracks = masterTracks({ url: track.url, title: track.title });
     job.fallback = true;
     job.fallbackSource = 'manifest';
@@ -348,6 +359,16 @@ export async function refreshJob(jobId) {
 
   if (job.status === 'completed' || job.status === 'failed') return job;
 
+  if (
+    job.status === 'processing' &&
+    !job.audioUrl &&
+    Date.now() - Number(job.createdAt || 0) > GENERATION_FALLBACK_AFTER_MS
+  ) {
+    job.error = `TTAPI generation exceeded fallback window (${GENERATION_FALLBACK_AFTER_MS}ms)`;
+    await completeWithFallback(job);
+    return job;
+  }
+
   if (job.status === 'processing' && job.sunoTaskId && isSunoConfigured()) {
     try {
       const result = await pollGeneration(job.sunoTaskId);
@@ -393,8 +414,8 @@ export async function getFallbackTrack(mode, mbti, extras = {}) {
   const composed = composePrompt({ mbti: mbti || 'INTJ', mode, projectAnalysis: null, ...extras });
   return {
     ...(track || {}),
-    mode,
     ...composed,
+    mode,
     status: 'completed',
     fallback: true,
     audioUrl: track?.url,

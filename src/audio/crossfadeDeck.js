@@ -30,10 +30,12 @@ export class CrossfadeDeck {
   /**
    * engine: 复用 src/audio/mixerEngine.js 的 MixerEngine 实例（提供 AudioContext + master 总线）。
    * fadeSec: 交叉淡入时长，默认 3 秒（§9.3）。
+   * maxCacheSize: decodedCache 最大条目数，防止内存无限增长。
    */
-  constructor(engine, { fadeSec = DEFAULT_FADE_SEC } = {}) {
+  constructor(engine, { fadeSec = DEFAULT_FADE_SEC, maxCacheSize = 50 } = {}) {
     this.engine = engine;
     this.fadeSec = fadeSec;
+    this.maxCacheSize = maxCacheSize;
     this.current = null; // { source, gain, buffer, url, startedAtCtxTime, offsetSec }
     this.next = null; // 预加载好、待切入的下一首
     this.decodedCache = new Map(); // url -> AudioBuffer，避免重复下载解码
@@ -64,11 +66,22 @@ export class CrossfadeDeck {
       throw new Error('Crossfade decode failed: unsupported or invalid audio file');
     }
     this.decodedCache.set(url, buffer);
+    // LRU 式淘汰：超过上限时删除最早插入的条目
+    if (this.decodedCache.size > this.maxCacheSize) {
+      const oldest = this.decodedCache.keys().next().value;
+      this.decodedCache.delete(oldest);
+    }
     return buffer;
   }
 
   /** 预加载下一首（不影响当前播放）；track 为业务层元数据（曲目信息），随 next 一起保存供 UI 展示 */
   async preload(url, track = null) {
+    // 清理之前未使用的预加载（避免 source/gain 泄漏）
+    if (this.next) {
+      try { this.next.source.disconnect(); } catch { /* ignored */ }
+      try { this.next.gain.disconnect(); } catch { /* ignored */ }
+      this.next = null;
+    }
     const buffer = await this.decode(url);
     const { source, gain } = connectChain(this.ctx, buffer, this.destination);
     gain.gain.setValueAtTime(0, this.ctx.currentTime);

@@ -15,7 +15,8 @@ const LIBRARY_PATH = join(__dirname, '../data/runtime-library.json');
 // 七阶段体系（v3 替换原 focus/spark/sprint/charge 四模式）
 const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
 const PERSONALITY_BUCKET = 'personality';
-const MANIFEST_BUCKETS = [...MODES, PERSONALITY_BUCKET];
+const STARTUP_BUCKET = 'startup';
+const MANIFEST_BUCKETS = [...MODES, PERSONALITY_BUCKET, STARTUP_BUCKET];
 const MBTI_TYPES = [
   'INTJ', 'INTP', 'ENTJ', 'ENTP',
   'INFJ', 'INFP', 'ENFJ', 'ENFP',
@@ -23,6 +24,7 @@ const MBTI_TYPES = [
   'ISTP', 'ISFP', 'ESTP', 'ESFP',
 ];
 const MBTI_SEED_FLAG = 'fallback_mbti_seed_v1';
+const STARTUP_SEED_FLAG = 'fallback_startup_seed_v1';
 
 let manifest = await load();
 
@@ -69,6 +71,7 @@ function loadManifestFile() {
   try {
     const runtime = normalizeManifest(JSON.parse(readFileSync(LIBRARY_PATH, 'utf-8')));
     if (!runtime[PERSONALITY_BUCKET]?.length) runtime[PERSONALITY_BUCKET] = defaults[PERSONALITY_BUCKET];
+    if (!runtime[STARTUP_BUCKET]?.length) runtime[STARTUP_BUCKET] = defaults[STARTUP_BUCKET];
     return runtime;
   } catch {
     return defaults;
@@ -87,10 +90,11 @@ function rowsToManifest(rows) {
   return next;
 }
 
-async function insertSeedTracks(seed, { onlyMbti = false } = {}) {
+async function insertSeedTracks(seed, { onlyMbti = false, onlyMode = null } = {}) {
   const now = Date.now();
   for (const [mode, tracks] of Object.entries(seed)) {
     if (!MANIFEST_BUCKETS.includes(mode)) continue;
+    if (onlyMode && mode !== onlyMode) continue;
     for (const track of tracks) {
       if (!track?.id || !track?.url) continue;
       const mbti = normalizeMbti(track.mbti);
@@ -120,12 +124,21 @@ async function markMbtiSeeded() {
   ).run(MBTI_SEED_FLAG, 'true', Date.now());
 }
 
+async function markStartupSeeded() {
+  await db.prepare(
+    `INSERT INTO app_settings (name, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).run(STARTUP_SEED_FLAG, 'true', Date.now());
+}
+
 async function seedFallbackTracksIfNeeded() {
   const seed = loadManifestFile();
   const row = await db.prepare('SELECT COUNT(*) as cnt FROM fallback_tracks').get();
   if (Number(row?.cnt || 0) === 0) {
     await insertSeedTracks(seed);
     await markMbtiSeeded();
+    await markStartupSeeded();
     return;
   }
 
@@ -133,6 +146,12 @@ async function seedFallbackTracksIfNeeded() {
   if (!mbtiSeeded) {
     await insertSeedTracks(seed, { onlyMbti: true });
     await markMbtiSeeded();
+  }
+
+  const startupSeeded = await db.prepare('SELECT value FROM app_settings WHERE name = ?').get(STARTUP_SEED_FLAG);
+  if (!startupSeeded) {
+    await insertSeedTracks(seed, { onlyMode: STARTUP_BUCKET });
+    await markStartupSeeded();
   }
 }
 
@@ -215,6 +234,12 @@ export async function pickTrack(mode, mbti) {
   const personalityTracks = type ? getTracks(PERSONALITY_BUCKET).filter((track) => normalizeMbti(track.mbti) === type) : [];
   const genericPhaseTracks = phaseTracks.filter((track) => !track.mbti);
   const fallbackTracks = getTracks('focus').filter((track) => !track.mbti);
+  if (key === STARTUP_BUCKET) {
+    const startupCandidates = genericPhaseTracks.length ? genericPhaseTracks : fallbackTracks;
+    if (!startupCandidates.length) return null;
+    const index = hashPick(`${type || 'generic'}:${key}`, startupCandidates.length);
+    return startupCandidates[index];
+  }
   const candidates = exactPhaseTracks.length
     ? exactPhaseTracks
     : personalityTracks.length

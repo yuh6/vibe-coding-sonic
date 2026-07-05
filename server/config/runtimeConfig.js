@@ -128,9 +128,12 @@ export function maskedSettings() {
     if (!value) {
       result[key] = { set: false, value: '', source, locked: false };
     } else if (SECRET_PATTERN.test(key)) {
+      const masked = value.length <= 8
+        ? '****'
+        : `${value.slice(0, 4)}****${value.slice(-4)}`;
       result[key] = {
         set: true,
-        value: `${value.slice(0, 4)}****${value.slice(-4)}`,
+        value: masked,
         source,
         locked: isEnvironmentLocked(key),
       };

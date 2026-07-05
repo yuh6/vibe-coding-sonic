@@ -82,7 +82,7 @@ app.use(
     },
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   })
 );
 app.use(express.json({ limit: '128kb' }));

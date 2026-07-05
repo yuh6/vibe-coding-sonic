@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { analyzeProject } from '../services/llm/index.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 
 const router = Router();
 
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', requireIdentity, async (req, res) => {
   try {
     const { name = '', description = '' } = req.body || {};
     const analysis = await analyzeProject({ name, description });
@@ -36,7 +37,7 @@ async function fetchGithub(path) {
   return res.json();
 }
 
-router.post('/analyze-github', async (req, res) => {
+router.post('/analyze-github', requireIdentity, async (req, res) => {
   try {
     const parsed = parseGithubUrl(req.body?.url);
     if (!parsed) {

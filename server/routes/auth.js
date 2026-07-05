@@ -12,6 +12,16 @@ const router = Router();
 
 // 认证接口按 IP 限流，防爆破
 const attempts = new Map(); // ip -> { count, resetAt }
+
+// 定期清理过期条目，防止 Map 无限增长
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = 5 * 60_000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of attempts) {
+    if (entry.resetAt < now) attempts.delete(ip);
+  }
+}, RATE_LIMIT_CLEANUP_INTERVAL_MS).unref();
+
 function authRateLimit(req, res, next) {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const now = Date.now();

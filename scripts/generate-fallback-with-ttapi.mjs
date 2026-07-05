@@ -13,6 +13,15 @@ const POLL_TIMEOUT_MS = Number(process.env.FALLBACK_TTAPI_TIMEOUT_MS || 12 * 60 
 
 const PLAN = [
   {
+    mode: 'startup',
+    id: 'startup-horizon-a',
+    title: 'Startup Horizon',
+    filename: 'fallback-startup-horizon-a.mp3',
+    prompt: 'futuristic city pop instrumental, dreamy deep synth pads, glassy DX7 electric piano, neon analog arpeggios, smooth fretless bass, crisp gated drums, airy percussion, exploratory atmosphere, night skyline, cosmic discovery, seamless loop friendly, 96 BPM, no vocals, over one minute, polished hi-fi production, wide stereo',
+    weirdnessConstraint: 58,
+    styleWeight: 68,
+  },
+  {
     mode: 'brainstorm',
     id: 'brainstorm-1',
     title: 'Creative Spark',

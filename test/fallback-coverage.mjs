@@ -17,6 +17,7 @@ const REQUIRED_MODES = [
   'celebrate',
 ];
 const PERSONALITY_BUCKET = 'personality';
+const STARTUP_BUCKET = 'startup';
 const MBTI_TYPES = [
   'INTJ', 'INTP', 'ENTJ', 'ENTP',
   'INFJ', 'INFP', 'ENFJ', 'ENFP',
@@ -72,7 +73,11 @@ for (const type of MBTI_TYPES) {
   assert.ok(personalityTypes.has(type), `Missing personality fallback track for ${type}`);
 }
 
-const allowedBuckets = [...REQUIRED_MODES, PERSONALITY_BUCKET];
+assert.ok(Array.isArray(manifest[STARTUP_BUCKET]), `Missing fallback bucket: ${STARTUP_BUCKET}`);
+assert.ok(manifest[STARTUP_BUCKET].length >= 1, `${STARTUP_BUCKET} needs at least 1 fallback track`);
+validateTracks(STARTUP_BUCKET);
+
+const allowedBuckets = [...REQUIRED_MODES, PERSONALITY_BUCKET, STARTUP_BUCKET];
 const unexpectedModes = Object.keys(manifest).filter((mode) => !allowedBuckets.includes(mode));
 assert.deepEqual(unexpectedModes, [], `Unexpected fallback modes: ${unexpectedModes.join(', ')}`);
 

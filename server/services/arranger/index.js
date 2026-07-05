@@ -86,13 +86,18 @@ export async function startEngine(sessionId) {
   const phase = rt.sensing.getCurrentPhase();
   const targetEnergy = rt.sensing.getTargetEnergy();
   const existing = await trackPool.countReady(sessionId, phase);
-  const need = Math.max(0, COLD_START_COUNT - existing);
+  const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
+  if (existing === 0) {
+    await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'cold-start' });
+  }
 
-  await Promise.all(
-    Array.from({ length: need }, () =>
-      rt.scheduler.submit(buildGenerationOpts(session, phase, targetEnergy), { urgency: 'immediate' })
-    )
-  );
+  const readyAfterFallback = await trackPool.countReady(sessionId, phase);
+  const need = Math.max(0, COLD_START_COUNT - readyAfterFallback);
+  for (let i = 0; i < need; i += 1) {
+    rt.scheduler
+      .submit(generationOpts, { urgency: 'immediate' })
+      .catch((err) => console.error('[arranger] cold-start refill failed:', err.message));
+  }
 
   await sessionStore.setState(sessionId, 'PLAYING');
   const first = await decideNext(sessionId);
@@ -111,7 +116,16 @@ export async function decideNext(sessionId) {
   const session = await sessionStore.getSession(sessionId);
   await sessionStore.setState(sessionId, 'DECIDING');
 
-  const decision = await rt.arranger.decideNext();
+  let decision = await rt.arranger.decideNext();
+  if (!decision.track) {
+    const fallback = await rt.scheduler.createFallbackTrack(
+      buildGenerationOpts(session, decision.targetPhase, decision.targetEnergy),
+      { reason: 'pool-exhausted' }
+    );
+    if (fallback) {
+      decision = { ...decision, track: fallback, poolExhausted: false, fallbackInjected: true };
+    }
+  }
 
   // 结束上一首的播放记录
   if (rt.currentPlayHistoryId) {
@@ -159,8 +173,15 @@ export async function setManualPhase(sessionId, phase) {
   const session = await sessionStore.getSession(sessionId);
   const targetEnergy = rt.sensing.getTargetEnergy();
   const ready = await trackPool.countReady(sessionId, phase);
-  if (ready < COLD_START_COUNT) {
-    await rt.scheduler.submit(buildGenerationOpts(session, phase, targetEnergy), { urgency: 'immediate' });
+  const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
+  if (ready === 0) {
+    await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'phase-change' });
+  }
+  const readyAfterFallback = await trackPool.countReady(sessionId, phase);
+  if (readyAfterFallback < COLD_START_COUNT) {
+    rt.scheduler
+      .submit(generationOpts, { urgency: 'immediate' })
+      .catch((err) => console.error('[arranger] phase refill failed:', err.message));
   }
 
   return decideNext(sessionId);

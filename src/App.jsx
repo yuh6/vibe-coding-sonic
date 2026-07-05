@@ -35,6 +35,8 @@ import {
 import { useMusicPoll, usePlayer } from './hooks/usePlayer';
 import { useArranger } from './hooks/useArranger';
 
+const STARTUP_FALLBACK_MODE = 'startup';
+
 function useHashRoute() {
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function App() {
   const profileLoadedRef = useRef(false);
   const skipAnalyzeRef = useRef(false);
   const autoRoutedJobRef = useRef(null);
+  const generationSeqRef = useRef(0);
 
   // 首次加载若没有任何路由（空 hash），默认进 RoomWave 主页。
   // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
@@ -199,7 +202,7 @@ export default function App() {
     if (poll.audioUrl) {
       setFallback(Boolean(poll.meta?.fallback));
       player.playUrl(poll.audioUrl, {
-        title: poll.meta?.fallbackTitle || `${mbti} · ${mode}`,
+        title: poll.meta?.title || poll.meta?.fallbackTitle || `${mbti} · ${mode}`,
         loop: true,
       });
       setGenerating(false);
@@ -230,11 +233,47 @@ export default function App() {
     }
   }, [poll.jobId, poll.status, poll.meta, mbti, mode]);
 
+  const playFallbackNow = useCallback(
+    async (nextMode, seq, message = '正在生成，已先接入兜底音乐', options = {}) => {
+      const fallbackMode = options.fallbackMode || nextMode;
+      const fb = await getFallback({ mode: fallbackMode, mbti });
+      if (seq !== generationSeqRef.current) return null;
+
+      setPromptData(fb);
+      setFallback(true);
+      const url = fb.audioUrl || fb.url;
+      if (url) {
+        player.playUrl(url, { title: fb.title || `${mbti} · ${fallbackMode}`, loop: true });
+      }
+      if (fb.tracks?.length) {
+        setMixerImport({
+          jobId: `fallback-hold-${Date.now()}`,
+          title: fb.title || `${mbti} · ${fallbackMode}`,
+          status: 'completed',
+          stemStatus: 'skipped',
+          fallback: true,
+          tracks: fb.tracks,
+        });
+      }
+      if (message) setNotice(message);
+      return fb;
+    },
+    [mbti, player]
+  );
+
   const handleGenerate = async (opts = {}) => {
     const nextMode = opts.mode || mode;
+    const seq = generationSeqRef.current + 1;
+    generationSeqRef.current = seq;
     setGenerating(true);
     poll.setStatus('processing');
     setFallback(false);
+    await playFallbackNow(nextMode, seq, '正在生成，已先接入启动音效', {
+      fallbackMode: STARTUP_FALLBACK_MODE,
+    }).catch((err) => {
+      console.error('[fallback hold]', err);
+      return null;
+    });
 
     try {
       const job = await generateMusic({
@@ -244,6 +283,7 @@ export default function App() {
         style,
         forceFallback: opts.forceFallback,
       });
+      if (seq !== generationSeqRef.current) return;
       setPromptData(job);
       if (job.quota) setQuota(job.quota);
       if (job.quotaNotice) setNotice(job.quotaNotice);
@@ -251,33 +291,21 @@ export default function App() {
     } catch (err) {
       console.error('[generate]', err);
       if (err.status === 401) {
+        await playFallbackNow(nextMode, seq, '未登录，已切到兜底音乐（登录后可真实生成）').catch((fbErr) => {
+          console.error('[fallback]', fbErr);
+        });
         setAuthOpen(true);
-        setNotice('登录后即可生成专属音乐');
         setGenerating(false);
-        poll.setStatus('idle');
+        poll.setStatus('completed');
         return;
       }
       try {
-        const fb = await getFallback({ mode: nextMode, mbti });
-        setPromptData(fb);
-        setFallback(true);
-        if (fb.url) player.playUrl(fb.url, { title: fb.title, loop: true });
-        if (fb.tracks?.length) {
-          const jobId = `fallback-${Date.now()}`;
-          setMixerImport({
-            jobId,
-            title: fb.title || `${mbti} · ${nextMode}`,
-            status: 'completed',
-            stemStatus: 'skipped',
-            fallback: true,
-            tracks: fb.tracks,
-          });
-        }
+        await playFallbackNow(nextMode, seq, '生成失败，已无缝切到兜底音乐');
       } catch (fbErr) {
         console.error('[fallback]', fbErr);
       }
       setGenerating(false);
-      poll.setStatus('failed');
+      poll.setStatus('completed');
     }
   };
 

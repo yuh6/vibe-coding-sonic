@@ -19,6 +19,8 @@ import ArrangerPanel from './ArrangerPanel';
 import MBTIRemixDeck from './MBTIRemixDeck';
 import Timeline from './Timeline';
 
+const STARTUP_FALLBACK_MODE = 'startup';
+
 // ┌─────────────────────────────────────────────────────────────┐
 // │ 首页顶部可翻页的本地视频 —— 想换/加视频，改 HERO_VIDEOS 数组     │
 // │ 把视频文件放到项目 public/ 目录，例：public/hero1.mp4 ...       │
@@ -238,6 +240,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
   const promptTimer = useRef(null);
   const skipAnalyzeRef = useRef(false);
   const lastSoloSignatureRef = useRef('');
+  const soloGenerationSeqRef = useRef(0);
 
   const soloStyle = {
     energy: styleFx.chillHype,
@@ -324,13 +327,17 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
     setProjectDesc(preset.description);
   };
   const handleGithubAnalyze = async (url) => {
-    const analysis = await analyzeGithub(url);
-    skipAnalyzeRef.current = true;
-    setProjectName(analysis.repo?.fullName || url);
-    skipAnalyzeRef.current = true;
-    setProjectDesc(analysis.repo?.description || '');
-    setProjectAnalysis(analysis);
-    setAnalysisSource(`github · ${analysis.source || ''}`);
+    try {
+      const analysis = await analyzeGithub(url);
+      skipAnalyzeRef.current = true;
+      setProjectName(analysis.repo?.fullName || url);
+      skipAnalyzeRef.current = true;
+      setProjectDesc(analysis.repo?.description || '');
+      setProjectAnalysis(analysis);
+      setAnalysisSource(`github · ${analysis.source || ''}`);
+    } catch (err) {
+      console.error('[roomwave] GitHub analyze failed:', err);
+    }
   };
   const handleArrangerStart = () => {
     arranger.start({ name: projectName || 'RoomWave Solo', mbtiType: soloMbti, mbtiSliders: soloAxes, schedule: schedule?.phases });
@@ -341,12 +348,30 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
     if (!poll.audioUrl) return;
     setSoloFallback(Boolean(poll.meta?.fallback));
     player.playUrl(poll.audioUrl, {
-      title: poll.meta?.fallbackTitle || `${soloMbti} · ${activeModePad}`,
+      title: poll.meta?.title || poll.meta?.fallbackTitle || `${soloMbti} · ${activeModePad}`,
       loop: true,
     });
     setSoloGenerating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll.audioUrl]);
+
+  const playSoloFallbackNow = async (
+    nextModeId,
+    nextModeLabel,
+    seq,
+    message = '正在生成，已先接入兜底音乐',
+    options = {}
+  ) => {
+    const fallbackMode = options.fallbackMode || nextModeId;
+    const fb = await getFallback({ mode: fallbackMode, mbti: soloMbti });
+    if (seq !== soloGenerationSeqRef.current) return null;
+    if (fb.url || fb.audioUrl) {
+      setSoloFallback(true);
+      player.playUrl(fb.audioUrl || fb.url, { title: fb.title || `${soloMbti} · ${nextModeLabel}`, loop: true });
+      if (message) setSoloNotice(message);
+    }
+    return fb;
+  };
 
   // 生成音乐（真实）：优先真生成，失败/未配置则回退演示曲
   const handleSoloGenerate = async (opts = {}) => {
@@ -364,10 +389,18 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
       player.togglePlay();
       return;
     }
+    const seq = soloGenerationSeqRef.current + 1;
+    soloGenerationSeqRef.current = seq;
     setSoloGenerating(true);
     setSoloFallback(false);
     setSoloNotice('');
     poll.setStatus('processing');
+    await playSoloFallbackNow(nextModeId, nextModeLabel, seq, '正在生成，已先接入启动音效', {
+      fallbackMode: STARTUP_FALLBACK_MODE,
+    }).catch((err) => {
+      console.error('[roomwave fallback hold]', err);
+      return null;
+    });
     try {
       const job = await generateMusic({
         axes: soloAxes,
@@ -376,6 +409,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
         projectAnalysis: projectAnalysis || undefined,
         forceFallback: opts.force || false,
       });
+      if (seq !== soloGenerationSeqRef.current) return;
       if (job.quota) setQuota(job.quota);
       if (job.quotaNotice) setSoloNotice(job.quotaNotice);
       lastSoloSignatureRef.current = nextSignature;
@@ -383,19 +417,21 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
     } catch (err) {
       // 未登录 / 未配置 key → 回退演示曲，保证有声音
       try {
-        const fb = await getFallback({ mode: nextModeId, mbti: soloMbti });
-        if (fb.url) {
-          setSoloFallback(true);
+        const fb = await playSoloFallbackNow(
+          nextModeId,
+          nextModeLabel,
+          seq,
+          err.status === 401 ? '未登录，先播放兜底音乐（登录后可真实生成）' : '生成失败，已切到兜底音乐'
+        );
+        if (fb?.url || fb?.audioUrl) {
           lastSoloSignatureRef.current = nextSignature;
-          player.playUrl(fb.url, { title: fb.title || `${soloMbti} · ${nextModeLabel}`, loop: true });
-          setSoloNotice(err.status === 401 ? '未登录，先播放演示曲（登录后可真实生成）' : '已播放演示曲');
         } else {
           setSoloNotice('生成失败，请稍后再试');
         }
       } catch {
         setSoloNotice('生成失败，请稍后再试');
       }
-      poll.setStatus('idle');
+      poll.setStatus('completed');
       setSoloGenerating(false);
     }
   };

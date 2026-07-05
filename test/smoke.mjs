@@ -201,6 +201,11 @@ try {
   assert.equal(mbtiFallback.id, 'personality-intj-a');
   assert.equal(mbtiFallback.mbti, 'INTJ');
 
+  const startupFallback = await client.request('/api/music/fallback?mode=startup&mbti=INTJ');
+  assert.equal(startupFallback.id, 'startup-horizon-a');
+  assert.equal(startupFallback.mode, 'startup');
+  assert.ok(startupFallback.audioUrl?.startsWith('/samples/'));
+
   const playlists = await client.request('/api/playlists/mine/list');
   assert.ok(Array.isArray(playlists.playlists));
 
@@ -260,6 +265,14 @@ try {
   const poolStatus = await client.request(`/api/arranger/pool-status?sessionId=${session.id}`);
   assert.equal(typeof poolStatus.budgetLimit, 'number');
   assert.equal(typeof poolStatus.phases, 'object');
+
+  const arrangerStarted = await client.request('/api/arranger/start', {
+    method: 'POST',
+    body: { sessionId: session.id },
+  });
+  assert.equal(arrangerStarted.ok, true);
+  assert.ok(arrangerStarted.decision?.track?.audioUrl?.startsWith('/samples/'));
+  assert.equal(arrangerStarted.decision.track.promptConfig?.fallback, true);
 
   // ── 电台合约测试（需要 session.id）──
   const station = await client.request('/api/radio', {
