@@ -1,4 +1,4 @@
-# Vibe Coding 有歌声 — PRD
+# MBTIWAVE — PRD
 
 > MBTI 黑客松参赛项目 · 2026-07-04~05
 
@@ -605,7 +605,7 @@ cp .env.example .env
 
 ## 12. 差异化
 
-| 维度 | 普通 BGM | Vibe Coding 有歌声 |
+| 维度 | 普通 BGM | MBTIWAVE |
 |------|---------|-------------------|
 | 交互 | 歌单点选 | DJ 推子 + 打击垫，零表单感 |
 | 人格 | 无 | MBTI 四轴连续 remix，非四选一 |

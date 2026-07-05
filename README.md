@@ -1,4 +1,4 @@
-# Vibe Coding 有歌声
+# MBTIWAVE
 
 MBTI × 项目 × 节奏 · AI DJ 控制台。根据人格、项目内容与黑客松进程，生成专属 BGM。
 
@@ -19,7 +19,7 @@ npm run dev
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Vibe Coding 有歌声          [TTAPI ●] [LLM ●]  [⚙️ 管理后台] │
+│  MBTIWAVE                    [TTAPI ●] [LLM ●]  [⚙️ 管理后台] │
 ├──────────────┬──────────────────────┬───────────────────────┤
 │ MBTI Remix   │  Main Deck           │  Mode Pads            │
 │ 四轴推子      │  LED: BPM/TYPE/MODE  │  Focus / Spark        │

@@ -14,7 +14,7 @@ import MixerPage from './components/mixer/MixerPage';
 import DiscoverPage from './components/DiscoverPage';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
-import RoomWave from './components/RoomWave';
+import MBTIWAVE from './components/MBTIWAVE';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
 import {
@@ -51,7 +51,7 @@ export default function App() {
   const isAdmin = hash === '#/admin';
   const isMixer = hash === '#/mixer';
   const isDiscover = hash === '#/discover';
-  const isRoomWave = hash === '#/roomwave';
+  const isMBTIWAVE = hash === '#/mbtiwave';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -89,11 +89,11 @@ export default function App() {
   const skipAnalyzeRef = useRef(false);
   const autoRoutedJobRef = useRef(null);
 
-  // 首次加载若没有任何路由（空 hash），默认进 RoomWave 主页。
+  // 首次加载若没有任何路由（空 hash），默认进 MBTIWAVE 主页。
   // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
   useEffect(() => {
     if (!window.location.hash) {
-      window.location.replace('#/roomwave');
+      window.location.replace('#/mbtiwave');
     }
   }, []);
 
@@ -409,9 +409,9 @@ export default function App() {
        radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
        var(--page-bg)`;
 
-  // RoomWave 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
-  if (isRoomWave) {
-    return <RoomWave isDark={isDark} onToggleColorMode={toggleColorMode} />;
+  // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
+  if (isMBTIWAVE) {
+    return <MBTIWAVE isDark={isDark} onToggleColorMode={toggleColorMode} />;
   }
 
   const mainDeck = (
@@ -454,7 +454,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-display text-xl font-bold tracking-tight text-theme sm:text-2xl">
-                Vibe Coding 有歌声
+                MBTIWAVE
               </h1>
               <p className="text-[11px] text-subtle">MBTI × 项目 × 节奏 · AI DJ 控制台</p>
             </div>
@@ -499,35 +499,35 @@ export default function App() {
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
-              href="#/roomwave"
-              className="pad px-3.5 py-2 text-xs text-muted no-underline"
+              href="#/mbtiwave"
+              className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              🌊 RoomWave
+              🌊 MBTIWAVE
             </a>
-            {!isDiscover && (
+            {/* {!isDiscover && (
               <a
                 href="#/discover"
-                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🌍 发现
               </a>
-            )}
-            {!isMixer && (
+            )} */}
+            {/* {!isMixer && (
               <a
                 href="#/mixer"
-                className="pad px-3.5 py-2 text-xs text-muted no-underline"
+                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🎚 调音台
               </a>
-            )}
-            {!isAdmin && (
+            )} */}
+            {/* {!isAdmin && (
               <a
                 href="#/admin"
                 className="pad px-3.5 py-2 text-xs text-muted no-underline"
               >
                 ⚙️ 管理后台
               </a>
-            )}
+            )} */}
           </div>
         </header>
 
@@ -584,7 +584,7 @@ export default function App() {
                 fullPrompt={promptData?.fullPrompt}
                 loading={promptLoading}
               />
-              <div id="dj-arranger-anchor">
+              {/* <div id="dj-arranger-anchor">
                 <ArrangerPanel
                   arranger={arranger}
                   theme={theme}
@@ -596,7 +596,7 @@ export default function App() {
                   radioBusy={radioBusy}
                   onRadioToggle={handleRadioToggle}
                 />
-              </div>
+              </div> */}
             </div>
           </div>
 

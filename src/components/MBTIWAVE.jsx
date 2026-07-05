@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Users, Send, Volume2, VolumeX, Play, Pause,
   Music, ChevronRight,
-  Activity, Disc, Headphones, Radio, Zap, MessageSquare
+  Activity, Disc, Headphones, Radio, Zap, MessageSquare,
+  Compass, SlidersHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import '../styles/roomwave.css';
+import '../styles/mbtiwave.css';
 import { usePlayer, useMusicPoll } from '../hooks/usePlayer';
 import { useArranger } from '../hooks/useArranger';
 import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getHealth, authMe, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
@@ -144,7 +145,7 @@ const MODE_ID_BY_LABEL = {
   '完成了！': 'celebrate',
 };
 
-// RoomWave soloDims 用 ei（E<50），DJ 后端 axes 用 ie（I<50），方向相反。
+// MBTIWAVE soloDims 用 ei（E<50），DJ 后端 axes 用 ie（I<50），方向相反。
 // ns/tf/jp 键名与方向一致，可直接沿用。
 function soloDimsToAxes(dims) {
   return {
@@ -197,7 +198,7 @@ const commentsPool = [
   { user: 'Rhythm_R', text: '深夜俱乐部既视感，太对味了。', type: 'ISTP' }
 ];
 
-export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }) {
+export default function MBTIWAVE({ isDark = true, onToggleColorMode = () => {} }) {
   const [currentView, setCurrentView] = useState('home'); // "home" | "room" | "mbti-hub" | "solo"
   const [selectedMBTI, setSelectedMBTI] = useState(mbtiData[0]);
   const [isMuted, setIsMuted] = useState(true);
@@ -286,7 +287,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
         setProjectAnalysis(analysis);
         setAnalysisSource(analysis.source || '');
       } catch (err) {
-        console.error('[roomwave analyze]', err);
+        console.error('[mbtiwave analyze]', err);
       }
     }, 600);
     return () => clearTimeout(analyzeTimer.current);
@@ -301,7 +302,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
         const data = await previewPrompt({ axes: soloAxes, mode: soloModeId, projectAnalysis, style: soloStyle });
         setPromptData(data);
       } catch (err) {
-        console.error('[roomwave prompt]', err);
+        console.error('[mbtiwave prompt]', err);
       } finally {
         setPromptLoading(false);
       }
@@ -333,7 +334,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
     setAnalysisSource(`github · ${analysis.source || ''}`);
   };
   const handleArrangerStart = () => {
-    arranger.start({ name: projectName || 'RoomWave Solo', mbtiType: soloMbti, mbtiSliders: soloAxes, schedule: schedule?.phases });
+    arranger.start({ name: projectName || 'MBTIWAVE Solo', mbtiType: soloMbti, mbtiSliders: soloAxes, schedule: schedule?.phases });
   };
 
   // 轮询出音频后自动播放
@@ -414,7 +415,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
       .then((res) => {
         const profile = res?.profile;
         if (profile?.axes) {
-          // DJ axes(ie) → RoomWave soloDims(ei) 反向换算
+          // DJ axes(ie) → MBTIWAVE soloDims(ei) 反向换算
           setSoloDims((d) => ({
             ei: 100 - profile.axes.ie,
             ns: profile.axes.ns,
@@ -550,7 +551,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
   };
 
   // 背景随 MBTI 跳动（照抄 DJ 控制台的 pageBg：用当前人格主题色叠加径向渐变）
-  const roomwaveBg = isLightMode
+  const mbtiwaveBg = isLightMode
     ? `radial-gradient(ellipse at 20% 0%, ${soloTheme.accent}22 0%, transparent 50%),
        radial-gradient(ellipse at 80% 100%, ${soloTheme.glow}18 0%, transparent 55%),
        #EEF1F7`
@@ -560,8 +561,8 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
 
   return (
     <div
-      className={`roomwave-scope relative min-h-screen w-full ${isLightMode ? 'text-slate-800' : 'text-zinc-100'} overflow-x-clip flex flex-col justify-between transition-colors duration-500`}
-      style={{ background: roomwaveBg }}
+      className={`mbtiwave-scope relative min-h-screen w-full ${isLightMode ? 'text-slate-800' : 'text-zinc-100'} overflow-x-clip flex flex-col justify-between transition-colors duration-500`}
+      style={{ background: mbtiwaveBg }}
     >
 
       {/* 顶部提示条（照抄 DJ 台 notice：配额 / 报错提示）*/}
@@ -584,7 +585,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
               </div>
             </div>
             <div>
-              <span className="mono-font tracking-widest text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-300 to-zinc-500">ROOMWAVE</span>
+              <span className="mono-font tracking-widest text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-300 to-zinc-500">MBTIWAVE</span>
               <span className="text-[9px] block text-zinc-500 tracking-[0.2em] uppercase mono-font">Basement Audio-Visual System</span>
             </div>
         </div>
@@ -606,7 +607,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
             quota={quota}
             open={authOpen}
             onOpenChange={setAuthOpen}
-            triggerClass="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3.5 py-1.5 text-xs font-bold text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
+            triggerClass="flex h-9 w-9 items-center justify-center text-base rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
             chipClass="flex items-center gap-2 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5"
             onAuth={(data) => {
               setUser(data.user);
@@ -640,15 +641,15 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
           {currentView !== 'home' && (
             <button
               onClick={() => setCurrentView('home')}
-              className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs font-bold text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
-              title="返回 RoomWave 首页"
+              className="pad px-3 py-1.5 text-xs font-bold hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              title="返回 MBTIWAVE 首页"
             >
-              🌊 RoomWave
+              🌊 MBTIWAVE
             </button>
           )}
-          <a href="#/discover" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">🌍 发现</a>
-          <a href="#/mixer" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">🎚 调音台</a>
-          <a href="#/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">⚙️ 管理后台</a>
+          {/* <a href="#/discover" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">🌍 发现</a> */}
+          {/* <a href="#/mixer" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">🎚 调音台</a> */}
+          {/* <a href="#/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">⚙️ 管理后台</a> */}
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="w-9 h-9 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 flex items-center justify-center text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
@@ -771,6 +772,75 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
 
               </div>
 
+              {/* 入口 4 & 5: 发现 / 调音台 */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+                {/* 入口 4: 发现 */}
+                <div
+                  onClick={() => { window.location.hash = '#/discover'; }}
+                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-emerald-950/45 border border-emerald-300/15 hover:border-emerald-400/55 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(52,211,153,0.16)]"
+                >
+                  <img src="/card-discover.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-80" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-950/25 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-400/10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
+
+                  <div className="flex justify-between items-start relative z-10">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-400 group-hover:text-zinc-950 transition-all duration-300">
+                      <Compass className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] text-emerald-400 tracking-wider font-bold uppercase mono-font">
+                      Discovery
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 relative z-10">
+                    <h3 className="text-2xl font-bold text-white group-hover:text-emerald-400 transition-colors">发现</h3>
+                    <p className="text-zinc-400 text-xs leading-relaxed">
+                      穿越风格星图，探索未知的音乐疆域。按流派、情绪、节拍漫游全球创作者的声景宇宙，发现下一首属于你的歌。
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mono-font pt-2 relative z-10">
+                    <span>EXPLORE SOUNDSCAPE</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 入口 5: 调音台 */}
+                <div
+                  onClick={() => { window.location.hash = '#/mixer'; }}
+                  className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-amber-950/45 border border-amber-300/15 hover:border-amber-400/55 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(251,191,36,0.16)]"
+                >
+                  <img src="/card-mixer.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-80" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-amber-950/90 via-amber-950/25 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 to-orange-500/5 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl group-hover:scale-125 transition-all duration-500"></div>
+
+                  <div className="flex justify-between items-start relative z-10">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-center text-amber-400 group-hover:bg-amber-400 group-hover:text-zinc-950 transition-all duration-300">
+                      <SlidersHorizontal className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] text-amber-400 tracking-wider font-bold uppercase mono-font">
+                      Mixer Deck
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 relative z-10">
+                    <h3 className="text-2xl font-bold text-white group-hover:text-amber-400 transition-colors">调音台</h3>
+                    <p className="text-zinc-400 text-xs leading-relaxed">
+                      多轨混音工作台，独立控制每条声轨的音量、声像与效果。拖入波形，叠加层次，打造只属于你的声场。
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs mono-font pt-2 relative z-10">
+                    <span>MIX YOUR WAVE</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
+                </div>
+
+              </div>
+
               {/* 各种音乐专辑在转 */}
               <AlbumMarquee />
 
@@ -791,7 +861,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
                       </span>
                     </h1>
                     <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-md">
-                      RoomWave 是专为渴望情绪共鸣的年轻人打造的视频播放社群。告别寂寞的单向观看，选择适合你 MBTI 的频率入口，与同频陌生人同步呼吸，探索声音与影像编织的赛博聚落。
+                      MBTIWAVE 是专为渴望情绪共鸣的年轻人打造的视频播放社群。告别寂寞的单向观看，选择适合你 MBTI 的频率入口，与同频陌生人同步呼吸，探索声音与影像编织的赛博聚落。
                     </p>
                   </div>
 
@@ -1143,7 +1213,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
       {/* 页脚 / 安全区域与状态提示 */}
       <footer className="relative z-50 border-t border-zinc-900 bg-[#050505]/90 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-zinc-600 mono-font">
         <div>
-          <span>© {new Date().getFullYear()} ROOMWAVE AUDIO-VISUAL LAB. </span>
+          <span>© {new Date().getFullYear()} MBTIWAVE AUDIO-VISUAL LAB. </span>
           <span className="text-zinc-800">|</span>
           <button type="button" onClick={() => setShowPrivacy(true)} className="ml-1 text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline">隐私协议</button>
         </div>
@@ -1170,7 +1240,7 @@ export default function RoomWave({ isDark = true, onToggleColorMode = () => {} }
               </button>
             </div>
             <div className="space-y-2 text-sm leading-6 text-zinc-400">
-              <p>当前 RoomWave 房间、聊天和在线人数为本地体验模式，不会上传聊天内容。</p>
+              <p>当前 MBTIWAVE 房间、聊天和在线人数为本地体验模式，不会上传聊天内容。</p>
               <p>登录信息和音乐生成请求沿用主应用后端接口；真实多人房间上线前，会补充房间成员、消息存储和实时同步规则。</p>
             </div>
           </div>

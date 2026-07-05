@@ -28,7 +28,7 @@ function AuthModal({ onClose, onSuccess }) {
   };
 
   // 用 Portal 渲染到 body，脱离含 backdrop-filter/transform 的祖先，
-  // 否则 fixed 定位会以祖先为基准导致弹窗偏移（如 RoomWave 顶栏）。
+  // 否则 fixed 定位会以祖先为基准导致弹窗偏移（如 MBTIWAVE 顶栏）。
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <form
@@ -113,8 +113,8 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
     }
   };
 
-  // 默认沿用 DJ 台原样式；传入自定义类时（如 RoomWave 绿色主题）覆盖。
-  const btnClass = triggerClass || 'pad px-3.5 py-2 text-xs text-white/70';
+  // 默认沿用 DJ 台原样式；传入自定义类时（如 MBTIWAVE 绿色主题）覆盖。
+  const btnClass = triggerClass || 'pad flex h-9 w-9 items-center justify-center text-base';
   const userChipClass = chipClass || 'flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5';
 
   return (
@@ -138,7 +138,7 @@ export default function AuthPanel({ user, quota, open, onOpenChange, onAuth, onL
         </div>
       ) : (
         <button type="button" onClick={() => onOpenChange(true)} className={btnClass}>
-          👤 登录
+          👤
         </button>
       )}
 
