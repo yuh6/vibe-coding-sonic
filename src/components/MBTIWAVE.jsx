@@ -218,6 +218,7 @@ export default function MBTIWAVE({
   onLogout = () => {},
   onQuotaChange = () => {},
   onBeforeLogout,
+  onNavigate = (path) => { window.location.href = path; },
 }) {
   const [currentView, setCurrentView] = useState('home'); // "home" | "room" | "mbti-hub" | "solo"
   const [selectedMBTI, setSelectedMBTI] = useState(mbtiData[0]);
@@ -723,9 +724,9 @@ export default function MBTIWAVE({
               <span>MBTIWAVE</span>
             </button>
           )}
-          {/* <a href="#/discover" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">🌍 发现</a> */}
-          {/* <a href="#/mixer" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">🎚 调音台</a> */}
-          {/* <a href="#/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">⚙️ 管理后台</a> */}
+          {/* <a href="/discover" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">发现</a> */}
+          {/* <a href="/mixer" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">调音台</a> */}
+          {/* <a href="/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">管理后台</a> */}
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="w-9 h-9 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 flex items-center justify-center text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
@@ -758,7 +759,7 @@ export default function MBTIWAVE({
 
                 {/* 入口 1: MBTI solo music → 进入 DJ 控制台 */}
                 <div
-                  onClick={() => { window.location.hash = '#/'; }}
+                  onClick={() => onNavigate('/dj')}
                   className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-rose-950/45 border border-fuchsia-200/18 hover:border-fuchsia-300/60 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_42px_rgba(244,114,182,0.18)] scanline"
                 >
                   <img src="/card-mbti-solo.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-75 transition-opacity duration-500 group-hover:opacity-95" />
@@ -854,7 +855,7 @@ export default function MBTIWAVE({
 
                 {/* 入口 4: 发现 */}
                 <div
-                  onClick={() => { window.location.hash = '#/discover'; }}
+                  onClick={() => onNavigate('/discover')}
                   className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-emerald-950/45 border border-emerald-300/15 hover:border-emerald-400/55 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(52,211,153,0.16)]"
                 >
                   <img src="/card-discover.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-80" />
@@ -886,7 +887,7 @@ export default function MBTIWAVE({
 
                 {/* 入口 5: 调音台 */}
                 <div
-                  onClick={() => { window.location.hash = '#/mixer'; }}
+                  onClick={() => onNavigate('/mixer')}
                   className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-amber-950/45 border border-amber-300/15 hover:border-amber-400/55 p-6 flex flex-col justify-between min-h-[390px] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_38px_rgba(251,191,36,0.16)]"
                 >
                   <img src="/card-mixer.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-80" />

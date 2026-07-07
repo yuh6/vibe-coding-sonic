@@ -3,7 +3,6 @@ import MBTIRemixDeck from './components/MBTIRemixDeck';
 import StyleFaders from './components/StyleFaders';
 import VocalMode from './components/VocalMode';
 import PlayerDeck from './components/PlayerDeck';
-import FloatingWindow from './components/FloatingWindow';
 import ProjectDeck from './components/ProjectDeck';
 import PromptCard from './components/PromptCard';
 import Timeline from './components/Timeline';
@@ -39,23 +38,49 @@ const DiscoverPage = lazy(() => import('./components/DiscoverPage'));
 const MBTIWAVE = lazy(() => import('./components/MBTIWAVE'));
 
 const STARTUP_FALLBACK_MODE = 'startup';
+const ROUTES = new Set(['/', '/mbtiwave', '/dj', '/discover', '/mixer', '/admin']);
 
-function useHashRoute() {
-  const [hash, setHash] = useState(window.location.hash);
+function normalizePath(path) {
+  const clean = String(path || '/').replace(/\/+$/, '') || '/';
+  return clean;
+}
+
+function legacyPathFromHash(hash) {
+  if (!hash?.startsWith('#/')) return '';
+  const legacy = hash.slice(1);
+  return legacy === '/' ? '/dj' : normalizePath(legacy);
+}
+
+function navigateTo(path, { replace = false } = {}) {
+  const nextPath = normalizePath(path);
+  if (window.location.pathname !== nextPath || window.location.hash) {
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', nextPath);
+  }
+  window.dispatchEvent(new Event('popstate'));
+}
+
+function usePathRoute() {
+  const [path, setPath] = useState(() => legacyPathFromHash(window.location.hash) || normalizePath(window.location.pathname));
   useEffect(() => {
-    const onChange = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
+    const legacyPath = legacyPathFromHash(window.location.hash);
+    if (legacyPath) {
+      navigateTo(legacyPath, { replace: true });
+    }
+
+    const onChange = () => setPath(normalizePath(window.location.pathname));
+    window.addEventListener('popstate', onChange);
+    return () => window.removeEventListener('popstate', onChange);
   }, []);
-  return hash;
+  return path;
 }
 
 export default function App() {
-  const hash = useHashRoute();
-  const isAdmin = hash === '#/admin';
-  const isMixer = hash === '#/mixer';
-  const isDiscover = hash === '#/discover';
-  const isMBTIWAVE = hash === '#/mbtiwave';
+  const path = usePathRoute();
+  const route = ROUTES.has(path) ? path : '/mbtiwave';
+  const isAdmin = route === '/admin';
+  const isMixer = route === '/mixer';
+  const isDiscover = route === '/discover';
+  const isHome = route === '/' || route === '/mbtiwave';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
   const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
@@ -128,13 +153,9 @@ export default function App() {
     setLiveStation(null);
   }, []);
 
-  // 首次加载若没有任何路由（空 hash），默认进 MBTIWAVE 主页。
-  // 注意：'#/' 仍指向 DJ 控制台（MBTI solo 卡片跳转用），只有真正空 hash 才重定向。
   useEffect(() => {
-    if (!window.location.hash) {
-      window.location.replace('#/mbtiwave');
-    }
-  }, []);
+    if (!ROUTES.has(path)) navigateTo('/mbtiwave', { replace: true });
+  }, [path]);
 
   useEffect(() => {
     const seq = authRequestSeqRef.current + 1;
@@ -527,7 +548,7 @@ export default function App() {
        var(--page-bg)`;
 
   // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
-  if (isMBTIWAVE) {
+  if (isHome) {
     return (
       <Suspense fallback={null}>
         <MBTIWAVE
@@ -542,6 +563,7 @@ export default function App() {
           onLogout={handleAuthLogout}
           onQuotaChange={setQuota}
           onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
+          onNavigate={navigateTo}
         />
       </Suspense>
     );
@@ -620,7 +642,11 @@ export default function App() {
               </div>
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
-              href="#/mbtiwave"
+              href="/mbtiwave"
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo('/mbtiwave');
+              }}
               className="pad flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
               <IconGlyph name="roomwave" className="h-4 w-4" />
@@ -628,7 +654,7 @@ export default function App() {
             </a>
             {/* {!isDiscover && (
               <a
-                href="#/discover"
+                href="/discover"
                 className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🌍 发现
@@ -636,7 +662,7 @@ export default function App() {
             )} */}
             {/* {!isMixer && (
               <a
-                href="#/mixer"
+                href="/mixer"
                 className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               >
                 🎚 调音台
@@ -644,7 +670,7 @@ export default function App() {
             )} */}
             {/* {!isAdmin && (
               <a
-                href="#/admin"
+                href="/admin"
                 className="pad px-3.5 py-2 text-xs text-muted no-underline"
               >
                 ⚙️ 管理后台
@@ -699,8 +725,9 @@ export default function App() {
               />
             </div>
 
-            {/* 中 Deck：Genre 选择器 + 留空给 FloatingWindow */}
+            {/* 中 Deck：固定 Main Deck + Genre 选择器 */}
             <div className="space-y-4 lg:col-span-5">
+              {mainDeck}
               <GenreSelector value={genre} onChange={setGenre} theme={theme} />
             </div>
 
@@ -728,19 +755,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Main Deck 悬浮窗口（在 grid 外，fixed 定位不受布局影响） */}
-          <FloatingWindow
-            title="MAIN DECK"
-            width={420}
-            storageKey="dj-main-deck-pos-v2"
-            anchorId="dj-arranger-anchor"
-            initial={{
-              x: typeof window !== 'undefined' ? Math.max(16, Math.round(window.innerWidth / 2 - 210)) : 420,
-              y: 400,
-            }}
-          >
-            {mainDeck}
-          </FloatingWindow>
           </>
         )}      </div>
     </div>
