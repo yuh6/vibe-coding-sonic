@@ -1,0 +1,288 @@
+{
+  "generatedAt": "2026-07-05",
+  "assetSets": {
+    "badge": {
+      "directory": "assets/icon-previews",
+      "description": "Transparent PNG icons with dark rounded-square badge backgrounds. Use for large standalone entry/card icons.",
+      "runtimeNote": "Repository-root assets are source/reference files; copy selected icons to public/assets/icon-previews or import from src/assets before using in rendered UI."
+    },
+    "glyph": {
+      "directory": "assets/icon-glyphs",
+      "description": "Transparent PNG glyph-only icons with no rounded-square background. Use inside existing buttons, pills, nav links, headings, and controls.",
+      "runtimeNote": "Repository-root assets are source/reference files; copy selected icons to public/assets/icon-glyphs or import from src/assets before using in rendered UI."
+    }
+  },
+  "defaultAssetSet": "glyph",
+  "doNotReplace": [
+    {
+      "glyph": "©",
+      "reason": "Copyright mark should remain text."
+    }
+  ],
+  "literalMappings": {
+    "🏠": "home",
+    "🌊": "roomwave",
+    "🎛": "dj-console",
+    "🎚": "mixer",
+    "🌍": "discover",
+    "⚙️": "settings-admin",
+    "👤": "user-login",
+    "☀️": "sun",
+    "🌙": "moon",
+    "🌤": "noon-sun-cloud",
+    "🌆": "evening-city",
+    "💡": "mode-brainstorm",
+    "🧠": "mode-brainstorm",
+    "🎯": "mode-focus",
+    "🏃": "mode-sprint",
+    "⏰": "mode-behind",
+    "☕": "mode-break",
+    "🎉": "mode-celebrate",
+    "🔉": "feedback-too-loud",
+    "⏭": "feedback-skip",
+    "❤️": "feedback-like",
+    "📻": "radio",
+    "🎵": "music",
+    "♪": "music-note-small",
+    "👥": "listeners",
+    "▶": "play",
+    "⏸": "pause",
+    "⏹": "stop",
+    "🔊": "volume-on",
+    "🔇": "volume-muted",
+    "✏️": "project-manual-input",
+    "📁": "project-folder",
+    "🐙": "project-git-repo",
+    "🎰": "spin-rhythm",
+    "✕": "close",
+    "←": "back",
+    "→": "forward"
+  },
+  "contextMappings": [
+    {
+      "glyph": "⚡",
+      "rules": [
+        {
+          "files": [
+            "src/lib/mbti.js",
+            "src/components/AdminPanel.jsx"
+          ],
+          "textContext": [
+            "sprint",
+            "代码冲刺"
+          ],
+          "icon": "mode-sprint"
+        },
+        {
+          "files": [
+            "src/components/DiscoverPage.jsx"
+          ],
+          "textContext": [
+            "charge",
+            "冲锋"
+          ],
+          "icon": "mode-charge"
+        }
+      ]
+    },
+    {
+      "glyph": "🔥",
+      "rules": [
+        {
+          "files": [
+            "src/lib/mbti.js",
+            "src/components/AdminPanel.jsx"
+          ],
+          "textContext": [
+            "charge",
+            "战鼓催阵"
+          ],
+          "icon": "mode-charge"
+        },
+        {
+          "files": [
+            "src/components/DiscoverPage.jsx"
+          ],
+          "textContext": [
+            "behind",
+            "追赶"
+          ],
+          "icon": "mode-behind"
+        },
+        {
+          "files": [
+            "src/components/ArrangerPanel.jsx"
+          ],
+          "textContext": [
+            "more_drive",
+            "来点刺激的"
+          ],
+          "icon": "feedback-more-drive"
+        },
+        {
+          "files": [
+            "src/components/LandingHub.jsx"
+          ],
+          "textContext": [
+            "下午好",
+            "保持专注节奏"
+          ],
+          "icon": "mode-charge"
+        }
+      ]
+    }
+  ],
+  "modeIconMap": {
+    "brainstorm": "mode-brainstorm",
+    "focus": "mode-focus",
+    "sprint": "mode-sprint",
+    "charge": "mode-charge",
+    "behind": "mode-behind",
+    "break": "mode-break",
+    "celebrate": "mode-celebrate"
+  },
+  "knownReplacementLocations": {
+    "src/App.jsx": [
+      "home",
+      "roomwave",
+      "dj-console",
+      "discover",
+      "mixer",
+      "settings-admin"
+    ],
+    "src/components/LandingHub.jsx": [
+      "sun",
+      "moon",
+      "noon-sun-cloud",
+      "mode-charge",
+      "evening-city",
+      "dj-console",
+      "mixer",
+      "discover",
+      "roomwave",
+      "music",
+      "music-note-small"
+    ],
+    "src/lib/mbti.js": [
+      "mode-brainstorm",
+      "mode-focus",
+      "mode-sprint",
+      "mode-charge",
+      "mode-behind",
+      "mode-break",
+      "mode-celebrate"
+    ],
+    "src/components/AdminPanel.jsx": [
+      "mode-brainstorm",
+      "mode-focus",
+      "mode-sprint",
+      "mode-charge",
+      "mode-behind",
+      "mode-break",
+      "mode-celebrate",
+      "close"
+    ],
+    "src/components/DiscoverPage.jsx": [
+      "mode-brainstorm",
+      "mode-focus",
+      "mode-sprint",
+      "mode-charge",
+      "mode-behind",
+      "mode-break",
+      "mode-celebrate",
+      "radio",
+      "music",
+      "listeners",
+      "play",
+      "discover",
+      "back"
+    ],
+    "src/components/ArrangerPanel.jsx": [
+      "feedback-too-loud",
+      "feedback-more-drive",
+      "feedback-skip",
+      "feedback-like",
+      "music",
+      "play",
+      "stop",
+      "radio"
+    ],
+    "src/components/AuthPanel.jsx": [
+      "close",
+      "music-note-small",
+      "user-login"
+    ],
+    "src/components/ThemeToggle.jsx": [
+      "sun",
+      "moon"
+    ],
+    "src/components/RoomWave.jsx": [
+      "sun",
+      "moon",
+      "roomwave",
+      "discover",
+      "mixer",
+      "settings-admin",
+      "dj-console",
+      "back"
+    ],
+    "src/components/ProjectDeck.jsx": [
+      "project-manual-input",
+      "project-folder",
+      "project-git-repo"
+    ],
+    "src/components/PlayerDeck.jsx": [
+      "play",
+      "pause",
+      "volume-on",
+      "volume-muted"
+    ],
+    "src/components/SharedLibraryBrowser.jsx": [
+      "play"
+    ],
+    "src/components/MusicWheel.jsx": [
+      "mode-celebrate",
+      "spin-rhythm"
+    ]
+  },
+  "iconFiles": [
+    "home.png",
+    "roomwave.png",
+    "dj-console.png",
+    "mixer.png",
+    "discover.png",
+    "settings-admin.png",
+    "user-login.png",
+    "sun.png",
+    "moon.png",
+    "noon-sun-cloud.png",
+    "evening-city.png",
+    "mode-brainstorm.png",
+    "mode-focus.png",
+    "mode-sprint.png",
+    "mode-charge.png",
+    "mode-behind.png",
+    "mode-break.png",
+    "mode-celebrate.png",
+    "feedback-too-loud.png",
+    "feedback-more-drive.png",
+    "feedback-skip.png",
+    "feedback-like.png",
+    "radio.png",
+    "music.png",
+    "music-note-small.png",
+    "listeners.png",
+    "play.png",
+    "pause.png",
+    "stop.png",
+    "volume-on.png",
+    "volume-muted.png",
+    "project-manual-input.png",
+    "project-folder.png",
+    "project-git-repo.png",
+    "spin-rhythm.png",
+    "close.png",
+    "back.png",
+    "forward.png"
+  ]
+}
