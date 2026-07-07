@@ -22,21 +22,26 @@ Glyph-only version, no badge:
 
 Use the badge version where the old emoji sat alone as a large card/entry icon. Use the glyph-only version inside existing buttons, pills, nav links, headings, or anywhere the component already supplies a container/background.
 
-These directories are checked-in source/reference assets. Vite does not publish the repository-root `assets/` directory as `/assets/...` at runtime. The current app also keeps the deployed glyphs in `public/icons/`, so rendered UI should use `/icons/{name}.png`. If a future asset set is not copied to `public/icons/`, move it under `src/assets/icons/` and import it instead.
+These directories are checked-in source/reference assets. Vite does not publish the repository-root `assets/` directory as `/assets/...` at runtime. Runtime UI should use `src/components/IconGlyph.jsx`, which maps semantic icon names to lightweight SVG components. Do not copy these large PNG assets back into `public/icons/` for normal UI controls.
 
 ## Implementation Pattern
 
 Recommended helper shape:
 
 ```jsx
-const ICON_BASE = '/icons';
+import { Play } from 'lucide-react';
+
+const ICON_COMPONENTS = {
+  play: Play,
+};
 
 function Icon({ name, alt = '', className = 'inline-block h-4 w-4' }) {
-  return <img src={`${ICON_BASE}/${name}.png`} alt={alt} className={className} />;
+  const Glyph = ICON_COMPONENTS[name] || Play;
+  return <Glyph aria-hidden={alt === '' ? true : undefined} aria-label={alt || undefined} className={className} />;
 }
 ```
 
-If using Vite import URLs instead of public paths, move or copy the selected assets under `src/assets/icons/` and import via `new URL('../assets/icons/name.png', import.meta.url).href`.
+If a future design requires bitmap icons, generate small runtime-specific assets under `src/assets/icons/` and import them through Vite. Keep each runtime icon sized for the UI, not the source 1000px+ design files.
 
 ## Replacement Rules
 

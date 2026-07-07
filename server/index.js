@@ -159,6 +159,9 @@ app.use('/audio-cache', express.static(join(__dirname, 'data/audio-cache')));
 if (isProd) {
   const distPath = join(__dirname, '../dist');
   app.use(express.static(distPath));
+  app.get('/icons/*', (_req, res) => {
+    res.status(404).type('text/plain').send('Icon not found');
+  });
   app.get('*', (_req, res) => {
     res.sendFile(join(distPath, 'index.html'));
   });
