@@ -2,7 +2,7 @@
 
 > MBTI 黑客松参赛项目 · 2026-07-04~05
 
-**文档版本**：v0.3 · 对齐当前代码实现（DJ 控制台 + 调音台 + Arranger 编排引擎）
+**文档版本**：v0.4 · 对齐当前代码实现（MBTIWAVE 首页 + DJ 控制台 + Discover + 调音台 + Arranger + 社交层）
 
 ---
 
@@ -16,11 +16,13 @@
 - 音乐是最直觉的情绪工具，但没人有精力在 coding 的同时 DJ
 
 **产品形态**：
-- **DJ 控制台**（`/`）：三 Deck 布局，推子/打击垫/LED 面板交互，零文本块操作感
+- **MBTIWAVE 首页**（`#/mbtiwave`，默认入口）：Hero 视频 + Solo Remix + 编排引擎 + 开台直播
+- **DJ 控制台**（`#/`）：三 Deck 布局，推子/打击垫/LED 面板交互，零文本块操作感
+- **发现页**（`#/discover`）：电台、公开歌单、共享曲库、收藏/历史/猜你喜欢
 - **调音台**（`#/mixer`）：AI 生成音频 / stems / 本地音频多轨混音
-- **Arranger 编排引擎**（控制台右侧面板）：七阶段连续音乐流、曲池补货、能量曲线、反馈按钮
-- **管理后台**（`#/admin`）：API Key 配置、预生成音乐库管理
-- Web 单页应用，支持公网/局域网访问
+- **Arranger 编排引擎**（控制台/首页右侧面板）：七阶段连续音乐流、曲池补货、能量曲线、反馈按钮
+- **管理后台**（`#/admin`）：API Key 配置、配额、用户管理、预生成音乐库管理
+- Web 单页应用，支持公网/局域网访问；生产可部署 Railway + Cloudflare R2
 
 **目标用户**：MBTI 黑客松参赛选手和队伍
 
@@ -32,20 +34,29 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
+| MBTIWAVE 首页 | ✅ 已实现 | 默认入口 `#/mbtiwave`；Hero 视频、Solo Remix、编排、开台直播 |
 | MBTI Remix 四轴推子 | ✅ 已实现 | I/E、N/S、T/F、J/P 连续调节 + 16 型快速选择 |
 | Style FX 风格推子 | ✅ 已实现 | CHILL↔HYPE、SYNTH↔ACOUSTIC、DARK↔BRIGHT |
+| 流派选择 Genre | ✅ 已实现 | `/api/styles` 流派目录 + GenreSelector 组件 |
+| 人声模式 VocalMode | ✅ 已实现 | 纯音乐 / 带词 / 分轨混音（instrumental / vocal / mixed） |
 | 项目输入（手动/文件夹/GitHub） | ✅ 已实现 | 浏览器选文件夹解析 README；GitHub API 拉仓库 |
 | Prompt 四层监视器 | ✅ 已实现 | MBTI / 项目 / 模式 / DJ 微调 |
-| TTAPI 音乐生成 + 兜底库 | ✅ 已实现 | 轮询 + fallback-manifest.json |
+| TTAPI 音乐生成 + 兜底库 | ✅ 已实现 | 轮询 + DB fallback_tracks + shared_library |
 | 多供应商 LLM + CLI | ✅ 已实现 | 11 种 provider，运行时配置热生效 |
-| 管理后台 | ✅ 已实现 | API Key + 音乐库 CRUD |
+| 管理后台 | ✅ 已实现 | API Key + 音乐库 CRUD + 配额 + 用户管理 |
 | Mode Pads + Panic | ✅ 已实现 | 七阶段打击垫 + 一键 `behind` |
 | 音频可视化 + MBTI 主题色 | ✅ 已实现 | AnalyserNode 波形 + 16 型配色 |
 | 黑客松日程时间线 | ✅ 已实现 | 展示当前阶段；Arranger 内可按日程判定当前 phase |
-| 用户系统 + 配额 + 曲库归档 | ✅ 已实现 | 注册/登录、每日额度、生成完成归档到个人曲库 |
+| 用户系统 + 配额 + 曲库归档 | ✅ 已实现 | 注册/登录/游客、总额度、生成完成归档到个人曲库 |
 | 调音台 + stems 导入 | ✅ 已实现 | TTAPI stems-all 结果自动进 `#/mixer`，支持多轨 EQ / pan / meter / snapshots |
 | Arranger 编排引擎 | ✅ 已实现 | 七阶段、宏观能量弧线、曲池、后台补货、反馈按钮 |
 | 预生成 / 预取队列 | ✅ 已实现 | Arranger 冷启动生成首批曲目；播放 85% 预加载，95% 交叉淡入 |
+| Discover 发现页 | ✅ 已实现 | 电台、歌单、共享曲库、热门/猜你喜欢/收藏/历史 |
+| 电台 Radio | ✅ 已实现 | 开台直播、听众计数、`/ws/radio` 切歌推送 |
+| 歌单 Playlists | ✅ 已实现 | 公开/私有歌单、曲目增删、播放计数 |
+| 收藏 + 评分 | ✅ 已实现 | favorites + 1–5 星 ratings |
+| 推荐系统 | ✅ 已实现 | popular / for-you / play history |
+| 生产部署适配 | ✅ 已实现 | PostgreSQL + Redis + R2；见 DEPLOYMENT.md |
 | 队伍模式（多人 MBTI 融合） | ⏳ 未实现 | P1：当前会话保存单个用户/单组 MBTI sliders |
 | 演示模式自动播放 | ⏳ 部分实现 | 连续编排播放已实现；完整 UI 演示脚本自动驾驶未实现 |
 | 12 题 MBTI 测试 | ❌ 砍掉 | P2 |
@@ -163,9 +174,11 @@ MBTI 底色（四轴合成类型 → 规则映射）
 |------|------|
 | 系统状态 | TTAPI / LLM 连接状态 LED |
 | API 配置 | TTAPI Key、11 种 LLM 供应商按钮、模型覆盖、彩排模式 |
-| 音乐库管理 | 按 4 模式分 tab，曲目试听/删除/新增 |
+| 配额设置 | 游客/注册用户生成额度（`GUEST_GENERATION_LIMIT` / `USER_GENERATION_LIMIT`） |
+| 用户管理 | 查看用户列表、调整角色（user/vip/admin） |
+| 音乐库管理 | 按模式分 tab，曲目试听/删除/新增（含 personality 底色） |
 
-配置保存到 `server/data/runtime-config.json`（gitignore），**优先级高于 .env，立即生效无需重启**。
+配置保存到数据库 `app_settings` 表（首次启动从旧 `runtime-config.json` 导入）。开发环境优先级：管理后台 > `.env` > 默认值。生产环境中 Railway Variables 里的密钥类变量会锁定，后台无法覆盖。
 
 ### 3.9 Arranger 编排引擎 【已实现】
 
@@ -183,8 +196,25 @@ MBTI 底色（四轴合成类型 → 规则映射）
 | 感知 | `sensingLayer.js` 使用日程、手动切换、反馈按钮修正阶段和能量 |
 | 前端 | `ArrangerPanel.jsx` + `useArranger.js` 展示能量曲线、曲池状态，并驱动 85% / 95% 播放衔接 |
 | 事件 | `/ws/events` 推送 `track_changed` / `phase_changed` / `pool_refill` 等事件 |
+| 电台 | `/ws/radio` 推送 `track_change`；与 Arranger session 联动 |
 
-### 3.10 后续迭代 【P1/P2】
+### 3.11 Discover 发现页 【已实现】
+
+路由：`#/discover`
+
+| 模块 | 说明 |
+|------|------|
+| 电台 | 浏览 LIVE 电台、加入收听、WebSocket 实时切歌 |
+| 歌单 | 公开歌单浏览 + 个人歌单管理 |
+| 共享曲库 | 按 mode/mbti/genre 筛选用户生成曲目 |
+| 推荐 | 热门曲目、猜你喜欢、收藏、播放历史 |
+
+### 3.12 人声与流派 【已实现】
+
+- **VocalMode**：instrumental（默认纯音乐）/ vocal（LLM 生成歌词）/ mixed（生成 + stems 分轨进调音台）
+- **GenreSelector**：从 `genreStyles.js` 流派目录选择，进入 prompt 的 genre 层
+
+### 3.13 后续迭代 【P1/P2】
 
 - 队伍模式（多人 MBTI BPM 均值 + 风格词融合）
 - 演示模式自动播放全流程（当前已有连续编排播放，但没有完整 UI 操作脚本）
@@ -219,7 +249,7 @@ MBTI 底色（四轴合成类型 → 规则映射）
 │  │ library  │ │ musicOrch.   │ │ sunoClient│ │ arranger/  │  │
 │  │ schedule │ │ auth/session │ │ (TTAPI)   │ │ ws/events  │  │
 │  └──────────┘                                                   │
-│  SQLite（用户/配额/曲池/历史）+ JSON 运行时配置/兜底库             │
+│  SQLite / PostgreSQL + Redis + R2/S3 对象存储                     │
 └──────────────────────────┬───────────────────────────────────────┘
                            │
          ┌─────────────────┴─────────────────┐
@@ -232,19 +262,21 @@ MBTI 底色（四轴合成类型 → 规则映射）
 
 | 层 | 选型 | 说明 |
 |----|------|------|
-| 前端 | React 18 + Vite + TailwindCSS | DJ 控制台 UI，自定义 fader/pad/LED 样式 |
-| 路由 | Hash (`#/admin`, `#/mixer`) | 控制台、管理后台、调音台切换 |
+| 前端 | React 18 + Vite + TailwindCSS + Framer Motion | DJ 控制台 / MBTIWAVE 首页 / Discover |
+| 路由 | Hash (`#/mbtiwave`, `#/`, `#/discover`, `#/mixer`, `#/admin`) | 懒加载子页面 |
 | 音频播放 | Howler.js | 淡入淡出、loop、交叉切换 |
 | 连续编排播放 | Web Audio + CrossfadeDeck | Arranger 85% 预加载、95% 交叉淡入 |
 | 音频可视化 | Canvas + AnalyserNode 模拟 | 波形律动条 |
 | 后端 | Node.js + Express | REST API + 手写最小 WebSocket |
-| 存储 | SQLite + JSON | 用户/配额/曲池/历史进 SQLite；配置和兜底库用 JSON |
+| 数据库 | SQLite（开发）/ PostgreSQL（生产） | DAL 统一接口 `server/db/index.js` |
+| 缓存 | 内存 LRU / Redis | 限流、Pub/Sub 跨实例编排事件 |
+| 对象存储 | local / Cloudflare R2 / S3 | 生成音频持久化，避免 CDN 过期 |
 | 音乐生成 | TTAPI Suno 代理 | `TT-API-KEY`；Suno 无公开 API |
 | 分轨 | TTAPI stems-all | 生成完成后可导入调音台 |
-| 音乐兜底 | fallback-manifest.json | 管理后台可增删，支持 URL 或 `/samples/` |
-| 运行时配置 | runtime-config.json | 管理后台写入，覆盖 .env |
+| 音乐兜底 | fallback_tracks 表 + shared_library | manifest 仅作首次 seed |
+| 运行时配置 | app_settings 表 | 管理后台写入；生产密钥由 env 锁定 |
 | LLM | 多供应商 + CLI | 见 §4.3 |
-| 部署 | 本地 + 局域网 IP | `npm run build && NODE_ENV=production npm start` 单端口 |
+| 部署 | 本地 / Railway + R2 | 见 DEPLOYMENT.md |
 
 ### 4.2 API 设计
 
@@ -294,7 +326,50 @@ GET    /api/arranger/history          # 播放历史
 GET    /api/arranger/pool-status      # 曲池状态
 GET    /api/arranger/energy-curve     # 宏观能量曲线
 
+GET    /api/library/shared            # 共享曲库（筛选/分页）
+GET    /api/library/shared/stats      # 曲库统计
+POST   /api/library/shared/:id/play   # 记录播放次数
+
+GET    /api/styles                    # 流派/风格目录
+
+POST   /api/lyrics/generate           # LLM 生成歌词
+POST   /api/notes/parse               # 解析中文备注为 prompt 修饰
+
+GET    /api/playlists                 # 公开歌单列表
+GET    /api/playlists/mine/list       # 我的歌单
+POST   /api/playlists                 # 创建歌单
+GET    /api/playlists/:id             # 歌单详情
+PUT    /api/playlists/:id             # 更新歌单
+DELETE /api/playlists/:id             # 删除歌单
+POST   /api/playlists/:id/tracks      # 添加曲目
+DELETE /api/playlists/:id/tracks/:trackId
+POST   /api/playlists/:id/play        # 记录播放
+
+GET    /api/radio                     # LIVE 电台列表
+POST   /api/radio                     # 开台
+GET    /api/radio/:id                 # 电台详情
+POST   /api/radio/:id/listen          # 加入收听
+POST   /api/radio/:id/leave           # 离开
+PATCH  /api/radio/:id/now-playing     # 更新当前播放
+DELETE /api/radio/:id                 # 关台
+
+GET    /api/favorites                 # 我的收藏
+POST   /api/favorites/:trackId        # 收藏
+DELETE /api/favorites/:trackId        # 取消收藏
+POST   /api/favorites/:trackId/rate   # 评分 1–5
+
+GET    /api/recommend/popular         # 热门曲目
+GET    /api/recommend/for-you         # 猜你喜欢
+GET    /api/recommend/history         # 播放历史
+POST   /api/recommend/play            # 记录播放
+
+GET    /api/config/quota-settings     # 配额设置
+POST   /api/config/quota-settings     # 保存配额
+GET    /api/config/users              # 用户列表（admin）
+PATCH  /api/config/users/:id          # 更新用户角色
+
 WS     /ws/events                     # Arranger 事件推送
+WS     /ws/radio                      # 电台切歌推送
 ```
 
 **`/api/music/generate` 请求体**：
@@ -305,6 +380,8 @@ WS     /ws/events                     # Arranger 事件推送
   "axes": { "ie": 12, "ns": 12, "tf": 12, "jp": 12 },
   "mode": "focus",
   "style": { "energy": 50, "texture": 35, "brightness": 40 },
+  "selectedGenre": "lo-fi hip hop",
+  "vocals": { "enabled": false },
   "projectAnalysis": { "themes": ["..."], "mood": ["..."], "instruments": ["..."] },
   "previewOnly": true,
   "forceFallback": false,
@@ -312,7 +389,7 @@ WS     /ws/events                     # Arranger 事件推送
 }
 ```
 
-`mbti` 与 `axes` 二选一；有 `axes` 时以四轴合成类型为准。
+`mbti` 与 `axes` 二选一；有 `axes` 时以四轴合成类型为准。`vocals.enabled=true` 时 LLM 自动生成歌词（除非已提供 `vocals.lyrics`）。
 
 ### 4.3 LLM 供应商
 
@@ -330,7 +407,7 @@ WS     /ws/events                     # Arranger 事件推送
 | cli-claude | CLI | ANTHROPIC_API_KEY |
 | cli-kimi | CLI | KIMI_API_KEY |
 
-配置优先级：`runtime-config.json` > `.env` > 默认值。
+配置优先级：生产 env 密钥（锁定）> 管理后台 DB 配置 > `.env` > 默认值。
 
 ---
 
@@ -470,82 +547,111 @@ vibe-coding-sonic/
 │
 ├── src/
 │   ├── main.jsx
-│   ├── App.jsx                   # Hash 路由：控制台 / 管理后台 / 调音台
+│   ├── App.jsx                   # Hash 路由 + 经典 DJ 控制台状态
 │   ├── audio/
 │   │   ├── mixerEngine.js        # Web Audio 多轨调音台
 │   │   └── crossfadeDeck.js      # Arranger 预加载 + 交叉淡入
 │   ├── components/
+│   │   ├── MBTIWAVE.jsx          # 首页（默认入口）
+│   │   ├── DiscoverPage.jsx      # 发现页：电台/歌单/推荐
 │   │   ├── MBTIRemixDeck.jsx     # 四轴 Remix 推子 + 16 型快选
 │   │   ├── StyleFaders.jsx       # Style FX 三条推子
 │   │   ├── ModePads.jsx          # 七阶段模式打击垫 + Panic
+│   │   ├── VocalMode.jsx         # 纯音乐/带词/分轨
+│   │   ├── GenreSelector.jsx     # 流派选择
 │   │   ├── PlayerDeck.jsx        # Main Deck：LED + 转盘 + 生成键
 │   │   ├── ProjectDeck.jsx       # 项目输入三 tab
 │   │   ├── PromptCard.jsx        # Prompt Monitor 四层
 │   │   ├── AudioVisualizer.jsx   # 波形可视化
 │   │   ├── Timeline.jsx          # 黑客松日程横条
 │   │   ├── ArrangerPanel.jsx     # 编排引擎面板
+│   │   ├── AuthPanel.jsx         # 登录/注册
 │   │   ├── AdminPanel.jsx        # 管理后台
+│   │   ├── MusicWheel.jsx        # 发现页音乐轮盘
+│   │   ├── SharedLibraryBrowser.jsx
+│   │   ├── PlaylistManager.jsx
 │   │   └── mixer/                # 调音台 UI
 │   ├── hooks/
 │   │   ├── usePlayer.js          # Howler 封装 + 轮询
 │   │   ├── useMixer.js           # Web Audio mixer 状态
-│   │   └── useArranger.js        # Arranger REST/WS + 播放衔接
+│   │   ├── useArranger.js        # Arranger REST/WS + 播放衔接
+│   │   └── useColorMode.js       # 深浅色主题
 │   ├── lib/
 │   │   ├── mbti.js               # 类型/主题色/四轴工具
 │   │   └── api.js                # 后端 API 客户端
 │   └── styles/
-│       └── index.css             # fader / pad / LED 样式
+│       ├── index.css             # fader / pad / LED 样式
+│       └── mbtiwave.css          # 首页样式
 │
 ├── server/
 │   ├── index.js
+│   ├── db.js                     # 兼容层 → db/index.js
+│   ├── db/
+│   │   ├── index.js              # DAL 入口（sqlite | pg）
+│   │   ├── migrations.js         # 建表 + 兼容迁移
+│   │   ├── sqlite.js
+│   │   └── pg.js
+│   ├── cache/index.js            # 内存 LRU / Redis
+│   ├── storage/                  # local / R2 / S3
 │   ├── config/
 │   │   ├── providers.js          # LLM/TTAPI 供应商预设
-│   │   └── runtimeConfig.js      # 运行时配置读写
+│   │   └── runtimeConfig.js      # app_settings 读写
+│   ├── middleware/
+│   │   ├── userAuth.js           # session + guest cookie
+│   │   ├── adminAuth.js
+│   │   └── rateLimit.js
 │   ├── routes/
-│   │   ├── auth.js
-│   │   ├── user.js
-│   │   ├── mbti.js
-│   │   ├── project.js            # analyze + analyze-github
-│   │   ├── music.js
-│   │   ├── config.js             # keys / providers / status
-│   │   ├── library.js            # 音乐库 CRUD
-│   │   ├── schedule.js
-│   │   ├── session.js            # Arranger session
-│   │   └── arranger.js           # 编排引擎控制面
+│   │   ├── auth.js / user.js
+│   │   ├── mbti.js / project.js / music.js
+│   │   ├── config.js / library.js / schedule.js
+│   │   ├── session.js / arranger.js
+│   │   ├── styles.js / lyrics.js / notes.js
+│   │   ├── playlists.js / radio.js
+│   │   ├── favorites.js / recommend.js
 │   ├── services/
 │   │   ├── sunoClient.js         # TTAPI 封装
 │   │   ├── musicOrchestrator.js  # 生成任务 + stems + 兜底
-│   │   ├── authService.js        # 登录/注册/session
-│   │   ├── quotaService.js       # 配额 + 个人曲库
-│   │   ├── libraryStore.js       # fallback-manifest 读写
+│   │   ├── authService.js        # 登录/注册/session/guest
+│   │   ├── quotaService.js       # 配额 + 个人曲库 + profile
+│   │   ├── libraryStore.js       # fallback + shared_library
 │   │   ├── promptComposer.js     # 四层 prompt 融合
+│   │   ├── genreStyles.js        # 流派目录
+│   │   ├── recommendService.js   # 推荐
+│   │   ├── radioService.js       # 电台
+│   │   ├── playlistService.js    # 歌单
+│   │   ├── favoriteService.js    # 收藏/评分
 │   │   ├── arranger/             # 宏观弧线/曲池/调度/决策/感知层
-│   │   ├── llmClient.js          # re-export
-│   │   └── llm/
-│   │       ├── index.js
-│   │       ├── httpProviders.js  # OpenAI/Anthropic/Gemini
-│   │       └── cliProvider.js    # Codex/Gemini/Claude/Kimi CLI
+│   │   └── llm/                  # HTTP + CLI providers
+│   ├── ws/
+│   │   ├── wsServer.js           # RFC 6455 零依赖 WS
+│   │   ├── events.js             # /ws/events
+│   │   └── radio.js              # /ws/radio
 │   └── data/
 │       ├── mbti-profiles.json
 │       ├── project-templates.json
 │       ├── demo-schedule.json
-│       ├── fallback-manifest.json    # 兜底曲目（可 git 提交）
-│       ├── audio-cache/              # Arranger 本地音频缓存（gitignore，保留 .gitkeep）
-│       ├── app.db                    # SQLite 运行库（gitignore）
-│       └── runtime-config.json       # 管理后台配置（gitignore）
+│       ├── fallback-manifest.json    # 兜底 seed（可 git 提交）
+│       └── audio-cache/              # 本地音频缓存（gitignore）
 │
 ├── test/
-│   └── smoke.mjs                 # 端到端 smoke：auth / prompt preview / fallback generate / status
+│   ├── smoke.mjs                 # E2E smoke test
+│   └── fallback-coverage.mjs     # 兜底曲库覆盖检查
+│
+├── scripts/
+│   └── generate-fallback-with-ttapi.mjs
+│
+├── DEPLOYMENT.md                 # Railway + R2 部署方案
 │
 └── public/
-    └── samples/                  # 可选：本地 MP3 文件
+    ├── samples/                  # 可选：本地 MP3 文件
+    └── hero*.mp4                 # 首页 Hero 视频
 ```
 
 ---
 
 ## 9. 环境配置
 
-### 9.1 两种方式（优先级：管理后台 > .env）
+### 9.1 两种方式
 
 **方式 A — 管理后台（推荐现场）**
 1. 打开 http://localhost:5173/#/admin
@@ -558,6 +664,8 @@ cp .env.example .env
 # 编辑 TTAPI_KEY、LLM_PROVIDER、对应 API Key
 ```
 
+生产部署见 [DEPLOYMENT.md](DEPLOYMENT.md)。关键变量：`DB_DRIVER`、`DATABASE_URL`、`REDIS_URL`、`STORAGE_DRIVER`、`S3_*`、`GLOBAL_DAILY_LIMIT`。
+
 ### 9.2 赛前 checklist
 
 | # | 任务 | 验收 |
@@ -566,7 +674,7 @@ cp .env.example .env
 | 2 | 兜底曲库 | 管理后台添加七阶段曲目，或更新 fallback-manifest.json |
 | 3 | LLM 验证 | 项目分析返回稳定 JSON |
 | 4 | Demo 彩排 | `USE_FALLBACK_ONLY=true`，模式切换秒切不卡顿 |
-| 5 | Smoke test | `npm run test:smoke` 覆盖 auth / prompt preview / fallback generate / status |
+| 5 | Smoke test | `npm test` 或 `npm run test:smoke` |
 
 ---
 
