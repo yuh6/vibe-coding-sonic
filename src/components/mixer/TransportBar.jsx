@@ -1,3 +1,5 @@
+import { Pause, Play, Repeat, RotateCcw, SkipBack, SkipForward, Square, Volume2 } from 'lucide-react';
+
 function fmt(time) {
   if (!Number.isFinite(time)) return '0:00';
   const minutes = Math.floor(time / 60);
@@ -5,46 +7,102 @@ function fmt(time) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-export default function TransportBar({ playing, time, duration, loop, hasTracks, onPlay, onPause, onStop, onClearLoop }) {
+export default function TransportBar({
+  playing,
+  time,
+  duration,
+  loop,
+  hasTracks,
+  tracks = [],
+  loading = false,
+  master,
+  playlistCount = 0,
+  activePlaylistIndex = -1,
+  onMasterUpdate,
+  onPlay,
+  onPause,
+  onStop,
+  onPrevious,
+  onNext,
+  onClearLoop,
+}) {
+  const progress = duration > 0 ? Math.max(0, Math.min(100, (time / duration) * 100)) : 0;
+  const activeTrack = tracks[0];
+  const title = activeTrack?.name || (loading ? 'Loading audio' : 'No track loaded');
+  const canStepPlaylist = playlistCount > 0;
+
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-3">
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={playing ? onPause : onPlay}
-          disabled={!hasTracks}
-          className="pad flex h-10 w-10 items-center justify-center text-lg disabled:opacity-40"
-          aria-label={playing ? 'Pause' : 'Play'}
-        >
-          {playing ? 'Pause' : 'Play'}
-        </button>
-        <button
-          type="button"
-          onClick={onStop}
-          disabled={!hasTracks}
-          className="pad flex h-10 w-12 items-center justify-center text-xs disabled:opacity-40"
-          aria-label="Stop"
-        >
-          Stop
-        </button>
+    <div className="mixer-transport">
+      <div className="mixer-transport-track min-w-0">
+        <div className="mixer-transport-cover" style={{ '--track-color': activeTrack?.color || '#34d399' }}>
+          <span />
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-bold text-white" title={title}>{title}</div>
+          <div className="truncate font-mono text-[10px] text-white/40">
+            {tracks.length
+              ? `Playlist loop ${activePlaylistIndex + 1 || 1}/${playlistCount || 1}`
+              : playlistCount
+                ? `Playlist loop ready · ${playlistCount} tracks`
+                : 'Load a track from Library'}
+          </div>
+        </div>
       </div>
 
-      <div className="led-display rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 font-mono text-sm text-emerald-300">
-        {fmt(time)} <span className="text-white/35">/ {fmt(duration)}</span>
+      <div className="mixer-transport-center">
+        <div className="flex items-center justify-center gap-2">
+          <button type="button" onClick={onPrevious} className="mixer-icon-button" disabled={!canStepPlaylist} aria-label="Previous">
+            <SkipBack className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={playing ? onPause : onPlay}
+            disabled={!hasTracks && !playlistCount}
+            className="mixer-play-button"
+            aria-label={playing ? 'Pause' : 'Play'}
+          >
+            {playing ? <Pause className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+          </button>
+          <button type="button" onClick={onNext} className="mixer-icon-button" disabled={!canStepPlaylist} aria-label="Next">
+            <SkipForward className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={onStop} className="mixer-icon-button" disabled={!hasTracks} aria-label="Stop">
+            <Square className="h-3.5 w-3.5 fill-current" />
+          </button>
+          <button
+            type="button"
+            onClick={onClearLoop}
+            className={`mixer-icon-button ${loop || playlistCount ? 'is-active' : ''}`}
+            disabled={!loop && !playlistCount}
+            title={loop ? `Clear loop ${fmt(loop.start)}-${fmt(loop.end)}` : 'Playlist loop is on by default'}
+            aria-label="Clear loop"
+          >
+            {loop ? <RotateCcw className="h-4 w-4" /> : <Repeat className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <div className="mixer-progress-row">
+          <span>{fmt(time)}</span>
+          <div className="mixer-progress-track" aria-label="Playback progress">
+            <div style={{ width: `${progress}%` }} />
+          </div>
+          <span>{fmt(duration)}</span>
+        </div>
       </div>
 
-      {loop && (
-        <button
-          type="button"
-          onClick={onClearLoop}
-          className="btn-ghost rounded-lg px-2.5 py-1.5 font-mono text-[10px]"
-          title="Clear loop"
-        >
-          Loop {fmt(loop.start)}-{fmt(loop.end)} x
-        </button>
-      )}
-
-      <span className="min-w-0 truncate text-[10px] text-white/35">Click waveform to seek. Drag to loop.</span>
+      <div className="mixer-transport-tools">
+        <Volume2 className="h-4 w-4 text-white/55" />
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={master?.volume ?? 0.85}
+          onChange={(event) => onMasterUpdate?.({ volume: Number(event.target.value) })}
+          className="mixer-volume"
+          aria-label="Master volume"
+        />
+      </div>
     </div>
   );
 }

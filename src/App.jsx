@@ -539,13 +539,17 @@ export default function App() {
     });
   }, [liveStation?.id, arranger.nowPlayingTrack]);
 
-  const pageBg = isDark
-    ? `radial-gradient(ellipse at 20% 0%, ${theme.primary} 0%, transparent 55%),
-       radial-gradient(ellipse at 80% 100%, ${theme.accent}26 0%, transparent 50%),
-       var(--page-bg)`
-    : `radial-gradient(ellipse at 20% 0%, ${theme.accent}22 0%, transparent 50%),
-       radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
-       var(--page-bg)`;
+  const pageBg = isMixer
+    ? `radial-gradient(ellipse at 18% 0%, rgba(52, 211, 153, 0.16) 0%, transparent 48%),
+       radial-gradient(ellipse at 82% 100%, rgba(14, 165, 233, 0.12) 0%, transparent 52%),
+       #050505`
+    : isDark
+      ? `radial-gradient(ellipse at 20% 0%, ${theme.primary} 0%, transparent 55%),
+         radial-gradient(ellipse at 80% 100%, ${theme.accent}26 0%, transparent 50%),
+         var(--page-bg)`
+      : `radial-gradient(ellipse at 20% 0%, ${theme.accent}22 0%, transparent 50%),
+         radial-gradient(ellipse at 80% 100%, ${theme.glow}18 0%, transparent 55%),
+         var(--page-bg)`;
 
   // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
   if (isHome) {
@@ -596,7 +600,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ background: pageBg }}>
+    <div className={`min-h-screen transition-colors duration-300 ${isMixer ? 'mixer-app-frame' : ''}`} style={{ background: pageBg }}>
       <div className="mx-auto max-w-7xl px-4 py-6">
         {notice && (
           <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-xl border border-amber-400/40 bg-black/85 px-4 py-2 text-sm text-amber-200 backdrop-blur">
