@@ -1,10 +1,11 @@
 import { MODES } from '../lib/mbti';
+import IconGlyph from './IconGlyph';
 
 const FEEDBACK_BUTTONS = [
-  { action: 'too_loud', label: '太吵了', emoji: '🔉' },
-  { action: 'more_drive', label: '来点刺激的', emoji: '🔥' },
-  { action: 'skip', label: '跳过', emoji: '⏭' },
-  { action: 'like', label: '喜欢', emoji: '❤️' },
+  { action: 'too_loud', label: '太吵了', icon: 'feedback-too-loud' },
+  { action: 'more_drive', label: '来点刺激的', icon: 'feedback-more-drive' },
+  { action: 'skip', label: '跳过', icon: 'feedback-skip' },
+  { action: 'like', label: '喜欢', icon: 'feedback-like' },
 ];
 
 /** 能量曲线实时展示 — §12.1 EnergyCurve */
@@ -97,7 +98,7 @@ function PoolStatus({ poolStatus }) {
               className="rounded-lg border border-theme bg-led-panel px-2 py-1 text-center text-[10px]"
               title={`未播 ${available} / 生成中 ${pending} / 可播 ${info.ready || 0}`}
             >
-              <span className="mr-1">{modeInfo?.emoji || phase}</span>
+              <IconGlyph name={modeInfo?.icon || 'music'} className="mr-1 h-3.5 w-3.5 align-[-2px]" />
               <span className="font-mono text-faint">
                 {available}+{pending}/{info.total}
               </span>
@@ -114,7 +115,7 @@ function MoodIndicator({ track, phase, theme }) {
   const modeInfo = MODES.find((m) => m.id === phase);
   return (
     <div className="flex items-center gap-2">
-      <span className="text-lg">{modeInfo?.emoji || '🎵'}</span>
+      <IconGlyph name={modeInfo?.icon || 'music'} className="h-5 w-5" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-medium text-theme">
           {track?.moodTag || modeInfo?.label || '等待启动'}
@@ -165,18 +166,20 @@ export default function ArrangerPanel({
           type="button"
           onClick={running ? onStop : onStart}
           disabled={starting}
-          className="pad px-3 py-1.5 text-xs disabled:opacity-50"
+          className="pad flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
         >
-          {starting ? '启动中...' : running ? '⏹ 停止' : '▶ 开始编排'}
+          {!starting && <IconGlyph name={running ? 'stop' : 'play'} className="h-3.5 w-3.5" />}
+          <span>{starting ? '启动中...' : running ? '停止' : '开始编排'}</span>
         </button>
         {onRadioToggle && (
           <button
             type="button"
             onClick={onRadioToggle}
             disabled={radioBusy || (!running && !liveStation)}
-            className={`pad px-3 py-1.5 text-xs disabled:opacity-50 ${liveStation ? 'pad-active' : ''}`}
+            className={`pad flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50 ${liveStation ? 'pad-active' : ''}`}
           >
-            {radioBusy ? '处理中...' : liveStation ? '📻 下线电台' : '📻 公开'}
+            {!radioBusy && <IconGlyph name="radio" className="h-3.5 w-3.5" />}
+            <span>{radioBusy ? '处理中...' : liveStation ? '下线电台' : '公开'}</span>
           </button>
         )}
       </div>
@@ -200,9 +203,10 @@ export default function ArrangerPanel({
             type="button"
             onClick={() => onPhaseChange(m.id)}
             disabled={!running}
-            className={`pad px-2 py-1.5 text-xs disabled:opacity-40 ${phase === m.id ? 'pad-active' : ''}`}
+            className={`pad flex items-center gap-1.5 px-2 py-1.5 text-xs disabled:opacity-40 ${phase === m.id ? 'pad-active' : ''}`}
           >
-            {m.emoji} {m.label}
+            <IconGlyph name={m.icon} className="h-4 w-4" />
+            <span>{m.label}</span>
           </button>
         ))}
       </div>
@@ -222,7 +226,7 @@ export default function ArrangerPanel({
             disabled={!running}
             className="pad flex flex-col items-center gap-0.5 py-2 text-[10px] disabled:opacity-40"
           >
-            <span className="text-base">{btn.emoji}</span>
+            <IconGlyph name={btn.icon} className="h-5 w-5" />
             {btn.label}
           </button>
         ))}

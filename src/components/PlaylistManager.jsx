@@ -3,6 +3,7 @@ import {
   addToPlaylist, createPlaylist, getMyPlaylists,
   updatePlaylist, deletePlaylist, getPlaylist, removeFromPlaylist,
 } from '../lib/api';
+import IconGlyph from './IconGlyph';
 
 export default function PlaylistManager({ selectedTrack, user, onRequireAuth, onAdded, onPlayTrack }) {
   const [playlists, setPlaylists] = useState([]);
@@ -252,7 +253,7 @@ export default function PlaylistManager({ selectedTrack, user, onRequireAuth, on
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-white/30">{expandedId === playlist.id ? '▼' : '▶'}</span>
+                    <IconGlyph name="forward" className={`h-3 w-3 opacity-40 ${expandedId === playlist.id ? 'rotate-90' : ''}`} />
                     <span className="truncate text-xs font-medium text-white/80">{playlist.title}</span>
                     {playlist.isPublic && <span className="text-[9px] text-green-400/70">公开</span>}
                   </div>
@@ -270,9 +271,13 @@ export default function PlaylistManager({ selectedTrack, user, onRequireAuth, on
                 >
                   加入
                 </button>
-                <button type="button" onClick={() => startEdit(playlist)} title="重命名" className="px-1 text-xs text-white/40 hover:text-white/70">✏️</button>
+                <button type="button" onClick={() => startEdit(playlist)} title="重命名" className="px-1 text-xs text-white/40 hover:text-white/70">
+                  <IconGlyph name="project-manual-input" className="h-3.5 w-3.5" />
+                </button>
                 <button type="button" onClick={() => togglePublic(playlist)} title={playlist.isPublic ? '设为私密' : '公开'} className="px-1 text-xs text-white/40 hover:text-white/70">{playlist.isPublic ? '🌐' : '🔒'}</button>
-                <button type="button" onClick={() => remove(playlist)} title="删除歌单" className="px-1 text-xs text-white/40 hover:text-red-400">🗑️</button>
+                <button type="button" onClick={() => remove(playlist)} title="删除歌单" className="px-1 text-xs text-white/40 hover:text-red-400">
+                  <IconGlyph name="close" className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
 
@@ -301,7 +306,7 @@ export default function PlaylistManager({ selectedTrack, user, onRequireAuth, on
                           title="从歌单移除"
                           className="shrink-0 px-1 text-[11px] text-white/30 hover:text-red-400"
                         >
-                          ✕
+                          <IconGlyph name="close" className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ))}

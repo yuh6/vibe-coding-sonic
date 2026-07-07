@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getSharedLibrary, recordSharedTrackPlay, getSharedStats } from '../lib/api';
 import { MODES } from '../lib/mbti';
+import IconGlyph from './IconGlyph';
 import TrackActions from './TrackActions';
 
 export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack, user, onRequireAuth }) {
@@ -103,7 +104,10 @@ export default function SharedLibraryBrowser({ onPlayTrack, onSelectTrack, user,
                     {[track.mbti, track.mode, track.genre].filter(Boolean).join(' · ')}
                   </div>
                 </div>
-                <span className="shrink-0 text-[10px] text-white/30">▶ {track.playCount || 0}</span>
+                <span className="flex shrink-0 items-center gap-1 text-[10px] text-white/30">
+                  <IconGlyph name="play" className="h-3 w-3" />
+                  {track.playCount || 0}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex gap-2">

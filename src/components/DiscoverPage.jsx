@@ -20,11 +20,28 @@ import {
 import MusicWheel from './MusicWheel';
 import SharedLibraryBrowser from './SharedLibraryBrowser';
 import PlaylistManager from './PlaylistManager';
+import IconGlyph from './IconGlyph';
 
 const MODE_LABELS = {
-  brainstorm: '🧠 头脑风暴', focus: '🎯 专注', sprint: '🏃 冲刺',
-  charge: '⚡ 冲锋', behind: '🔥 追赶', break: '☕ 休息', celebrate: '🎉 庆祝',
+  brainstorm: { label: '头脑风暴', icon: 'mode-brainstorm' },
+  focus: { label: '专注', icon: 'mode-focus' },
+  sprint: { label: '冲刺', icon: 'mode-sprint' },
+  charge: { label: '冲锋', icon: 'mode-charge' },
+  behind: { label: '追赶', icon: 'mode-behind' },
+  break: { label: '休息', icon: 'mode-break' },
+  celebrate: { label: '庆祝', icon: 'mode-celebrate' },
 };
+
+function ModeLabel({ mode }) {
+  const item = MODE_LABELS[mode];
+  if (!item) return mode || null;
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      <IconGlyph name={item.icon} className="h-3.5 w-3.5" />
+      {item.label}
+    </span>
+  );
+}
 
 const DISCOVER_MBTI = 'ENFP';
 const MIN_GENRE_TRACKS = 3;
@@ -202,12 +219,12 @@ function RadioCard({ station, onTune }) {
     >
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-          <span className="text-green-400 text-lg">📻</span>
+          <IconGlyph name="radio" className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-white/90 truncate">{station.title}</div>
           <div className="text-[11px] text-white/40">
-            {station.userName} · {MODE_LABELS[station.mode] || station.mode}
+            {station.userName} · <ModeLabel mode={station.mode} />
           </div>
         </div>
         {station.isLive && (
@@ -218,12 +235,16 @@ function RadioCard({ station, onTune }) {
         )}
       </div>
       {station.currentTrack && (
-        <div className="text-[11px] text-white/50 pl-[52px] truncate">
-          ♪ {station.currentTrack.title} · {station.currentTrack.bpm} BPM
+        <div className="flex items-center gap-1 text-[11px] text-white/50 pl-[52px] truncate">
+          <IconGlyph name="music-note-small" className="h-3 w-3" />
+          <span className="truncate">{station.currentTrack.title} · {station.currentTrack.bpm} BPM</span>
         </div>
       )}
       <div className="flex items-center gap-3 mt-2 pl-[52px] text-[10px] text-white/30">
-        <span>👥 {station.listenerCount}</span>
+        <span className="flex items-center gap-1">
+          <IconGlyph name="listeners" className="h-3 w-3" />
+          {station.listenerCount}
+        </span>
         {station.mbti && <span>{station.mbti}</span>}
       </div>
     </div>
@@ -238,7 +259,7 @@ function PlaylistCard({ playlist, onPlay }) {
     >
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-          <span className="text-indigo-300 text-lg">🎵</span>
+          <IconGlyph name="music" className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-white/90 truncate">{playlist.title}</div>
@@ -246,7 +267,10 @@ function PlaylistCard({ playlist, onPlay }) {
             {playlist.userName} · {playlist.trackCount} 首
           </div>
         </div>
-        <span className="text-[10px] text-white/30">▶ {playlist.playCount}</span>
+        <span className="flex items-center gap-1 text-[10px] text-white/30">
+          <IconGlyph name="play" className="h-3 w-3" />
+          {playlist.playCount}
+        </span>
       </div>
       {playlist.description && (
         <div className="text-[11px] text-white/40 mt-2 pl-[52px] line-clamp-2">{playlist.description}</div>
@@ -441,23 +465,27 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-bold text-white/90">🌍 发现音乐</h2>
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-white/90">
+          <IconGlyph name="discover" className="h-5 w-5" />
+          <span>发现音乐</span>
+        </h2>
         <div className="flex flex-wrap gap-1 p-0.5 rounded-lg bg-white/5">
           {[
-            { id: 'radio', label: '📻 电台', active: 'bg-green-500/20 text-green-300' },
-            { id: 'playlists', label: '🎵 播放列表', active: 'bg-indigo-500/20 text-indigo-300' },
-            { id: 'favorites', label: '❤️ 收藏', active: 'bg-pink-500/20 text-pink-300' },
-            { id: 'history', label: '🕐 历史', active: 'bg-sky-500/20 text-sky-300' },
-            { id: 'for-you', label: '✨ 猜你喜欢', active: 'bg-amber-500/20 text-amber-300' },
+            { id: 'radio', label: '电台', icon: 'radio', active: 'bg-green-500/20 text-green-300' },
+            { id: 'playlists', label: '播放列表', icon: 'music', active: 'bg-indigo-500/20 text-indigo-300' },
+            { id: 'favorites', label: '收藏', icon: 'feedback-like', active: 'bg-pink-500/20 text-pink-300' },
+            { id: 'history', label: '历史', icon: 'music-note-small', active: 'bg-sky-500/20 text-sky-300' },
+            { id: 'for-you', label: '猜你喜欢', icon: 'mode-celebrate', active: 'bg-amber-500/20 text-amber-300' },
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors ${
                 tab === t.id ? t.active : 'text-white/50 hover:text-white/70'
               }`}
             >
-              {t.label}
+              <IconGlyph name={t.icon} className="h-3.5 w-3.5" />
+              <span>{t.label}</span>
             </button>
           ))}
         </div>
@@ -509,7 +537,7 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
             tracks={personalTracks}
             onPlay={playPersonal}
             emptyHint={
-              tab === 'favorites' ? '还没有收藏 · 在共享曲库点 ❤️ 收藏喜欢的歌'
+              tab === 'favorites' ? '还没有收藏 · 在共享曲库点收藏喜欢的歌'
               : tab === 'history' ? '还没有播放记录'
               : '暂无推荐 · 多听几首后这里会更懂你'
             }

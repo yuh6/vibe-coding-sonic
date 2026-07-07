@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import IconGlyph from './IconGlyph';
 
 const PRESETS = [
   { name: '足球经理游戏', description: '复古像素风格的足球经理策略游戏，强调竞技与战术' },
@@ -7,9 +8,9 @@ const PRESETS = [
 ];
 
 const TABS = [
-  { id: 'text', label: '✏️ 手动输入' },
-  { id: 'folder', label: '📁 项目文件夹' },
-  { id: 'github', label: '🐙 GitHub' },
+  { id: 'text', label: '手动输入', icon: 'project-manual-input' },
+  { id: 'folder', label: '项目文件夹', icon: 'project-folder' },
+  { id: 'github', label: 'GitHub', icon: 'project-git-repo' },
 ];
 
 const READABLE_FILES = ['readme.md', 'readme.txt', 'package.json', 'pyproject.toml', 'cargo.toml', 'go.mod'];
@@ -122,9 +123,10 @@ export default function ProjectDeck({
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`pad flex-1 py-2 text-xs ${tab === t.id ? 'pad-active' : ''}`}
+            className={`pad flex flex-1 items-center justify-center gap-1.5 py-2 text-xs ${tab === t.id ? 'pad-active' : ''}`}
           >
-            {t.label}
+            <IconGlyph name={t.icon} className="h-4 w-4" />
+            <span>{t.label}</span>
           </button>
         ))}
       </div>
@@ -179,7 +181,7 @@ export default function ProjectDeck({
             disabled={busy}
             className="pad w-full py-6 text-sm text-muted disabled:opacity-50"
           >
-            <span className="mb-1 block text-3xl">📁</span>
+            <IconGlyph name="project-folder" className="mx-auto mb-2 h-8 w-8" />
             {busy ? '解析中...' : '点击选择项目文件夹'}
             <span className="mt-1 block text-[10px] text-subtle">
               自动读取 README / package.json 提取项目主题

@@ -4,12 +4,12 @@
     "badge": {
       "directory": "assets/icon-previews",
       "description": "Transparent PNG icons with dark rounded-square badge backgrounds. Use for large standalone entry/card icons.",
-      "runtimeNote": "Repository-root assets are source/reference files; copy selected icons to public/assets/icon-previews or import from src/assets before using in rendered UI."
+      "runtimeNote": "Repository-root assets are source/reference files; the current runtime glyphs live in public/icons and are served from /icons."
     },
     "glyph": {
       "directory": "assets/icon-glyphs",
       "description": "Transparent PNG glyph-only icons with no rounded-square background. Use inside existing buttons, pills, nav links, headings, and controls.",
-      "runtimeNote": "Repository-root assets are source/reference files; copy selected icons to public/assets/icon-glyphs or import from src/assets before using in rendered UI."
+      "runtimeNote": "Repository-root assets are source/reference files; the current runtime glyphs live in public/icons and are served from /icons."
     }
   },
   "defaultAssetSet": "glyph",

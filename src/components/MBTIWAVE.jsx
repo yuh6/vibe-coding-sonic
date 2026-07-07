@@ -20,6 +20,7 @@ import PromptCard from './PromptCard';
 import ArrangerPanel from './ArrangerPanel';
 import MBTIRemixDeck from './MBTIRemixDeck';
 import Timeline from './Timeline';
+import IconGlyph from './IconGlyph';
 
 const STARTUP_FALLBACK_MODE = 'startup';
 
@@ -710,15 +711,16 @@ export default function MBTIWAVE({
             className="flex h-9 w-9 items-center justify-center rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-base text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
             title={isDark ? '浅色模式' : '深色模式'}
           >
-            {isDark ? '☀️' : '🌙'}
+            <IconGlyph name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
           </button>
           {currentView !== 'home' && (
             <button
               onClick={() => setCurrentView('home')}
-              className="pad px-3 py-1.5 text-xs font-bold hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              className="pad flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
               title="返回 MBTIWAVE 首页"
             >
-              🌊 MBTIWAVE
+              <IconGlyph name="roomwave" className="h-4 w-4" />
+              <span>MBTIWAVE</span>
             </button>
           )}
           {/* <a href="#/discover" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">🌍 发现</a> */}

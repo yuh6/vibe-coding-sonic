@@ -14,6 +14,7 @@ import {
   getStoredAdminToken,
   setStoredAdminToken,
 } from '../lib/api';
+import IconGlyph from './IconGlyph';
 
 const PROVIDER_KEY_MAP = {
   openai: 'OPENAI_API_KEY',
@@ -30,15 +31,15 @@ const PROVIDER_KEY_MAP = {
 
 const MODES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate', 'personality', 'startup'];
 const MODE_LABELS = {
-  brainstorm: '💡 头脑风暴',
-  focus: '🎯 专注构思',
-  sprint: '⚡ 代码冲刺',
-  charge: '🔥 战鼓催阵',
-  behind: '⏰ 落后了',
-  break: '☕ 休息一下',
-  celebrate: '🎉 完成了！',
-  personality: '🧬 人格底色',
-  startup: '🚀 生成启动',
+  brainstorm: { label: '头脑风暴', icon: 'mode-brainstorm' },
+  focus: { label: '专注构思', icon: 'mode-focus' },
+  sprint: { label: '代码冲刺', icon: 'mode-sprint' },
+  charge: { label: '战鼓催阵', icon: 'mode-charge' },
+  behind: { label: '落后了', icon: 'mode-behind' },
+  break: { label: '休息一下', icon: 'mode-break' },
+  celebrate: { label: '完成了！', icon: 'mode-celebrate' },
+  personality: { label: '人格底色', icon: 'music' },
+  startup: { label: '生成启动', icon: 'music-note-small' },
 };
 const MBTI_TYPES = [
   'INTJ', 'INTP', 'ENTJ', 'ENTP',
@@ -469,9 +470,10 @@ export default function AdminPanel() {
               key={m}
               type="button"
               onClick={() => setLibMode(m)}
-              className={`pad px-2 py-2 text-xs ${libMode === m ? 'pad-active' : ''}`}
+              className={`pad flex items-center gap-1.5 px-2 py-2 text-xs ${libMode === m ? 'pad-active' : ''}`}
             >
-              {MODE_LABELS[m]}
+              <IconGlyph name={MODE_LABELS[m].icon} className="h-4 w-4" />
+              <span>{MODE_LABELS[m].label}</span>
               <span className="ml-1 text-faint">({library?.[m]?.length || 0})</span>
             </button>
           ))}
@@ -500,7 +502,7 @@ export default function AdminPanel() {
                 className="pad flex h-8 w-8 flex-none items-center justify-center text-sm text-red-500"
                 aria-label="删除曲目"
               >
-                ✕
+                <IconGlyph name="close" className="h-4 w-4" />
               </button>
             </div>
           ))}

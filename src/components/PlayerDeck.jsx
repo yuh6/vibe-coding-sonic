@@ -1,4 +1,5 @@
 import AudioVisualizer from './AudioVisualizer';
+import IconGlyph from './IconGlyph';
 import MotionBackdrop from './MotionBackdrop';
 
 const STATUS_LABEL = {
@@ -162,7 +163,7 @@ export default function PlayerDeck({
               style={{ '--pad-glow': `${theme.accent}66` }}
               aria-label={playing ? '暂停' : '播放'}
             >
-              {playing ? '⏸' : '▶'}
+              <IconGlyph name={playing ? 'pause' : 'play'} className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -170,7 +171,7 @@ export default function PlayerDeck({
               className="pad flex h-11 w-11 items-center justify-center text-lg"
               aria-label={muted ? '取消静音' : '静音'}
             >
-              {muted ? '🔇' : '🔊'}
+              <IconGlyph name={muted ? 'volume-muted' : 'volume-on'} className="h-5 w-5" />
             </button>
             <div className="ml-1 flex-1">
               <div className="mb-0.5 font-mono text-[9px] tracking-widest text-faint">VOLUME</div>
@@ -198,13 +199,14 @@ export default function PlayerDeck({
         type="button"
         onClick={onGenerate}
         disabled={generating}
-        className="w-full rounded-full py-3.5 font-display text-sm font-extrabold uppercase tracking-wider text-white transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50 disabled:hover:scale-100"
+        className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-display text-sm font-extrabold uppercase tracking-wider text-white transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50 disabled:hover:scale-100"
         style={{
           background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
           boxShadow: `0 4px 24px ${theme.accent}55`,
         }}
       >
-        {generating ? '◉ GENERATING...' : '⏻ DROP THE BEAT'}
+        {!generating && <IconGlyph name="music" className="h-5 w-5" />}
+        <span>{generating ? 'GENERATING...' : 'DROP THE BEAT'}</span>
       </button>
       </div>
     </MotionBackdrop>

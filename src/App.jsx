@@ -11,6 +11,7 @@ import ArrangerPanel from './components/ArrangerPanel';
 import GenreSelector from './components/GenreSelector';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
+import IconGlyph from './components/IconGlyph';
 import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
 import {
@@ -620,9 +621,10 @@ export default function App() {
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
               href="#/mbtiwave"
-              className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              className="pad flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              🌊 MBTIWAVE
+              <IconGlyph name="roomwave" className="h-4 w-4" />
+              <span>MBTIWAVE</span>
             </a>
             {/* {!isDiscover && (
               <a

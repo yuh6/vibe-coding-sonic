@@ -3,6 +3,7 @@ import {
   addFavorite, removeFavorite, getFavoriteStatus,
   rateTrack, getMyRating, getTrackRatings,
 } from '../lib/api';
+import IconGlyph from './IconGlyph';
 
 /**
  * 可复用的「❤️ 收藏 + ⭐ 评分」按钮组。
@@ -83,11 +84,11 @@ export default function TrackActions({ trackId, user, onRequireAuth, compact = f
         type="button"
         onClick={toggleFavorite}
         title={favorited ? '取消收藏' : '收藏'}
-        className={`shrink-0 leading-none transition-transform hover:scale-110 ${starSize} ${
+        className={`shrink-0 leading-none transition-transform hover:scale-110 ${
           favorited ? 'text-pink-400' : 'text-white/30 hover:text-pink-300'
         }`}
       >
-        {favorited ? '❤️' : '🤍'}
+        <IconGlyph name="feedback-like" className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} ${favorited ? '' : 'opacity-45'}`} />
       </button>
 
       <div className="flex items-center" onMouseLeave={() => setHover(0)}>

@@ -7,13 +7,13 @@ export const MBTI_TYPES = [
 
 // 七阶段体系（v3 替换原 Focus/Spark/Sprint/Charge 四模式）
 export const MODES = [
-  { id: 'brainstorm', label: '头脑风暴', emoji: '💡', desc: '欢快 · 选题讨论' },
-  { id: 'focus', label: '专注构思', emoji: '🎯', desc: 'Lo-fi · 沉浸开发' },
-  { id: 'sprint', label: '代码冲刺', emoji: '⚡', desc: '高 BPM · 赶工' },
-  { id: 'charge', label: '战鼓催阵', emoji: '🔥', desc: '史诗 · 上台前' },
-  { id: 'behind', label: '落后了', emoji: '⏰', desc: '紧迫 · 追赶进度' },
-  { id: 'break', label: '休息一下', emoji: '☕', desc: '放松 · 短暂充电' },
-  { id: 'celebrate', label: '完成了！', emoji: '🎉', desc: '狂欢 · 庆祝胜利' },
+  { id: 'brainstorm', label: '头脑风暴', emoji: '💡', icon: 'mode-brainstorm', desc: '欢快 · 选题讨论' },
+  { id: 'focus', label: '专注构思', emoji: '🎯', icon: 'mode-focus', desc: 'Lo-fi · 沉浸开发' },
+  { id: 'sprint', label: '代码冲刺', emoji: '⚡', icon: 'mode-sprint', desc: '高 BPM · 赶工' },
+  { id: 'charge', label: '战鼓催阵', emoji: '🔥', icon: 'mode-charge', desc: '史诗 · 上台前' },
+  { id: 'behind', label: '落后了', emoji: '⏰', icon: 'mode-behind', desc: '紧迫 · 追赶进度' },
+  { id: 'break', label: '休息一下', emoji: '☕', icon: 'mode-break', desc: '放松 · 短暂充电' },
+  { id: 'celebrate', label: '完成了！', emoji: '🎉', icon: 'mode-celebrate', desc: '狂欢 · 庆祝胜利' },
 ];
 
 export const MBTI_THEMES = {

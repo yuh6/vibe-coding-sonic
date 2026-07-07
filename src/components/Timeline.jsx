@@ -1,4 +1,5 @@
 import { MODES } from '../lib/mbti';
+import IconGlyph from './IconGlyph';
 
 export default function Timeline({ phases, currentPhase }) {
   if (!phases?.length) return null;
@@ -16,7 +17,7 @@ export default function Timeline({ phases, currentPhase }) {
               className={`pad min-w-[120px] flex-none px-3 py-2.5 text-center ${active ? 'pad-active' : ''}`}
               style={active ? { '--pad-glow': 'rgba(99, 102, 241, 0.25)' } : undefined}
             >
-              <div className="text-lg">{modeInfo?.emoji}</div>
+              <IconGlyph name={modeInfo?.icon || 'music'} className="mx-auto h-5 w-5" />
               <div className="mt-0.5 text-xs font-medium text-theme">{phase.name}</div>
               <div className="font-mono text-[10px] text-faint">
                 {phase.start}–{phase.end}

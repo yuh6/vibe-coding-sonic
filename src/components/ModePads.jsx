@@ -1,4 +1,5 @@
 import { MODES } from '../lib/mbti';
+import IconGlyph from './IconGlyph';
 import MotionBackdrop from './MotionBackdrop';
 
 const MODE_COLORS = {
@@ -42,7 +43,7 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
               className={`pad flex flex-col items-center py-3 ${active ? 'pad-active' : ''}`}
               style={{ '--pad-glow': `${color}66` }}
             >
-              <span className="text-xl">{m.emoji}</span>
+              <IconGlyph name={m.icon} className="h-6 w-6" />
               <span
                 className="mt-1 text-center font-display text-xs font-bold"
                 style={{ color: active ? color : undefined }}
@@ -57,10 +58,11 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
       <button
         type="button"
         onClick={onPanic}
-        className="pad panic-pulse mt-2 w-full py-3 font-display text-sm font-bold text-red-500"
+        className="pad panic-pulse mt-2 flex w-full items-center justify-center gap-2 py-3 font-display text-sm font-bold text-red-500"
         style={{ '--pad-glow': `${MODE_COLORS.behind}80`, borderColor: 'rgba(239,68,68,0.4)' }}
       >
-        {BEHIND_MODE?.emoji} 我们落后了!
+        <IconGlyph name={BEHIND_MODE?.icon || 'mode-behind'} className="h-5 w-5" />
+        <span>我们落后了!</span>
       </button>
       </div>
     </MotionBackdrop>

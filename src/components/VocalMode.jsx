@@ -1,9 +1,10 @@
+import IconGlyph from './IconGlyph';
 import MotionBackdrop from './MotionBackdrop';
 
 const VOCAL_MODES = [
-  { id: 'vocal', emoji: '🎤', label: '人声', desc: 'AI Vocal', color: '#c084fc' },
-  { id: 'instrumental', emoji: '🎹', label: '纯伴奏', desc: 'Instrumental', color: '#38bdf8' },
-  { id: 'mixed', emoji: '🎶', label: '混合', desc: 'Vocal+Inst', color: '#34d399' },
+  { id: 'vocal', icon: 'music', label: '人声', desc: 'AI Vocal', color: '#c084fc' },
+  { id: 'instrumental', icon: 'music-note-small', label: '纯伴奏', desc: 'Instrumental', color: '#38bdf8' },
+  { id: 'mixed', icon: 'spin-rhythm', label: '混合', desc: 'Vocal+Inst', color: '#34d399' },
 ];
 
 export default function VocalMode({ vocalMode, onVocalModeChange }) {
@@ -31,7 +32,7 @@ export default function VocalMode({ vocalMode, onVocalModeChange }) {
                 className={`pad flex flex-col items-center py-3 ${active ? 'pad-active' : ''}`}
                 style={{ '--pad-glow': `${m.color}66` }}
               >
-                <span className="text-xl">{m.emoji}</span>
+                <IconGlyph name={m.icon} className="h-6 w-6" />
                 <span
                   className="mt-1 text-center font-display text-xs font-bold"
                   style={{ color: active ? m.color : undefined }}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { authLogin, authRegister, authLogout } from '../lib/api';
+import IconGlyph from './IconGlyph';
 
 function AuthModal({ onClose, onSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -38,8 +39,8 @@ function AuthModal({ onClose, onSuccess }) {
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-bold">{isRegister ? '注册账号' : '登录'}</h2>
-          <button type="button" onClick={onClose} className="text-white/40 hover:text-white/80" aria-label="关闭">
-            ✕
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center text-white/40 hover:text-white/80" aria-label="关闭">
+            <IconGlyph name="close" className="h-4 w-4" />
           </button>
         </div>
 
@@ -138,7 +139,7 @@ export default function AuthPanel({
             <span className="font-mono text-[10px] text-white/45">♪ --/--</span>
           </div>
           <button type="button" disabled className={`${btnClass} opacity-60`} title="登录状态加载中">
-            🔑
+            <IconGlyph name="user-login" className="h-4 w-4" />
           </button>
         </div>
         {open && <AuthModal onClose={() => onOpenChange(false)} onSuccess={onAuth} />}
@@ -170,12 +171,12 @@ export default function AuthPanel({
             className={btnClass}
             title={isGuest ? '登录' : '登出'}
           >
-            {isGuest ? '🔑' : '🚪'}
+            <IconGlyph name={isGuest ? 'user-login' : 'close'} className="h-4 w-4" />
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => onOpenChange(true)} className={btnClass} title="登录">
-          👤
+          <IconGlyph name="user-login" className="h-4 w-4" />
         </button>
       )}
 
