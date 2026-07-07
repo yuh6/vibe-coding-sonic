@@ -4,6 +4,7 @@ import {
   addFavorite, removeFavorite, isFavorited, getUserFavorites,
   rateTrack, getUserRating, getTrackRatings,
 } from '../services/favoriteService.js';
+import { paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
@@ -11,8 +12,8 @@ const router = Router();
 
 // 我的收藏列表
 router.get('/', requireIdentity, async (req, res) => {
-  const { page = 1, limit = 20 } = req.query;
-  const result = await getUserFavorites(req.identity.id, { page: Number(page), limit: Math.min(Number(limit) || 20, 50) });
+  const { page, limit } = paginationFromQuery(req.query, { defaultLimit: 20, maxLimit: 50 });
+  const result = await getUserFavorites(req.identity.id, { page, limit });
   res.json(result);
 });
 

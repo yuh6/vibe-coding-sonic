@@ -10,7 +10,13 @@ export function parseCookies(req) {
   const out = {};
   for (const pair of header.split(';')) {
     const idx = pair.indexOf('=');
-    if (idx > 0) out[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+    if (idx > 0) {
+      try {
+        out[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+      } catch {
+        // Ignore malformed cookie values instead of failing the whole request.
+      }
+    }
   }
   return out;
 }

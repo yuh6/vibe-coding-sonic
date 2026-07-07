@@ -1,27 +1,28 @@
 import { Router } from 'express';
 import { requireIdentity } from '../middleware/userAuth.js';
 import { recordPlay, getUserHistory, getRecommendations, getPopularTracks } from '../services/recommendService.js';
+import { clampInt, paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
 // 公开：热门歌曲
 router.get('/popular', async (req, res) => {
-  const { limit = 10 } = req.query;
-  const tracks = await getPopularTracks(Math.min(Number(limit) || 10, 50));
+  const limit = clampInt(req.query.limit, { defaultValue: 10, min: 1, max: 50 });
+  const tracks = await getPopularTracks(limit);
   res.json({ tracks });
 });
 
 // 需登录：个性化推荐
 router.get('/for-you', requireIdentity, async (req, res) => {
-  const { limit = 10 } = req.query;
-  const tracks = await getRecommendations(req.identity.id, { limit: Math.min(Number(limit) || 10, 50) });
+  const limit = clampInt(req.query.limit, { defaultValue: 10, min: 1, max: 50 });
+  const tracks = await getRecommendations(req.identity.id, { limit });
   res.json({ tracks });
 });
 
 // 需登录：我的播放历史
 router.get('/history', requireIdentity, async (req, res) => {
-  const { page = 1, limit = 30 } = req.query;
-  const result = await getUserHistory(req.identity.id, { page: Number(page), limit: Math.min(Number(limit) || 30, 100) });
+  const { page, limit } = paginationFromQuery(req.query, { defaultLimit: 30, maxLimit: 100 });
+  const result = await getUserHistory(req.identity.id, { page, limit });
   res.json(result);
 });
 

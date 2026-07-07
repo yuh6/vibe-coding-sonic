@@ -17,6 +17,7 @@ import {
   poolStatus,
   energyCurve,
 } from '../services/arranger/index.js';
+import { clampInt } from '../utils/pagination.js';
 
 const VALID_PHASES = ['brainstorm', 'focus', 'sprint', 'charge', 'behind', 'break', 'celebrate'];
 const VALID_FEEDBACK = ['too_loud', 'more_drive', 'skip', 'like'];
@@ -105,7 +106,7 @@ router.get('/now-playing', async (req, res) => {
 });
 
 router.get('/history', async (req, res) => {
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const limit = clampInt(req.query.limit, { defaultValue: 20, min: 1, max: 100 });
   res.json({ history: await history(req.arrangerSession.id, limit) });
 });
 

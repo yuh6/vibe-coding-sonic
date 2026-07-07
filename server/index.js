@@ -37,6 +37,25 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
 const HOST = resolveHost();
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+};
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' data: blob: https:",
+  "connect-src 'self' https: wss:",
+].join('; ');
 
 function isLoopbackHost(host) {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1';
@@ -70,11 +89,24 @@ function isLoopbackOrigin(origin) {
 function isCorsOriginAllowed(origin) {
   if (!origin) return true;
   const configured = parseCsv(getSetting('CORS_ORIGINS'));
-  if (configured.includes('*') || configured.includes(origin)) return true;
+  if (configured.includes('*')) return !isProd;
+  if (configured.includes(origin)) return true;
   if (!isProd && isLoopbackOrigin(origin)) return true;
   return Boolean(process.env.APP_ORIGIN && origin === process.env.APP_ORIGIN);
 }
 
+function securityHeaders(_req, res, next) {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(key, value);
+  }
+  if (isProd) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Content-Security-Policy', CSP);
+  }
+  next();
+}
+
+app.use(securityHeaders);
 app.use(
   cors({
     origin(origin, callback) {

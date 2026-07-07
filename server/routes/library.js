@@ -5,6 +5,7 @@ import {
   getLibrary, addTrack, removeTrack,
   listSharedLibrary, getSharedLibraryStats,
 } from '../services/libraryStore.js';
+import { paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
@@ -39,14 +40,15 @@ router.delete('/:mode/:id', requireAdmin, async (req, res) => {
 // ── 歌曲总库（公开） ──
 
 router.get('/shared', async (req, res) => {
-  const { mode, mbti, genre, q, page = 1, limit = 20 } = req.query;
+  const { mode, mbti, genre, q } = req.query;
+  const { page, limit } = paginationFromQuery(req.query, { defaultLimit: 20, maxLimit: 100 });
   const result = await listSharedLibrary({
     mode: mode || undefined,
     mbti: (typeof mbti === 'string' ? mbti : '')?.toUpperCase() || undefined,
     genre: genre || undefined,
     q: q || undefined,
-    page: Number(page),
-    limit: Math.min(Number(limit) || 20, 100),
+    page,
+    limit,
   });
   res.json(result);
 });

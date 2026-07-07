@@ -5,13 +5,13 @@ import {
   listLiveStations, joinStation, leaveStation,
   updateNowPlayingSnapshot,
 } from '../services/radioService.js';
+import { paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
 // 公开：浏览在线电台
 router.get('/', async (req, res) => {
-  const { page = 1, limit = 20 } = req.query;
-  res.json(await listLiveStations({ page: Number(page), limit: Math.min(Number(limit) || 20, 50) }));
+  res.json(await listLiveStations(paginationFromQuery(req.query, { defaultLimit: 20, maxLimit: 50 })));
 });
 
 // 公开：电台详情

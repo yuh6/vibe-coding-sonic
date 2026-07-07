@@ -5,13 +5,17 @@ import {
   listPublicPlaylists, addTrackToPlaylist, removeTrackFromPlaylist,
   recordPlaylistPlay, getUserPlaylists,
 } from '../services/playlistService.js';
+import { paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
 // 公开：浏览公开播放列表
 router.get('/', async (req, res) => {
-  const { sort = 'popular', page = 1, limit = 20 } = req.query;
-  res.json(await listPublicPlaylists({ sort, page: Number(page), limit: Math.min(Number(limit) || 20, 50) }));
+  const { sort = 'popular' } = req.query;
+  res.json(await listPublicPlaylists({
+    sort,
+    ...paginationFromQuery(req.query, { defaultLimit: 20, maxLimit: 50 }),
+  }));
 });
 
 // 需登录：我的播放列表

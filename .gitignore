@@ -1,8 +1,17 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
+!.env.*.example
 .DS_Store
 *.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite-*
 server/data/runtime-config.json
 server/data/runtime-library.json
 server/data/app.db*
