@@ -1,4 +1,5 @@
 import AudioVisualizer from './AudioVisualizer';
+import MotionBackdrop from './MotionBackdrop';
 
 const STATUS_LABEL = {
   idle: 'STANDBY',
@@ -73,12 +74,14 @@ export default function PlayerDeck({
   const engineColor = engineBusy ? '#facc15' : engineSessionId ? '#4ade80' : undefined;
 
   return (
-    <div className="glass relative overflow-hidden rounded-2xl p-4">
-      <img
-        src="/player.gif"
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
-      />
+    <MotionBackdrop
+      className="glass relative overflow-hidden rounded-2xl p-4"
+      poster="/posters/player.webp"
+      webm="/motion/player.webm"
+      mp4="/motion/player.mp4"
+      opacity={0.25}
+      active={playing || engineBusy}
+    >
       <div className="pointer-events-none absolute inset-0 bg-black/45"></div>
       <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
@@ -204,6 +207,6 @@ export default function PlayerDeck({
         {generating ? '◉ GENERATING...' : '⏻ DROP THE BEAT'}
       </button>
       </div>
-    </div>
+    </MotionBackdrop>
   );
 }

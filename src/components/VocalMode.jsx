@@ -1,3 +1,5 @@
+import MotionBackdrop from './MotionBackdrop';
+
 const VOCAL_MODES = [
   { id: 'vocal', emoji: '🎤', label: '人声', desc: 'AI Vocal', color: '#c084fc' },
   { id: 'instrumental', emoji: '🎹', label: '纯伴奏', desc: 'Instrumental', color: '#38bdf8' },
@@ -6,12 +8,13 @@ const VOCAL_MODES = [
 
 export default function VocalMode({ vocalMode, onVocalModeChange }) {
   return (
-    <div className="glass relative overflow-hidden rounded-2xl p-4">
-      <img
-        src="/music.gif"
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20"
-      />
+    <MotionBackdrop
+      className="glass relative overflow-hidden rounded-2xl p-4"
+      poster="/posters/music.webp"
+      webm="/motion/music.webm"
+      mp4="/motion/music.mp4"
+      opacity={0.2}
+    >
       <div className="pointer-events-none absolute inset-0 bg-black/55"></div>
       <div className="relative z-10">
         <div className="mb-3 flex items-center justify-between">
@@ -47,6 +50,6 @@ export default function VocalMode({ vocalMode, onVocalModeChange }) {
           })}
         </div>
       </div>
-    </div>
+    </MotionBackdrop>
   );
 }

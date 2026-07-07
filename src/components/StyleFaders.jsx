@@ -1,3 +1,5 @@
+import MotionBackdrop from './MotionBackdrop';
+
 const STYLE_AXES = [
   { key: 'energy', leftLabel: 'CHILL', rightLabel: 'HYPE', from: '#0ea5e9', to: '#f43f5e' },
   { key: 'texture', leftLabel: 'SYNTH', rightLabel: 'ACOUSTIC', from: '#8b5cf6', to: '#84cc16' },
@@ -6,12 +8,13 @@ const STYLE_AXES = [
 
 export default function StyleFaders({ style, onStyleChange }) {
   return (
-    <div className="glass relative overflow-hidden rounded-2xl p-4">
-      <img
-        src="/cat.gif"
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
-      />
+    <MotionBackdrop
+      className="glass relative overflow-hidden rounded-2xl p-4"
+      poster="/posters/cat.webp"
+      webm="/motion/cat.webm"
+      mp4="/motion/cat.mp4"
+      opacity={0.25}
+    >
       <div className="pointer-events-none absolute inset-0 bg-black/45"></div>
       <div className="relative z-10">
         <div className="mb-3 flex items-center justify-between">
@@ -43,6 +46,6 @@ export default function StyleFaders({ style, onStyleChange }) {
           ))}
         </div>
       </div>
-    </div>
+    </MotionBackdrop>
   );
 }

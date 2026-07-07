@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AXES, MBTI_TYPES, mbtiFromAxes, getTheme } from '../lib/mbti';
+import MotionBackdrop from './MotionBackdrop';
 
 function AxisFader({ axis, value, onChange, theme }) {
   const leaning = value < 50 ? axis.left : axis.right;
@@ -66,18 +67,18 @@ export default function MBTIRemixDeck({ axes, onAxesChange, theme }) {
         </button>
       </div>
 
-      <div
+      <MotionBackdrop
         className="led-display relative mb-4 overflow-hidden rounded-xl border border-theme bg-led-panel py-3 text-center text-4xl font-bold"
         style={{ color: theme.glow }}
+        poster="/posters/mbti.webp"
+        webm="/motion/mbti.webm"
+        mp4="/motion/mbti.mp4"
+        opacity={0.45}
+        active={showGrid}
       >
-        <img
-          src="/mbti.gif"
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
-        />
         <div className="pointer-events-none absolute inset-0 bg-black/35"></div>
         <span className="relative z-10">{currentType}</span>
-      </div>
+      </MotionBackdrop>
 
       {showGrid && (
         <div className="mb-4 grid grid-cols-4 gap-1.5">

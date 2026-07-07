@@ -31,13 +31,15 @@ const STARTUP_FALLBACK_MODE = 'startup';
 // │    观众点一下播放器/取消静音即可出声。                          │
 // └─────────────────────────────────────────────────────────────┘
 const HERO_VIDEOS = ['/hero1.mp4', '/hero2.mp4', '/hero3.mp4']; // 放到 public/ 下
+const HERO_VIDEO_POSTERS = ['/posters/hero1.webp', '/posters/hero2.webp', '/posters/hero3.webp'];
 
 // 首页顶部可翻页视频播放器（16:9，静音自动播放，箭头+圆点翻页）
-function HeroVideoPlayer({ sources }) {
+function HeroVideoPlayer({ sources, posters = [] }) {
   const list = (sources || []).filter(Boolean);
   const [idx, setIdx] = useState(0);
   if (!list.length) return null;
   const current = Math.min(idx, list.length - 1);
+  const poster = posters[current] || undefined;
   const go = (n) => setIdx((n + list.length) % list.length);
 
   return (
@@ -47,6 +49,8 @@ function HeroVideoPlayer({ sources }) {
         key={list[current]}
         className="absolute inset-0 h-full w-full object-contain"
         src={list[current]}
+        poster={poster}
+        preload="metadata"
         autoPlay
         muted
         loop
@@ -745,7 +749,7 @@ export default function MBTIWAVE({
               className="space-y-12 pb-24"
             >
               {/* 顶部：可翻页的本地视频 */}
-              <HeroVideoPlayer sources={HERO_VIDEOS} />
+              <HeroVideoPlayer sources={HERO_VIDEOS} posters={HERO_VIDEO_POSTERS} />
 
               {/* 往下滚动：每个功能都是独立音乐模块 */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1057,6 +1061,8 @@ export default function MBTIWAVE({
                     ref={videoRef}
                     className="w-full h-full object-cover opacity-80"
                     src={selectedMBTI.video}
+                    poster="/card-room.jpg"
+                    preload="metadata"
                     autoPlay
                     loop
                     muted={isMuted}

@@ -1,4 +1,5 @@
 import { MODES } from '../lib/mbti';
+import MotionBackdrop from './MotionBackdrop';
 
 const MODE_COLORS = {
   brainstorm: '#facc15',
@@ -16,12 +17,14 @@ const BEHIND_MODE = MODES.find((m) => m.id === 'behind');
 
 export default function ModePads({ mode, onModeChange, onPanic }) {
   return (
-    <div className="glass relative overflow-hidden rounded-2xl p-4">
-      <img
-        src="/music.gif"
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-20"
-      />
+    <MotionBackdrop
+      className="glass relative overflow-hidden rounded-2xl p-4"
+      poster="/posters/music.webp"
+      webm="/motion/music.webm"
+      mp4="/motion/music.mp4"
+      opacity={0.2}
+      active={mode === 'charge' || mode === 'behind'}
+    >
       <div className="pointer-events-none absolute inset-0 bg-black/55"></div>
       <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
@@ -60,7 +63,6 @@ export default function ModePads({ mode, onModeChange, onPanic }) {
         {BEHIND_MODE?.emoji} 我们落后了!
       </button>
       </div>
-    </div>
+    </MotionBackdrop>
   );
 }
-
