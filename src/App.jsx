@@ -574,6 +574,8 @@ export default function App() {
       playing={player.playing}
       volume={player.volume}
       muted={player.muted}
+      hasAudio={player.hasAudio}
+      playbackError={player.playbackError}
       status={generating ? 'processing' : poll.status}
       currentTitle={player.currentTitle}
       fallback={fallback}
@@ -710,30 +712,40 @@ export default function App() {
         ) : (
           <>
           <div className="grid gap-4 lg:grid-cols-12">
-            {/* 左 Deck：MBTI Remix + 风格 + Project Input */}
-            <div className="space-y-4 lg:col-span-4">
-              <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
-              <StyleFaders style={style} onStyleChange={setStyle} />
-              <ProjectDeck
-                name={projectName}
-                description={projectDesc}
-                onNameChange={setProjectName}
-                onDescriptionChange={setProjectDesc}
-                onApplyPreset={handleApplyPreset}
-                onGithubAnalyze={handleGithubAnalyze}
-                analysisSource={analysisSource}
-              />
+            {/* 左 Deck：移动端拆开排序，桌面端保持一列堆叠 */}
+            <div className="contents lg:col-span-4 lg:block lg:space-y-4">
+              <div className="order-1 lg:order-none">
+                <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
+              </div>
+              <div className="order-3 lg:order-none">
+                <StyleFaders style={style} onStyleChange={setStyle} />
+              </div>
+              <div className="order-4 lg:order-none">
+                <ProjectDeck
+                  name={projectName}
+                  description={projectDesc}
+                  onNameChange={setProjectName}
+                  onDescriptionChange={setProjectDesc}
+                  onApplyPreset={handleApplyPreset}
+                  onGithubAnalyze={handleGithubAnalyze}
+                  analysisSource={analysisSource}
+                />
+              </div>
             </div>
 
-            {/* 中 Deck：固定 Main Deck + Genre 选择器 */}
-            <div className="space-y-4 lg:col-span-5">
-              {mainDeck}
-              <GenreSelector value={genre} onChange={setGenre} theme={theme} />
+            {/* 中 Deck：移动端 Main Deck 第二位，桌面端仍在中列顶部 */}
+            <div className="contents lg:col-span-5 lg:block lg:space-y-4">
+              <div className="order-2 lg:order-none">
+                {mainDeck}
+              </div>
+              <div className="order-5 lg:order-none">
+                <GenreSelector value={genre} onChange={setGenre} theme={theme} />
+              </div>
             </div>
 
             {/* 右 Deck：Arranger + Prompt 监视器 */}
-            <div className="space-y-4 lg:col-span-3">
-              <div id="dj-arranger-anchor">
+            <div className="contents lg:col-span-3 lg:block lg:space-y-4">
+              <div id="dj-arranger-anchor" className="order-6 lg:order-none">
                 <ArrangerPanel
                   arranger={arranger}
                   theme={theme}
@@ -746,12 +758,16 @@ export default function App() {
                   onRadioToggle={handleRadioToggle}
                 />
               </div>
-              <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
-              <PromptCard
-                layers={promptData?.layers}
-                fullPrompt={promptData?.fullPrompt}
-                loading={promptLoading}
-              />
+              <div className="order-7 lg:order-none">
+                <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
+              </div>
+              <div className="order-8 lg:order-none">
+                <PromptCard
+                  layers={promptData?.layers}
+                  fullPrompt={promptData?.fullPrompt}
+                  loading={promptLoading}
+                />
+              </div>
             </div>
           </div>
 

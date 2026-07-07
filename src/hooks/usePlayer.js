@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Howl } from 'howler';
+import { Howl, Howler } from 'howler';
 import { getMusicStatus } from '../lib/api';
 
 const FADE_MS = 2000;
@@ -66,6 +66,8 @@ export function usePlayer() {
   const [volume, setVolumeState] = useState(0.7);
   const [muted, setMuted] = useState(false);
   const [currentTitle, setCurrentTitle] = useState('');
+  const [playbackError, setPlaybackError] = useState('');
+  const [hasAudio, setHasAudio] = useState(false);
 
   const unload = useCallback(() => {
     if (howlRef.current) {
@@ -73,9 +75,27 @@ export function usePlayer() {
       howlRef.current = null;
     }
     currentUrlRef.current = null;
+    setHasAudio(false);
     setPlaying(false);
     setCurrentTitle('');
+    setPlaybackError('');
   }, []);
+
+  const resumeAudioContext = useCallback(() => {
+    const ctx = Howler.ctx;
+    if (ctx?.state === 'suspended') {
+      ctx.resume().catch((err) => {
+        console.warn('[howler] audio context resume failed', err);
+      });
+    }
+  }, []);
+
+  const requestPlay = useCallback((howl) => {
+    if (!howl) return;
+    setPlaybackError('');
+    resumeAudioContext();
+    howl.play();
+  }, [resumeAudioContext]);
 
   const playUrl = useCallback(
     (url, { title = '', loop = true, fadeIn = true } = {}) => {
@@ -83,7 +103,8 @@ export function usePlayer() {
 
       if (howlRef.current && currentUrlRef.current === url) {
         if (title) setCurrentTitle(title);
-        if (!howlRef.current.playing()) howlRef.current.play();
+        setHasAudio(true);
+        if (!howlRef.current.playing()) requestPlay(howlRef.current);
         return;
       }
 
@@ -93,18 +114,27 @@ export function usePlayer() {
           html5: true,
           loop,
           volume: fadeIn ? 0 : volume,
-          onplay: () => setPlaying(true),
+          onplay: () => {
+            setPlaybackError('');
+            setPlaying(true);
+          },
           onpause: () => setPlaying(false),
           onstop: () => setPlaying(false),
           onend: () => setPlaying(false),
           onloaderror: (_id, err) => console.error('[howler] load error', err),
-          onplayerror: (_id, err) => console.error('[howler] play error', err),
+          onplayerror: (_id, err) => {
+            console.error('[howler] play error', err);
+            setPlaying(false);
+            setPlaybackError('移动浏览器拦截了自动播放，请再点一次播放');
+            howl.once('unlock', () => requestPlay(howl));
+          },
         });
 
         howlRef.current = howl;
         currentUrlRef.current = url;
+        setHasAudio(true);
         setCurrentTitle(title);
-        howl.play();
+        requestPlay(howl);
         if (fadeIn) {
           howl.fade(0, muted ? 0 : volume, FADE_MS);
         }
@@ -123,7 +153,7 @@ export function usePlayer() {
         startNew();
       }
     },
-    [volume, muted]
+    [volume, muted, requestPlay]
   );
 
   const togglePlay = useCallback(() => {
@@ -132,9 +162,9 @@ export function usePlayer() {
     if (howl.playing()) {
       howl.pause();
     } else {
-      howl.play();
+      requestPlay(howl);
     }
-  }, []);
+  }, [requestPlay]);
 
   const setVolume = useCallback(
     (v) => {
@@ -162,7 +192,9 @@ export function usePlayer() {
     playing,
     volume,
     muted,
+    hasAudio,
     currentTitle,
+    playbackError,
     playUrl,
     togglePlay,
     setVolume,

@@ -40,6 +40,8 @@ export default function PlayerDeck({
   playing,
   volume,
   muted,
+  hasAudio,
+  playbackError,
   status,
   currentTitle,
   fallback,
@@ -73,6 +75,8 @@ export default function PlayerDeck({
       : (ENGINE_LABEL[engineState] || engineState || 'READY');
   }
   const engineColor = engineBusy ? '#facc15' : engineSessionId ? '#4ade80' : undefined;
+  const playButtonLabel = hasAudio ? (playing ? '暂停' : '播放') : '生成并播放';
+  const playButtonIcon = hasAudio ? (playing ? 'pause' : 'play') : 'music';
 
   return (
     <MotionBackdrop
@@ -155,15 +159,20 @@ export default function PlayerDeck({
           <div className="truncate font-display text-base font-semibold text-theme">
             {currentTitle || '等待播放'}
           </div>
+          {playbackError && (
+            <div className="mt-1 text-[10px] text-amber-300">{playbackError}</div>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              onClick={onTogglePlay}
+              onClick={hasAudio ? onTogglePlay : onGenerate}
+              disabled={!hasAudio && generating}
               className="pad flex h-11 w-11 items-center justify-center text-lg"
               style={{ '--pad-glow': `${theme.accent}66` }}
-              aria-label={playing ? '暂停' : '播放'}
+              aria-label={playButtonLabel}
+              title={playButtonLabel}
             >
-              <IconGlyph name={playing ? 'pause' : 'play'} className="h-5 w-5" />
+              <IconGlyph name={playButtonIcon} className="h-5 w-5" />
             </button>
             <button
               type="button"
