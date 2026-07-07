@@ -166,7 +166,7 @@ try {
 
   const guestMe = await client.request('/api/auth/me');
   assert.equal(guestMe.user.isGuest, true);
-  assert.equal(guestMe.quota.limit, 10);
+  assert.equal(guestMe.quota.limit, 30);
   assert.ok(client.cookies.has('vibe_guest'));
 
   const guestNotes = await client.request('/api/notes/parse', {
@@ -198,8 +198,8 @@ try {
   assert.equal(me.user.email, email);
 
   const quotaSettings = await client.request('/api/config/quota-settings');
-  assert.equal(quotaSettings.guestLimit, 10);
-  assert.equal(quotaSettings.userLimit, 10);
+  assert.equal(quotaSettings.guestLimit, 30);
+  assert.equal(quotaSettings.userLimit, 30);
 
   const adminUsers = await client.request('/api/config/users');
   assert.ok(adminUsers.users.some((user) => user.email === email));

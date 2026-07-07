@@ -79,7 +79,7 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
 
   const [form, setForm] = useState({});
-  const [quotaForm, setQuotaForm] = useState({ guestLimit: '10', userLimit: '10' });
+  const [quotaForm, setQuotaForm] = useState({ guestLimit: '30', userLimit: '30' });
   const [libMode, setLibMode] = useState('focus');
   const [newTrack, setNewTrack] = useState({ title: '', url: '', mbti: '' });
   const [toast, setToast] = useState('');
@@ -102,8 +102,8 @@ export default function AdminPanel() {
     setLibrary(lib);
     setQuotaSettings(quotaCfg);
     setQuotaForm({
-      guestLimit: String(quotaCfg.guestLimit ?? 10),
-      userLimit: String(quotaCfg.userLimit ?? 10),
+      guestLimit: String(quotaCfg.guestLimit ?? 30),
+      userLimit: String(quotaCfg.userLimit ?? 30),
     });
     setUsers(adminUsers.users || []);
   };
@@ -158,8 +158,8 @@ export default function AdminPanel() {
       });
       setQuotaSettings(next);
       setQuotaForm({
-        guestLimit: String(next.guestLimit ?? 10),
-        userLimit: String(next.userLimit ?? 10),
+        guestLimit: String(next.guestLimit ?? 30),
+        userLimit: String(next.userLimit ?? 30),
       });
       showToast('生成额度已保存');
     } catch (err) {
@@ -391,7 +391,7 @@ export default function AdminPanel() {
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-[10px] text-faint">
-            当前：普通 {quotaSettings?.guestLimit ?? 10} 首，登录 {quotaSettings?.userLimit ?? 10} 首；VIP 不限制。
+            当前：普通 {quotaSettings?.guestLimit ?? 30} 首，登录 {quotaSettings?.userLimit ?? 30} 首。
           </p>
           <button type="button" onClick={handleSaveQuota} className="pad px-4 py-2 text-sm">
             保存额度
@@ -440,7 +440,7 @@ export default function AdminPanel() {
                     </select>
                   </td>
                   <td className="px-2 py-2 font-mono text-[11px]">
-                    {item.role === 'vip' ? '不限' : item.generationCount}
+                    {item.role === 'vip' ? '-' : item.generationCount}
                   </td>
                   <td className="px-2 py-2 font-mono text-[11px]">{item.trackCount}</td>
                   <td className="px-2 py-2 font-mono text-[10px] text-faint">

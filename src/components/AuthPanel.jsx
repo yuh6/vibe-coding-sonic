@@ -156,12 +156,12 @@ export default function AuthPanel({
               {isGuest ? '游客' : user.name}
               {user.isVip && <span className="ml-1 text-amber-300">VIP</span>}
             </span>
-            {quota && (
+            {quota && !quota.unlimited && (
               <span
                 className="font-mono text-[10px] text-white/45"
-                title={quota.unlimited ? 'VIP 生成不限量' : `生成总额度：已用 ${quota.used} / ${quota.limit}`}
+                title={`生成总额度：已用 ${quota.used} / ${quota.limit}`}
               >
-                {quota.unlimited ? '♪ ∞' : `♪ ${quota.remaining}/${quota.limit}`}
+                {`♪ ${quota.remaining}/${quota.limit}`}
               </span>
             )}
           </div>

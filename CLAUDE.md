@@ -77,7 +77,7 @@ When quota is exhausted or Suno fails: `completeWithFallback()` → tries `share
 - **musicOrchestrator.js**: Job lifecycle manager. **Dual-layer**: `generation_jobs` table (persistent) + in-memory hot cache (TTL 30min). Handles creation → Suno submission → polling → completion/fallback. Async audio upload via `storage` + `shared_library` insertion on completion.
 - **sunoClient.js**: TTAPI proxy client. POSTs to `{TTAPI_BASE_URL}/suno/v1/music`. Polls task status. Also handles stem separation.
 - **libraryStore.js**: Three-tier fallback: `shared_library` (user-generated, local/R2 cache) + `fallback_tracks` (DB) + static `fallback-manifest.json` (seed). `pickFromSharedLibrary()` does 4-level priority matching.
-- **quotaService.js**: Per-identity total generation quota (`GUEST_GENERATION_LIMIT` / `USER_GENERATION_LIMIT`, default 10 each, admin-configurable) + global daily limit (`GLOBAL_DAILY_LIMIT`, default 100). VIP/admin unlimited. Includes refund on Suno failure. Also handles user profiles and personal track library.
+- **quotaService.js**: Per-identity total generation quota (`GUEST_GENERATION_LIMIT` / `USER_GENERATION_LIMIT`, default 30 each, admin-configurable) + global daily limit (`GLOBAL_DAILY_LIMIT`, default 100). VIP/admin roles are exempt from quota checks. Includes refund on Suno failure. Also handles user profiles and personal track library.
 - **authService.js**: Register/login, HttpOnly session cookies, auto guest identity via `GUEST_COOKIE`.
 - **lyricsGenerator.js**: LLM-based lyrics with Suno structure tags (`[Verse]`, `[Chorus]`, etc.). Vocal style recommendations by MBTI.
 - **llm/index.js**: 11-provider LLM router (openai, anthropic, gemini, deepseek, siliconflow, openrouter, custom, + 4 CLI). Project analysis with SHA-256 cache.
