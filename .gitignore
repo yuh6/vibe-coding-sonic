@@ -19,3 +19,4 @@ server/data/audio-cache/*
 !server/data/audio-cache/.gitkeep
 graphify-out
 .playwright-cli
+docs/music-generation-chain.md

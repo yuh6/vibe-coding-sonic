@@ -210,6 +210,7 @@ export async function submitGeneration({
   styleWeight,
   audioWeight,
   negativeTags,
+  personaId,
 }) {
   const cfg = resolveTtapiRuntime();
   if (!cfg) {
@@ -227,6 +228,7 @@ export async function submitGeneration({
     styleWeight,
     audioWeight,
     negativeTags,
+    personaId,
     modelVersion: cfg.modelVersion,
   });
 
@@ -266,6 +268,7 @@ export function buildGenerationRequestBody({
   styleWeight,
   audioWeight,
   negativeTags,
+  personaId,
   modelVersion,
 }) {
   const custom = Boolean(lyrics);
@@ -291,6 +294,7 @@ export function buildGenerationRequestBody({
   if (Number.isFinite(weirdnessConstraint)) body.weirdnessConstraint = weirdnessConstraint;
   if (Number.isFinite(styleWeight)) body.styleWeight = styleWeight;
   if (Number.isFinite(audioWeight)) body.audioWeight = audioWeight;
+  if (personaId) body.persona_id = personaId;
   return body;
 }
 
