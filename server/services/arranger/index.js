@@ -56,8 +56,8 @@ async function getEngineBundle(sessionId) {
     rt.arranger = new Arranger(sessionId, sensing);
     rt.sensing = sensing;
   }
-  if (!rt.scheduler) {
-    rt.scheduler = new GenerationScheduler(sessionId, {
+  if (!rt.pipeline) {
+    rt.pipeline = new GenerationScheduler(sessionId, {
       onEvent: (type, payload) => emit(sessionId, type, payload),
     });
   }
@@ -93,14 +93,14 @@ export async function startEngine(sessionId) {
   const existingPending = await trackPool.countPending(sessionId, phase);
   const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
   if (existing + existingPending === 0) {
-    await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'cold-start' });
+    await rt.pipeline.createFallbackTrack(generationOpts, { reason: 'cold-start' });
   }
 
   const readyAfterFallback = await trackPool.countUnplayedReady(sessionId, phase);
   const pendingAfterFallback = await trackPool.countPending(sessionId, phase);
   const need = Math.max(0, COLD_START_COUNT - readyAfterFallback - pendingAfterFallback);
   for (let i = 0; i < need; i += 1) {
-    rt.scheduler
+    rt.pipeline
       .submit(generationOpts, { urgency: 'immediate' })
       .catch((err) => console.error('[arranger] cold-start refill failed:', err.message));
   }
@@ -124,7 +124,7 @@ export async function decideNext(sessionId) {
 
   let decision = await rt.arranger.decideNext();
   if (!decision.track) {
-    const fallback = await rt.scheduler.createFallbackTrack(
+    const fallback = await rt.pipeline.createFallbackTrack(
       buildGenerationOpts(session, decision.targetPhase, decision.targetEnergy),
       { reason: 'pool-exhausted' }
     );
@@ -165,7 +165,7 @@ async function maybeRefill(sessionId, rt, session, phase, targetEnergy) {
 
   const need = Math.max(0, REFILL_TARGET - buffered);
   for (let i = 0; i < need; i += 1) {
-    rt.scheduler
+    rt.pipeline
       .submit(buildGenerationOpts(session, phase, targetEnergy))
       .catch((err) => console.error('[arranger] refill failed:', err.message));
   }
@@ -184,13 +184,13 @@ export async function setManualPhase(sessionId, phase) {
   const pending = await trackPool.countPending(sessionId, phase);
   const generationOpts = buildGenerationOpts(session, phase, targetEnergy);
   if (ready + pending === 0) {
-    await rt.scheduler.createFallbackTrack(generationOpts, { reason: 'phase-change' });
+    await rt.pipeline.createFallbackTrack(generationOpts, { reason: 'phase-change' });
   }
   const readyAfterFallback = await trackPool.countUnplayedReady(sessionId, phase);
   const pendingAfterFallback = await trackPool.countPending(sessionId, phase);
   const need = Math.max(0, COLD_START_COUNT - readyAfterFallback - pendingAfterFallback);
   for (let i = 0; i < need; i += 1) {
-    rt.scheduler
+    rt.pipeline
       .submit(generationOpts, { urgency: 'immediate' })
       .catch((err) => console.error('[arranger] phase refill failed:', err.message));
   }

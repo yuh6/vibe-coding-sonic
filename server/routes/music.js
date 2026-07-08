@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { randomUUID } from 'crypto';
 import { lookup } from 'dns/promises';
 import { once } from 'events';
 import { isIP } from 'net';
@@ -8,13 +7,13 @@ import {
   createMusicJob,
   refreshJob,
   getFallbackTrack,
+  getJob,
   userOwnsJobUrl,
   getPlaybackUrl,
   getPlaybackTracks,
+  generationPipeline,
 } from '../services/musicOrchestrator.js';
 import { composePrompt } from '../services/promptComposer.js';
-import { isSunoConfigured } from '../services/sunoClient.js';
-import { generateLyrics } from '../services/lyricsGenerator.js';
 import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { libraryHasTrackUrl } from '../services/libraryStore.js';
@@ -22,7 +21,7 @@ import {
   saveTrack,
   userOwnsTrackUrl,
 } from '../services/quotaService.js';
-import { chargeGenerationCredits, getCredits } from '../services/creditService.js';
+import { getCredits } from '../services/creditService.js';
 
 const router = Router();
 const AUDIO_PROXY_MAX_BYTES = positiveNumber(process.env.AUDIO_PROXY_MAX_BYTES, 50 * 1024 * 1024);
@@ -180,30 +179,19 @@ function requireGenerateUser(req, res, next) {
   return requireIdentity(req, res, next);
 }
 
-async function withGeneratedLyrics({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals }) {
-  if (!vocals?.enabled || vocals.lyrics) return vocals;
+const PIPELINE_EVENTS = [
+  'generation:status',
+  'generation:progress',
+  'generation:completed',
+  'generation:failed',
+  'stem:status',
+  'stem:completed',
+  'stem:failed',
+];
 
-  const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
-  try {
-    const generated = await generateLyrics({
-      mbtiType: composed.mbti,
-      mode: composed.mode,
-      projectAnalysis,
-      notes,
-      language: vocals.language || 'zh',
-    });
-    if (!generated?.lyrics) return vocals;
-    return {
-      ...vocals,
-      lyrics: generated.lyrics,
-      vocalStyle: generated.vocalStyle,
-      vocalDesc: generated.vocalDesc,
-      lyricsStructure: generated.structure,
-    };
-  } catch (err) {
-    console.warn('[music/generate] lyrics generation skipped:', err.message);
-    return vocals;
-  }
+function writeSse(res, event, data) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
 router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, res) => {
@@ -232,36 +220,9 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       return res.json({ preview: true, ...composed });
     }
 
-    // 只有真实走 TTAPI 才消耗积分；兜底曲库不限量
-    let useFallback = forceFallback;
-    let creditNotice = null;
-    let chargedCredits = null;
-    const jobId = randomUUID();
-    if (!useFallback && isSunoConfigured()) {
-      const charge = await chargeGenerationCredits(req.identity, jobId);
-      chargedCredits = charge.credits;
-      if (!charge.ok) {
-        useFallback = true;
-        creditNotice = charge.error;
-      }
-    }
-
-    const resolvedVocals = !useFallback && isSunoConfigured()
-      ? await withGeneratedLyrics({
-        mbti,
-        axes,
-        mode,
-        projectAnalysis,
-        style,
-        selectedGenre,
-        notes,
-        vocals,
-      })
-      : vocals;
-
-    const job = createMusicJob({
-      jobId,
+    const job = await createMusicJob({
       userId: req.identity.id,
+      user: req.identity,
       mbti,
       axes,
       mode,
@@ -269,8 +230,8 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       style,
       selectedGenre,
       notes,
-      vocals: resolvedVocals,
-      forceFallback: useFallback,
+      vocals,
+      forceFallback,
       splitStems,
     });
 
@@ -288,12 +249,64 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       vocalStyle: job.vocalStyle,
       vocalDesc: job.vocalDesc,
       splitStems: job.splitStems,
-      credits: chargedCredits || await getCredits(req.identity),
-      creditNotice,
+      streamUrl: `/api/music/stream/${job.id}`,
+      credits: job.credits || await getCredits(req.identity),
+      creditNotice: job.creditNotice || null,
     });
   } catch (err) {
     console.error('[music/generate]', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/stream/:jobId', requireIdentity, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await getJob(jobId);
+    if (!job || job.userId !== req.identity.id) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    });
+    res.flushHeaders?.();
+    writeSse(res, 'generation:status', {
+      jobId: job.id,
+      status: job.status,
+      audioUrl: getPlaybackUrl(job),
+      tracks: getPlaybackTracks(job),
+      generationProgress: job.generationProgress,
+      stemStatus: job.stemStatus,
+      splitStems: job.splitStems,
+      fallback: job.fallback,
+    });
+
+    const listeners = PIPELINE_EVENTS.map((event) => {
+      const listener = (payload) => {
+        if (payload?.jobId !== jobId && payload?.id !== jobId) return;
+        writeSse(res, event, payload);
+      };
+      generationPipeline.on(event, listener);
+      return [event, listener];
+    });
+
+    const heartbeat = setInterval(() => {
+      res.write(': heartbeat\n\n');
+    }, 25_000);
+    heartbeat.unref?.();
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      for (const [event, listener] of listeners) {
+        generationPipeline.off(event, listener);
+      }
+    });
+  } catch (err) {
+    console.error('[music/stream]', err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
@@ -353,6 +366,7 @@ router.get('/status/:id', requireIdentity, async (req, res) => {
       lyrics: job.lyrics,
       vocalStyle: job.vocalStyle,
       vocalDesc: job.vocalDesc,
+      splitStems: job.splitStems,
       error: job.error,
       credits: await getCredits(req.identity),
     });

@@ -11,45 +11,94 @@ export function useMusicPoll() {
   const [audioUrl, setAudioUrl] = useState(null);
   const [meta, setMeta] = useState(null);
   const pollRef = useRef(null);
+  const streamRef = useRef(null);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
+    if (streamRef.current) {
+      streamRef.current.close();
+      streamRef.current = null;
+    }
   }, []);
 
   const startPolling = useCallback(
-    (id) => {
+    (id, { streamUrl = `/api/music/stream/${id}` } = {}) => {
       stopPolling();
       setJobId(id);
       setStatus('processing');
       setAudioUrl(null);
       setMeta(null);
 
+      const isTerminalStemStatus = (stemStatus) => (
+        stemStatus === 'skipped' ||
+        stemStatus === 'completed' ||
+        stemStatus === 'completed-empty' ||
+        stemStatus === 'failed'
+      );
+
+      const shouldStopForStatus = (data) => {
+        if (data.status === 'failed') return true;
+        if (data.status !== 'completed') return false;
+        return !data.splitStems || isTerminalStemStatus(data.stemStatus);
+      };
+
+      const applyStatus = (data) => {
+        setMeta((prev) => ({ ...(prev || {}), ...data }));
+        if (data.audioUrl) {
+          setAudioUrl((prev) => (prev === data.audioUrl ? prev : data.audioUrl));
+        }
+        if (data.status) setStatus(data.status);
+        if (shouldStopForStatus(data)) {
+          stopPolling();
+        }
+      };
+
       const poll = async () => {
         try {
           const data = await getMusicStatus(id);
-          setMeta(data);
-          if (data.audioUrl) {
-            setAudioUrl((prev) => (prev === data.audioUrl ? prev : data.audioUrl));
-          }
-          if (data.status) {
-            setStatus(data.status);
-          }
-          if (data.status === 'completed') {
-            stopPolling();
-          } else if (data.status === 'failed') {
-            setStatus('failed');
-            stopPolling();
-          }
+          applyStatus(data);
         } catch (err) {
           console.error('[poll]', err);
         }
       };
 
-      poll();
-      pollRef.current = setInterval(poll, POLL_MS);
+      const startFallbackPoll = () => {
+        if (pollRef.current) return;
+        poll();
+        pollRef.current = setInterval(poll, POLL_MS);
+      };
+
+      if (typeof EventSource === 'undefined') {
+        startFallbackPoll();
+        return;
+      }
+
+      const stream = new EventSource(streamUrl);
+      streamRef.current = stream;
+
+      const handleEvent = (event) => {
+        try {
+          applyStatus(JSON.parse(event.data));
+        } catch (err) {
+          console.error('[music stream]', err);
+        }
+      };
+
+      stream.addEventListener('generation:status', handleEvent);
+      stream.addEventListener('generation:progress', handleEvent);
+      stream.addEventListener('generation:completed', handleEvent);
+      stream.addEventListener('generation:failed', handleEvent);
+      stream.addEventListener('stem:status', handleEvent);
+      stream.addEventListener('stem:completed', handleEvent);
+      stream.addEventListener('stem:failed', handleEvent);
+      stream.onerror = () => {
+        stream.close();
+        if (streamRef.current === stream) streamRef.current = null;
+        startFallbackPoll();
+      };
     },
     [stopPolling]
   );

@@ -23,7 +23,7 @@ const updateGenerationParamsStmt = db.prepare(`UPDATE sessions SET generation_pa
 const addSpendStmt = db.prepare(`UPDATE sessions SET budget_spent = budget_spent + ? WHERE id = ?`);
 
 // 运行态：Map<sessionId, { schedule, manualPhase, feedbackLog, startedAt, durationMs,
-//                          state, arranger, scheduler, currentTrackId, currentPlayHistoryId }>
+//                          state, arranger, pipeline, currentTrackId, currentPlayHistoryId }>
 const runtime = new Map();
 
 function parseSession(row) {
@@ -81,7 +81,7 @@ export async function createSession({
     durationMs: 8 * 60 * 60 * 1000, // 默认按 8 小时估算，可由 schedule 覆盖
     state: 'IDLE',
     arranger: null,
-    scheduler: null,
+    pipeline: null,
     currentTrackId: null,
     currentPlayHistoryId: null,
   });
@@ -126,7 +126,7 @@ export async function getRuntime(sessionId) {
       durationMs: 8 * 60 * 60 * 1000,
       state: 'IDLE',
       arranger: null,
-      scheduler: null,
+      pipeline: null,
       currentTrackId: null,
       currentPlayHistoryId: null,
     });
