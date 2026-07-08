@@ -20,7 +20,6 @@ import {
   generateMusic,
   getDemoSchedule,
   getFallback,
-  getHealth,
   getMyProfile,
   previewPrompt,
   saveMyProfile,
@@ -36,9 +35,10 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const MixerPage = lazy(() => import('./components/mixer/MixerPage'));
 const DiscoverPage = lazy(() => import('./components/DiscoverPage'));
 const MBTIWAVE = lazy(() => import('./components/MBTIWAVE'));
+const AccountPage = lazy(() => import('./components/AccountPage'));
 
 const STARTUP_FALLBACK_MODE = 'startup';
-const ROUTES = new Set(['/', '/mbtiwave', '/dj', '/discover', '/mixer', '/admin']);
+const ROUTES = new Set(['/', '/mbtiwave', '/dj', '/discover', '/mixer', '/admin', '/account']);
 
 function normalizePath(path) {
   const clean = String(path || '/').replace(/\/+$/, '') || '/';
@@ -80,6 +80,7 @@ export default function App() {
   const isAdmin = route === '/admin';
   const isMixer = route === '/mixer';
   const isDiscover = route === '/discover';
+  const isAccount = route === '/account';
   const isHome = route === '/' || route === '/mbtiwave';
 
   const [axes, setAxes] = useState(axesFromMbti('INTJ'));
@@ -95,12 +96,11 @@ export default function App() {
   const [promptLoading, setPromptLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [fallback, setFallback] = useState(false);
-  const [health, setHealth] = useState(null);
   const [schedule, setSchedule] = useState(null);
   const [currentPhase, setCurrentPhase] = useState(null);
   const [mixerImport, setMixerImport] = useState(null);
   const [user, setUser] = useState(null);
-  const [quota, setQuota] = useState(null);
+  const [credits, setCredits] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -132,7 +132,7 @@ export default function App() {
     const seq = authRequestSeqRef.current + 1;
     authRequestSeqRef.current = seq;
     setUser(data.user);
-    setQuota(data.quota);
+    setCredits(data.credits);
     setAuthReady(true);
     getMyProfile()
       .then((res) => {
@@ -148,7 +148,7 @@ export default function App() {
   const handleAuthLogout = useCallback(() => {
     authRequestSeqRef.current += 1;
     setUser(null);
-    setQuota(null);
+    setCredits(null);
     setAuthReady(true);
     setLiveStation(null);
   }, []);
@@ -160,14 +160,13 @@ export default function App() {
   useEffect(() => {
     const seq = authRequestSeqRef.current + 1;
     authRequestSeqRef.current = seq;
-    getHealth().then(setHealth).catch(() => {});
     getDemoSchedule().then(setSchedule).catch(() => {});
     // 恢复登录态 + 应用个人档案
     authMe()
       .then((data) => {
         if (seq !== authRequestSeqRef.current) return null;
         setUser(data.user);
-        setQuota(data.quota);
+        setCredits(data.credits);
         setAuthReady(true);
         return getMyProfile();
       })
@@ -289,6 +288,7 @@ export default function App() {
 
   useEffect(() => {
     if (poll.audioUrl) {
+      if (poll.meta?.credits) setCredits(poll.meta.credits);
       setFallback(Boolean(poll.meta?.fallback));
       player.playUrl(poll.audioUrl, {
         title: poll.meta?.title || poll.meta?.fallbackTitle || `${mbti} · ${mode}`,
@@ -296,7 +296,7 @@ export default function App() {
       });
       setGenerating(false);
     }
-  }, [poll.audioUrl]);
+  }, [poll.audioUrl, poll.meta?.credits]);
 
   useEffect(() => {
     const tracks = Array.isArray(poll.meta?.tracks)
@@ -397,8 +397,8 @@ export default function App() {
       });
       if (seq !== generationSeqRef.current) return;
       setPromptData(job);
-      if (job.quota) setQuota(job.quota);
-      if (job.quotaNotice) setNotice(job.quotaNotice);
+      if (job.credits) setCredits(job.credits);
+      if (job.creditNotice) setNotice(job.creditNotice);
       poll.startPolling(job.jobId);
     } catch (err) {
       console.error('[generate]', err);
@@ -559,13 +559,14 @@ export default function App() {
           isDark={isDark}
           onToggleColorMode={toggleColorMode}
           user={user}
-          quota={quota}
+          credits={credits}
           authReady={authReady}
           authOpen={authOpen}
           onAuthOpenChange={setAuthOpen}
           onAuth={handleAuthSuccess}
           onLogout={handleAuthLogout}
-          onQuotaChange={setQuota}
+          onCreditsChange={setCredits}
+          onAccountOpen={() => navigateTo('/account')}
           onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
           onNavigate={navigateTo}
         />
@@ -628,24 +629,15 @@ export default function App() {
           <div className="flex items-center gap-2">
             <AuthPanel
               user={user}
-              quota={quota}
+              credits={credits}
               loading={!authReady}
               open={authOpen}
               onOpenChange={setAuthOpen}
               onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
               onAuth={handleAuthSuccess}
               onLogout={handleAuthLogout}
+              onAccountOpen={() => navigateTo('/account')}
             />
-            <div className="status-pill flex min-w-[104px] items-center justify-center gap-3 rounded-full px-3 py-1.5 font-mono text-[10px]">
-                <span className="flex items-center gap-1.5">
-                  <span className="led-dot" style={{ color: !health ? 'var(--text-faint)' : health.ttapi ? '#4ade80' : '#f59e0b' }} />
-                  <span className="text-muted">TTAPI</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="led-dot" style={{ color: !health ? 'var(--text-faint)' : health.llm ? '#4ade80' : '#f59e0b' }} />
-                  <span className="text-muted">LLM</span>
-                </span>
-              </div>
             <ThemeToggle isDark={isDark} onToggle={toggleColorMode} />
             <a
               href="/mbtiwave"
@@ -688,6 +680,16 @@ export default function App() {
         {isAdmin ? (
           <Suspense fallback={null}>
             <AdminPanel />
+          </Suspense>
+        ) : isAccount ? (
+          <Suspense fallback={null}>
+            <AccountPage
+              user={user}
+              credits={credits}
+              onUserChange={setUser}
+              onCreditsChange={setCredits}
+              onRequireAuth={() => setAuthOpen(true)}
+            />
           </Suspense>
         ) : isMixer ? (
           <Suspense fallback={null}>

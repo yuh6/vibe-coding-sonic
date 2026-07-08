@@ -666,7 +666,17 @@ body {
 }
 
 .mixer-now-hero {
-  grid-template-columns: clamp(7.5rem, 15vw, 12rem) minmax(0, 1fr) minmax(5.25rem, 6.25rem);
+  grid-template-columns: clamp(8rem, 14vw, 11rem) minmax(0, 1fr) minmax(5.4rem, 6.4rem);
+  align-items: center;
+  min-height: 18.25rem;
+  padding: 1.35rem;
+}
+
+.mixer-now-copy {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .mixer-hero > *,
@@ -676,9 +686,9 @@ body {
 }
 
 .mixer-generate-button {
-  align-self: stretch;
+  align-self: center;
   justify-self: stretch;
-  min-height: 8rem;
+  min-height: 11rem;
   border-radius: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--mixer-accent), white 8%);
   background:
@@ -728,6 +738,7 @@ body {
 
 .mixer-hero-art {
   aspect-ratio: 1;
+  align-self: center;
 }
 
 .mixer-hero-art img,
@@ -853,6 +864,81 @@ body {
   margin-top: auto;
 }
 
+.mixer-ai-dj-panel {
+  display: flex;
+  min-height: 13.8rem;
+  flex-direction: column;
+}
+
+.mixer-ai-chat-log {
+  display: flex;
+  min-height: 5.9rem;
+  max-height: 8rem;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow-y: auto;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.65rem;
+}
+
+.mixer-ai-message {
+  max-width: 88%;
+  border-radius: 0.7rem;
+  padding: 0.52rem 0.62rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.mixer-ai-message.is-assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mixer-ai-message.is-user {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--mixer-accent), transparent 76%);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mixer-ai-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.mixer-ai-chat-form input {
+  min-width: 0;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 0.58rem 0.7rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+}
+
+.mixer-ai-chat-form input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.mixer-ai-chat-form button {
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 0 0.85rem;
+  color: #050505;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.mixer-ai-chat-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .mixer-row-button {
   display: flex;
   align-items: center;
@@ -877,6 +963,11 @@ body {
   background: color-mix(in srgb, var(--mixer-accent), transparent 88%);
 }
 
+.mixer-row-button.is-selected {
+  border-color: rgba(52, 211, 153, 0.44);
+  background: rgba(52, 211, 153, 0.12);
+}
+
 .mixer-row-button:active {
   transform: scale(0.99);
 }
@@ -884,6 +975,15 @@ body {
 .mixer-row-button.compact {
   gap: 0.5rem;
   padding: 0.5rem 0.6rem;
+}
+
+.mixer-row-check {
+  display: inline-flex;
+  width: 1.1rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
 }
 
 .mixer-row-button strong {
@@ -1099,6 +1199,12 @@ body {
   font-size: 0.58rem;
 }
 
+.mixer-mini-button.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
 .mixer-saved-list-menu {
   display: flex;
   flex: 0 0 auto;
@@ -1199,8 +1305,12 @@ body {
 
 .mixer-actions-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.42rem;
+}
+
+.mixer-actions-grid.has-share {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 4.25rem;
 }
 
 .mixer-actions-panel .mixer-action-button {
@@ -1213,6 +1323,20 @@ body {
 .mixer-actions-panel .mixer-action-button svg {
   width: 0.85rem;
   height: 0.85rem;
+}
+
+.mixer-action-button.is-live {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+.mixer-live-indicator {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0.7rem rgba(239, 68, 68, 0.85);
 }
 
 .mixer-action-button:hover:not(:disabled),
@@ -1303,6 +1427,18 @@ body {
   color: #34d399;
 }
 
+.mixer-mode-button.mode-track-loop {
+  color: #a78bfa;
+}
+
+.mixer-mode-button.mode-shuffle {
+  color: #38bdf8;
+}
+
+.mixer-mode-button.mode-sequential {
+  color: #fbbf24;
+}
+
 .mixer-play-button {
   width: 2.75rem;
   height: 2.75rem;
@@ -1348,7 +1484,7 @@ body {
   .mixer-spotify-shell {
     grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     grid-template-rows: auto;
-    height: auto;
+    height: 100%;
     padding-bottom: 6.5rem;
   }
 
@@ -1361,7 +1497,6 @@ body {
   .mixer-sidebar,
   .mixer-main,
   .mixer-inspector {
-    overflow-y: visible;
     padding-right: 0;
   }
 }

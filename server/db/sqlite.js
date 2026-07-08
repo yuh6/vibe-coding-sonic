@@ -11,6 +11,7 @@ const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/app.db');
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+let transactionChain = Promise.resolve();
 
 export const sqlite = {
   dialect: 'sqlite',
@@ -38,8 +39,28 @@ export const sqlite = {
 
   /** 事务包装 */
   async transaction(fn) {
-    const tx = db.transaction(fn);
-    return tx();
+    const runTransaction = async () => {
+      const tx = {
+        query: (sql, params = []) => db.prepare(sql).all(...params),
+        get: (sql, params = []) => db.prepare(sql).get(...params) || null,
+        run: (sql, params = []) => {
+          const result = db.prepare(sql).run(...params);
+          return { changes: result.changes, lastInsertRowid: result.lastInsertRowid };
+        },
+      };
+      db.prepare('BEGIN IMMEDIATE').run();
+      try {
+        const result = await fn(tx);
+        db.prepare('COMMIT').run();
+        return result;
+      } catch (err) {
+        db.prepare('ROLLBACK').run();
+        throw err;
+      }
+    };
+    const next = transactionChain.then(runTransaction, runTransaction);
+    transactionChain = next.catch(() => {});
+    return next;
   },
 
   /** 关闭连接 */

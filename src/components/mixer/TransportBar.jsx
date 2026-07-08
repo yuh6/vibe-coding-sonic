@@ -1,4 +1,4 @@
-import { Pause, Play, Repeat, RotateCcw, SkipBack, SkipForward, Square, Volume2 } from 'lucide-react';
+import { ArrowRight, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Square, Volume2 } from 'lucide-react';
 
 function fmt(time) {
   if (!Number.isFinite(time)) return '0:00';
@@ -18,18 +18,26 @@ export default function TransportBar({
   master,
   playlistCount = 0,
   activePlaylistIndex = -1,
+  playMode = 'list-loop',
   onMasterUpdate,
   onPlay,
   onPause,
   onStop,
   onPrevious,
   onNext,
-  onClearLoop,
+  onCyclePlayMode,
 }) {
   const progress = duration > 0 ? Math.max(0, Math.min(100, (time / duration) * 100)) : 0;
   const activeTrack = tracks[0];
   const title = activeTrack?.name || (loading ? 'Loading audio' : 'No track loaded');
   const canStepPlaylist = playlistCount > 0;
+  const modeMeta = {
+    'list-loop': { label: '列表循环', icon: Repeat, status: 'Playlist loop' },
+    'track-loop': { label: '单曲循环', icon: Repeat1, status: 'Single loop' },
+    shuffle: { label: '随机播放', icon: Shuffle, status: 'Shuffle' },
+    sequential: { label: '顺序播放', icon: ArrowRight, status: 'Sequential' },
+  }[playMode] || { label: '列表循环', icon: Repeat, status: 'Playlist loop' };
+  const ModeIcon = modeMeta.icon;
 
   return (
     <div className="mixer-transport">
@@ -41,9 +49,9 @@ export default function TransportBar({
           <div className="truncate text-sm font-bold text-white" title={title}>{title}</div>
           <div className="truncate font-mono text-[10px] text-white/40">
             {tracks.length
-              ? `Playlist loop ${activePlaylistIndex + 1 || 1}/${playlistCount || 1}`
+              ? `${modeMeta.status} ${activePlaylistIndex + 1 || 1}/${playlistCount || 1}`
               : playlistCount
-                ? `Playlist loop ready · ${playlistCount} tracks`
+                ? `${modeMeta.status} ready · ${playlistCount} tracks`
                 : 'Load a track from Library'}
           </div>
         </div>
@@ -71,13 +79,13 @@ export default function TransportBar({
           </button>
           <button
             type="button"
-            onClick={onClearLoop}
-            className={`mixer-icon-button ${loop || playlistCount ? 'is-active' : ''}`}
-            disabled={!loop && !playlistCount}
-            title={loop ? `Clear loop ${fmt(loop.start)}-${fmt(loop.end)}` : 'Playlist loop is on by default'}
-            aria-label="Clear loop"
+            onClick={onCyclePlayMode}
+            className={`mixer-icon-button is-active mixer-mode-button mode-${playMode}`}
+            disabled={!playlistCount}
+            title={`${modeMeta.label}${loop ? ` · region ${fmt(loop.start)}-${fmt(loop.end)}` : ''}`}
+            aria-label={`Playback mode: ${modeMeta.label}`}
           >
-            {loop ? <RotateCcw className="h-4 w-4" /> : <Repeat className="h-4 w-4" />}
+            <ModeIcon className="h-4 w-4" />
           </button>
         </div>
 

@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
-import { db } from '../db.js';
+import { dal, db } from '../db.js';
+import { ensureInitialCreditsForUserInTransaction } from './creditService.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
 const GUEST_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 年
@@ -72,9 +73,13 @@ export async function registerUser({ email, password, name }) {
     name: displayName,
     created_at: Date.now(),
   };
-  await db.prepare(
-    'INSERT INTO users (id, email, password_hash, name, created_at) VALUES (@id, @email, @password_hash, @name, @created_at)'
-  ).run(user);
+  await dal.transaction(async (tx) => {
+    await tx.run(
+      'INSERT INTO users (id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?)',
+      [user.id, user.email, user.password_hash, user.name, user.created_at]
+    );
+    await ensureInitialCreditsForUserInTransaction(tx, { ...user, role: 'user' });
+  });
   return publicUser({ ...user, role: 'user' });
 }
 
@@ -142,6 +147,25 @@ export async function getOrCreateGuestUser(guestToken) {
      VALUES (@id, @email, @password_hash, @name, @role, @created_at)`
   ).run(user);
   return { user: publicUser(user), token: id, maxAgeMs: GUEST_TTL_MS, created: true };
+}
+
+export async function updateUserName(userId, name) {
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  if (!row || row.role === 'guest') throw new Error('请先登录');
+  const nextName = normalizeName(name, row.name);
+  await db.prepare('UPDATE users SET name = ? WHERE id = ?').run(nextName, userId);
+  return publicUser({ ...row, name: nextName });
+}
+
+export async function changeUserPassword(userId, { currentPassword, nextPassword }) {
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  if (!row || row.role === 'guest') throw new Error('请先登录');
+  const current = normalizePassword(currentPassword, { forLogin: true });
+  const next = normalizePassword(nextPassword);
+  if (!(await verifyPassword(current, row.password_hash))) throw new Error('当前密码不正确');
+  const nextHash = await hashPassword(next);
+  await db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(nextHash, userId);
+  return { ok: true };
 }
 
 export { GUEST_TTL_MS };

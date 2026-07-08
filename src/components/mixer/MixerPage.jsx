@@ -4,6 +4,7 @@ import TransportBar from './TransportBar';
 import NowPlayingInspector, { UserPlaylistPanel } from './NowPlayingInspector';
 import StyleFaders from '../StyleFaders';
 import { AXES, getTheme, mbtiFromAxes } from '../../lib/mbti';
+import { generateMusic, getMusicStatus, startRadio, stopRadio, updateRadioNowPlaying } from '../../lib/api';
 
 const SAMPLE_TRACKS = [
   { id: 'sample-rain-receipts', name: 'Rain on Receipts', url: '/samples/fallback-focus-a.mp3', type: 'stem' },
@@ -13,12 +14,10 @@ const SAMPLE_TRACKS = [
 ];
 
 const SAVED_LISTS_KEY = 'vibe-mixer-saved-lists';
+const PLAYBACK_MODES = ['list-loop', 'track-loop', 'shuffle', 'sequential'];
 
-const RECENT_PLAYS = [
-  { title: 'Focus build 07', meta: 'INTJ · focus · 104 BPM', url: '/samples/fallback-focus-b.mp3' },
-  { title: 'Warm refactor loop', meta: 'ISFJ · break · 82 BPM', url: '/samples/fallback-break-a.mp3' },
-  { title: 'Sprint sketch take', meta: 'ENTP · sprint · 136 BPM', url: '/samples/fallback-sprint-b.mp3' },
-  { title: 'Night deploy pad', meta: 'ISTP · behind · 118 BPM', url: '/samples/fallback-behind-a.mp3' },
+const AI_DJ_STARTER = [
+  { role: 'assistant', text: '告诉我想要的氛围、场景、BPM 或参考风格。我会按当前 MBTI、流派和 FX 参数编排到队列。' },
 ];
 
 const COLLECTIONS = [
@@ -153,19 +152,64 @@ function loadSavedLists() {
   }
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function downloadUrl(url, filename) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  }
+}
+
 export default function MixerPage({ incomingMix = null, user }) {
   const mixer = useMixer();
   const importedSignatureRef = useRef('');
   const importJobRef = useRef('');
   const playbackWasRunningRef = useRef(false);
+  const selectRequestRef = useRef(0);
   const [axes, setAxes] = useState({ ie: 12, ns: 12, tf: 12, jp: 12 });
   const [style, setStyle] = useState({ energy: 52, texture: 35, brightness: 44 });
   const [genre, setGenre] = useState('');
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [playlistTracks, setPlaylistTracks] = useState(SAMPLE_TRACKS);
   const [activePlaylistIndex, setActivePlaylistIndex] = useState(-1);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedQueueIds, setSelectedQueueIds] = useState(() => new Set());
+  const [playMode, setPlayMode] = useState('list-loop');
   const [savedLists, setSavedLists] = useState(loadSavedLists);
   const [activeSavedListId, setActiveSavedListId] = useState('');
+  const [aiMessages, setAiMessages] = useState(AI_DJ_STARTER);
+  const [aiInput, setAiInput] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  const [broadcastStation, setBroadcastStation] = useState(null);
+  const [broadcastBusy, setBroadcastBusy] = useState(false);
   const mbti = mbtiFromAxes(axes);
   const theme = getTheme(mbti);
 
@@ -183,6 +227,27 @@ export default function MixerPage({ incomingMix = null, user }) {
     importedSignatureRef.current = signature;
     importJobRef.current = incomingMix.jobId;
     mixer.addTracks(incomingTracks, { replace });
+    const importedTrack = {
+      id: `import-${incomingMix.jobId}`,
+      name: incomingMix.title || incomingTracks[0]?.name || 'Generated mix',
+      url: incomingTracks[0]?.url,
+      trackId: incomingMix.fallback ? null : incomingMix.jobId,
+      type: incomingMix.fallback ? 'fallback mix' : 'generated mix',
+      status: importStatusText(incomingMix),
+      tracks: incomingTracks.map((track, index) => ({
+        id: track.id || `import-${incomingMix.jobId}-${index}`,
+        name: track.name || track.title || `Stem ${index + 1}`,
+        url: track.url,
+        type: track.type || 'stem',
+      })),
+    };
+    setPlaylistTracks((prev) => {
+      const withoutSameImport = prev.filter((track) => track.id !== importedTrack.id);
+      return [importedTrack, ...withoutSameImport];
+    });
+    setActivePlaylistIndex(0);
+    setSelectedTrack(importedTrack);
+    setActiveSavedListId('');
   }, [incomingMix, incomingTracks, mixer.addTracks]);
 
   useEffect(() => {
@@ -192,18 +257,75 @@ export default function MixerPage({ incomingMix = null, user }) {
   const selectedGenreLabel = genre || 'Open genre';
   const promptTitle = `${mbti} ${selectedGenreLabel} mix`;
   const promptSummary = `${mbti} ${selectedGenreLabel} cue, energy ${style.energy}, texture ${style.texture}, brightness ${style.brightness}. Keep it useful for focused coding and smooth transitions.`;
+  const activeQueueIndex = activePlaylistIndex >= 0 ? activePlaylistIndex : -1;
+  const activeQueueTrack = activeQueueIndex >= 0 ? playlistTracks[activeQueueIndex] : null;
+  const selectedQueueTracks = playlistTracks.filter((track) => selectedQueueIds.has(track.id || track.name));
+  const exportTargets = selectedQueueTracks.length ? selectedQueueTracks : (activeQueueTrack ? [activeQueueTrack] : []);
+  const shareUrl = broadcastStation?.id ? `${window.location.origin}/discover?radio=${encodeURIComponent(broadcastStation.id)}` : '';
+  const makeLocalGeneratedTrack = (sourcePrompt = promptSummary, source = 'preview') => {
+    const nextNumber = playlistTracks.length + 1;
+    return {
+      id: `generated-${Date.now()}`,
+      name: `${mbti} ${selectedGenreLabel} take ${String(nextNumber).padStart(2, '0')}`,
+      url: style.energy > 66 ? '/samples/fallback-sprint-a.mp3' : style.brightness < 38 ? '/samples/fallback-focus-c.mp3' : '/samples/fallback-brainstorm-a.mp3',
+      type: 'generated',
+      status: source === 'ai' ? 'AI DJ queued' : 'queued from preview',
+      prompt: sourcePrompt,
+    };
+  };
+  const cyclePlayMode = () => {
+    setPlayMode((mode) => {
+      const current = PLAYBACK_MODES.indexOf(mode);
+      return PLAYBACK_MODES[(current + 1) % PLAYBACK_MODES.length] || 'list-loop';
+    });
+  };
+  const resolveStepIndex = (direction) => {
+    if (!playlistTracks.length) return null;
+    const current = activePlaylistIndex >= 0 ? activePlaylistIndex : 0;
+    if (playMode === 'track-loop') return current;
+    if (playMode === 'shuffle') {
+      if (playlistTracks.length === 1) return 0;
+      let next = current;
+      while (next === current) next = Math.floor(Math.random() * playlistTracks.length);
+      return next;
+    }
+    const next = current + direction;
+    if (playMode === 'sequential') {
+      if (next < 0 || next >= playlistTracks.length) return null;
+      return next;
+    }
+    return (next + playlistTracks.length) % playlistTracks.length;
+  };
   const handleSelectTrack = async (track, index = -1, autoplay = false) => {
-    const nextTrack = { name: track.title || track.name, url: track.url, type: track.type || 'stem' };
+    const requestId = selectRequestRef.current + 1;
+    selectRequestRef.current = requestId;
+    const deckTracks = (Array.isArray(track.tracks) && track.tracks.length ? track.tracks : [track])
+      .filter((item) => item?.url)
+      .map((item, itemIndex) => ({
+        name: item.title || item.name || `${track.name || 'Track'} ${itemIndex + 1}`,
+        url: item.url,
+        type: item.type || 'stem',
+      }));
+    if (deckTracks.length === 0) return;
+    const nextTrack = {
+      name: track.title || track.name || deckTracks[0].name,
+      url: deckTracks[0].url,
+      type: track.type || deckTracks[0].type || 'stem',
+    };
     const shouldPlay = autoplay || mixer.playing;
     setSelectedTrack(nextTrack);
     setActivePlaylistIndex(index);
-    await mixer.addTracks([nextTrack], { replace: true });
+    await mixer.addTracks(deckTracks, { replace: true });
+    if (selectRequestRef.current !== requestId) return;
     if (shouldPlay) await mixer.play();
   };
   const handlePlaylistStep = (direction, autoplay = mixer.playing) => {
     if (!playlistTracks.length) return;
-    const baseIndex = activePlaylistIndex >= 0 ? activePlaylistIndex : 0;
-    const nextIndex = (baseIndex + direction + playlistTracks.length) % playlistTracks.length;
+    const nextIndex = resolveStepIndex(direction);
+    if (nextIndex == null) {
+      mixer.stop();
+      return;
+    }
     handleSelectTrack(playlistTracks[nextIndex], nextIndex, autoplay);
   };
   const handleTransportPlay = () => {
@@ -215,17 +337,41 @@ export default function MixerPage({ incomingMix = null, user }) {
     mixer.play();
   };
   const handleGenerateTrack = () => {
-    const nextNumber = playlistTracks.length + 1;
-    const generated = {
-      id: `generated-${Date.now()}`,
-      name: `${mbti} ${selectedGenreLabel} take ${String(nextNumber).padStart(2, '0')}`,
-      url: style.energy > 66 ? '/samples/fallback-sprint-a.mp3' : style.brightness < 38 ? '/samples/fallback-focus-c.mp3' : '/samples/fallback-brainstorm-a.mp3',
-      type: 'generated',
-      status: 'queued from preview',
-      prompt: promptSummary,
-    };
-    setPlaylistTracks((prev) => [...prev, generated]);
+    setPlaylistTracks((prev) => [...prev, makeLocalGeneratedTrack()]);
     setActiveSavedListId('');
+  };
+  const toggleSelectionMode = () => {
+    setSelectionMode((enabled) => {
+      const next = !enabled;
+      if (!next) setSelectedQueueIds(new Set());
+      return next;
+    });
+  };
+  const toggleQueueSelection = (id) => {
+    setSelectedQueueIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const removeSelectedFromQueue = () => {
+    if (selectedQueueIds.size === 0) return;
+    setPlaylistTracks((prev) => prev.filter((track) => !selectedQueueIds.has(track.id || track.name)));
+    if (activeQueueTrack && selectedQueueIds.has(activeQueueTrack.id || activeQueueTrack.name)) {
+      mixer.clear();
+      setActivePlaylistIndex(-1);
+      setSelectedTrack(null);
+    } else if (activePlaylistIndex >= 0) {
+      const removedBeforeActive = playlistTracks
+        .slice(0, activePlaylistIndex)
+        .filter((track) => selectedQueueIds.has(track.id || track.name)).length;
+      setActivePlaylistIndex(Math.max(0, activePlaylistIndex - removedBeforeActive));
+    }
+    setSelectedQueueIds(new Set());
+    setSelectionMode(false);
+    setActiveSavedListId('');
+    setActionMessage('Selected tracks removed from this queue. Source files were kept.');
   };
   const handleSaveList = () => {
     if (!playlistTracks.length) return;
@@ -252,11 +398,139 @@ export default function MixerPage({ incomingMix = null, user }) {
     setActiveSavedListId(list.id);
     setActivePlaylistIndex(-1);
     setSelectedTrack(null);
+    setSelectionMode(false);
+    setSelectedQueueIds(new Set());
     mixer.clear();
   };
   const handleDeleteList = (listId) => {
     setSavedLists((prev) => prev.filter((list) => list.id !== listId));
     if (activeSavedListId === listId) setActiveSavedListId('');
+  };
+  const handleExportSelected = () => {
+    if (!exportTargets.length) {
+      setActionMessage('Select up to 10 queue tracks before exporting.');
+      return;
+    }
+    if (exportTargets.length > 10) {
+      setActionMessage('Export is limited to 10 tracks at a time.');
+      return;
+    }
+    let downloaded = 0;
+    exportTargets.forEach((track, index) => {
+      const exportUrl = track?.url || track?.tracks?.find((item) => item?.url)?.url;
+      if (!exportUrl) return;
+      const safeName = String(track.name || track.title || `mixer-track-${index + 1}`).replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || `mixer-track-${index + 1}`;
+      downloadUrl(exportUrl, `${safeName}.mp3`);
+      downloaded += 1;
+    });
+    setActionMessage(downloaded ? `Downloading ${downloaded} track${downloaded === 1 ? '' : 's'}.` : 'Selected tracks have no downloadable audio.');
+  };
+  const handleBroadcast = async () => {
+    if (!playlistTracks.length) return;
+    if (broadcastStation?.id) {
+      setBroadcastBusy(true);
+      try {
+        await stopRadio(broadcastStation.id);
+        setBroadcastStation(null);
+        setActionMessage('Broadcast stopped.');
+      } catch (err) {
+        setActionMessage(err.message || 'Failed to stop broadcast.');
+      } finally {
+        setBroadcastBusy(false);
+      }
+      return;
+    }
+    const track = activeQueueTrack || playlistTracks[0];
+    const audioUrl = track?.url || track?.tracks?.find((item) => item?.url)?.url;
+    if (!audioUrl) {
+      setActionMessage('Current queue has no playable audio to broadcast.');
+      return;
+    }
+    setBroadcastBusy(true);
+    setActionMessage('');
+    try {
+      const station = broadcastStation || await startRadio({
+        title: `${user?.name || user?.email || 'AI DJ'} queue`,
+        description: `${playlistTracks.length} tracks from mixer queue`,
+        sessionId: null,
+        mode: 'mixer',
+        mbti,
+      });
+      setBroadcastStation(station);
+      await updateRadioNowPlaying(station.id, {
+        title: track.name || track.title || 'Mixer queue track',
+        audioUrl,
+        genre: selectedGenreLabel,
+      });
+      setActionMessage(`Broadcast live: ${station.title}`);
+    } catch (err) {
+      if (err.status === 401) {
+        setActionMessage('Login required to broadcast this queue.');
+      } else {
+        setActionMessage(err.message || 'Broadcast failed.');
+      }
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+  const handleShareBroadcast = async () => {
+    if (!shareUrl) return;
+    if (await copyText(shareUrl)) {
+      setActionMessage('Room link copied.');
+    } else {
+      setActionMessage(shareUrl);
+    }
+  };
+  const handleAiSubmit = async (event) => {
+    event.preventDefault();
+    const request = aiInput.trim();
+    if (!request || aiBusy) return;
+    setAiInput('');
+    setAiMessages((prev) => [...prev, { role: 'user', text: request }, { role: 'assistant', text: '收到，正在按当前人格、流派和 FX 参数编排生成...' }]);
+    setAiBusy(true);
+    try {
+      const job = await generateMusic({
+        axes,
+        mode: 'focus',
+        projectAnalysis: { name: 'AI DJ request', description: request },
+        style,
+        selectedGenre: genre || undefined,
+        vocals: { enabled: false },
+        splitStems: false,
+      });
+      let result = job;
+      if (job?.jobId) {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          await wait(1600);
+          result = await getMusicStatus(job.jobId);
+          if (result.status === 'completed' || result.status === 'failed') break;
+        }
+      }
+      const resultTracks = (result?.tracks || []).filter((track) => track?.url);
+      const audioUrl = resultTracks[0]?.url || result?.audioUrl;
+      const generated = audioUrl ? {
+        id: `ai-${result.jobId || Date.now()}`,
+        name: result.title || `${mbti} AI DJ take`,
+        url: audioUrl,
+        trackId: result.fallback ? null : result.jobId,
+        type: result.fallback ? 'fallback mix' : 'AI generated',
+        status: result.status === 'completed' ? 'generated by AI DJ' : 'queued by AI DJ',
+        prompt: request,
+        tracks: resultTracks.length ? resultTracks : undefined,
+      } : makeLocalGeneratedTrack(request, 'ai');
+      setPlaylistTracks((prev) => [...prev, generated]);
+      setActiveSavedListId('');
+      setAiMessages((prev) => [...prev, { role: 'assistant', text: `已加入队列: ${generated.name}` }]);
+    } catch (err) {
+      const fallback = makeLocalGeneratedTrack(request, 'ai');
+      setPlaylistTracks((prev) => [...prev, fallback]);
+      setAiMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: err.status === 401 ? '需要登录才能真实生成。已先按你的描述放入本地试听队列。' : '生成服务暂时不可用，已先放入本地试听队列。' },
+      ]);
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -271,7 +545,18 @@ export default function MixerPage({ incomingMix = null, user }) {
     }
     playbackWasRunningRef.current = mixer.playing;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mixer.playing, mixer.time, mixer.duration, playlistTracks.length]);
+  }, [mixer.playing, mixer.time, mixer.duration, playlistTracks.length, playMode]);
+
+  useEffect(() => {
+    if (!broadcastStation?.id || !activeQueueTrack) return;
+    const audioUrl = activeQueueTrack.url || activeQueueTrack.tracks?.find((track) => track?.url)?.url;
+    if (!audioUrl) return;
+    updateRadioNowPlaying(broadcastStation.id, {
+      title: activeQueueTrack.name || activeQueueTrack.title || 'Mixer queue track',
+      audioUrl,
+      genre: selectedGenreLabel,
+    }).catch(() => {});
+  }, [broadcastStation?.id, activeQueueTrack, selectedGenreLabel]);
 
   return (
     <div className="mixer-spotify-shell" style={{ '--mixer-accent': theme.accent }}>
@@ -295,9 +580,9 @@ export default function MixerPage({ incomingMix = null, user }) {
             <img src="/card-mixer.jpg" alt="DJ console and waveform artwork" />
             <div className="mixer-visual-grid" />
           </div>
-          <div className="min-w-0">
+          <div className="mixer-now-copy min-w-0">
             <p className="mixer-kicker">Prompt preview</p>
-            <h1 className="line-clamp-2 font-display text-3xl font-black tracking-tight text-white xl:text-5xl" title={promptTitle}>
+            <h1 className="line-clamp-2 font-display text-3xl font-black tracking-tight text-white xl:text-4xl" title={promptTitle}>
               {promptTitle}
             </h1>
             <p className="mixer-now-prompt mt-2 max-w-2xl text-sm leading-6 text-white/60">
@@ -316,26 +601,32 @@ export default function MixerPage({ incomingMix = null, user }) {
           </button>
         </section>
 
-        <section className="mixer-panel">
+        <section className="mixer-panel mixer-ai-dj-panel">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <span className="mixer-kicker">Recently played</span>
-              <h2 className="mt-1 text-xl font-black tracking-tight text-white">Recent plays</h2>
+              <span className="mixer-kicker">AI DJ</span>
+              <h2 className="mt-1 text-xl font-black tracking-tight text-white">Talk to DJ</h2>
             </div>
-            {mixer.loading && <span className="font-mono text-[10px] text-amber-300">LOADING</span>}
+            {aiBusy && <span className="font-mono text-[10px] text-amber-300">GENERATING</span>}
           </div>
-          <div className="mixer-recent-rail">
-            {RECENT_PLAYS.map((track, index) => (
-              <button key={track.title} type="button" onClick={() => handleSelectTrack(track)} className="mixer-recent-card">
-                <span className="mixer-row-index">{String(index + 1).padStart(2, '0')}</span>
-                <span className="min-w-0">
-                  <strong>{track.title}</strong>
-                  <small>{track.meta}</small>
-                </span>
-                <span className="mixer-row-action">Load</span>
-              </button>
+          <div className="mixer-ai-chat-log">
+            {aiMessages.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`mixer-ai-message is-${message.role}`}>
+                {message.text}
+              </div>
             ))}
           </div>
+          <form className="mixer-ai-chat-form" onSubmit={handleAiSubmit}>
+            <input
+              value={aiInput}
+              onChange={(event) => setAiInput(event.target.value)}
+              placeholder="例如：给我一首适合凌晨写代码的低速 synthwave，保留一点紧张感"
+              disabled={aiBusy}
+            />
+            <button type="submit" disabled={aiBusy || !aiInput.trim()}>
+              {aiBusy ? 'Working' : 'Send'}
+            </button>
+          </form>
         </section>
 
         <section className="mixer-panel">
@@ -361,15 +652,29 @@ export default function MixerPage({ incomingMix = null, user }) {
       <NowPlayingInspector
         tracks={mixer.tracks}
         error={mixer.error}
-        onClear={mixer.clear}
+        actionMessage={actionMessage}
+        actionBusy={broadcastBusy}
+        canExport={exportTargets.length > 0}
+        canBroadcast={playlistTracks.length > 0}
+        broadcastLabel={broadcastStation ? 'Live' : 'Broadcast'}
+        isBroadcasting={Boolean(broadcastStation)}
+        canShare={Boolean(shareUrl)}
+        onExport={handleExportSelected}
+        onBroadcast={handleBroadcast}
+        onShare={handleShareBroadcast}
       >
         <UserPlaylistPanel
           user={user}
           playlistTracks={playlistTracks}
           activeIndex={activePlaylistIndex}
+          selectedIds={selectedQueueIds}
+          selectionMode={selectionMode}
           savedLists={savedLists}
           activeSavedListId={activeSavedListId}
           onAddTrack={handleSelectTrack}
+          onToggleSelection={toggleQueueSelection}
+          onToggleSelectionMode={toggleSelectionMode}
+          onRemoveSelected={removeSelectedFromQueue}
           onSaveList={handleSaveList}
           onLoadList={handleLoadList}
           onDeleteList={handleDeleteList}
@@ -388,13 +693,14 @@ export default function MixerPage({ incomingMix = null, user }) {
           master={mixer.master}
           playlistCount={playlistTracks.length}
           activePlaylistIndex={activePlaylistIndex}
+          playMode={playMode}
           onMasterUpdate={mixer.updateMaster}
           onPlay={handleTransportPlay}
           onPause={mixer.pause}
           onStop={mixer.stop}
           onPrevious={() => handlePlaylistStep(-1, mixer.playing)}
           onNext={() => handlePlaylistStep(1, mixer.playing)}
-          onClearLoop={() => mixer.setLoop(null)}
+          onCyclePlayMode={cyclePlayMode}
         />
       </div>
     </div>

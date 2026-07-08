@@ -3,11 +3,20 @@ import { getSetting } from '../config/runtimeConfig.js';
 
 const TOTAL_QUOTA_KEY = 'total';
 const DEFAULT_GENERATION_LIMIT = 10;
-const GLOBAL_DAILY_LIMIT = Number(process.env.GLOBAL_DAILY_LIMIT || 100);
+const DEFAULT_GLOBAL_DAILY_LIMIT = 100;
 
 function positiveInt(value, fallback = DEFAULT_GENERATION_LIMIT) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+}
+
+function limitOrUnlimited(value, fallback = null) {
+  if (value === null || value === undefined || value === '') return fallback;
+  const text = String(value).trim().toLowerCase();
+  if (['unlimited', 'infinite', 'infinity', 'none', 'null'].includes(text)) return null;
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed < 0 ? null : Math.floor(parsed);
 }
 
 async function normalizeUser(userOrId) {
@@ -20,14 +29,19 @@ export function quotaSettings() {
   return {
     guestLimit: positiveInt(getSetting('GUEST_GENERATION_LIMIT', String(DEFAULT_GENERATION_LIMIT))),
     userLimit: positiveInt(getSetting('USER_GENERATION_LIMIT', String(DEFAULT_GENERATION_LIMIT))),
-    globalDailyLimit: GLOBAL_DAILY_LIMIT,
+    vipLimit: limitOrUnlimited(getSetting('VIP_GENERATION_LIMIT', ''), null),
+    globalDailyLimit: positiveInt(
+      getSetting('GLOBAL_DAILY_LIMIT', String(DEFAULT_GLOBAL_DAILY_LIMIT)),
+      DEFAULT_GLOBAL_DAILY_LIMIT
+    ),
   };
 }
 
 async function quotaLimitFor(userOrId) {
   const user = await normalizeUser(userOrId);
-  if (user?.role === 'vip' || user?.role === 'admin' || user?.isVip) return null;
+  if (user?.role === 'admin') return null;
   const settings = quotaSettings();
+  if (user?.role === 'vip' || user?.isVip) return settings.vipLimit;
   return user?.role === 'guest' || user?.isGuest ? settings.guestLimit : settings.userLimit;
 }
 
@@ -51,10 +65,18 @@ async function globalUsedToday() {
   return Number(row?.total || 0);
 }
 
+async function incrementQuotaUsage(userId, day) {
+  await db.prepare(
+    `INSERT INTO quotas (user_id, day, used) VALUES (?, ?, 1)
+     ON CONFLICT(user_id, day) DO UPDATE SET used = quotas.used + 1`
+  ).run(userId, day);
+}
+
 // 检查并占用一次配额；返回 { ok } 或 { ok: false, status, error }
 export async function consumeQuota(userOrId) {
   const user = await normalizeUser(userOrId);
-  if (await globalUsedToday() >= GLOBAL_DAILY_LIMIT) {
+  const settings = quotaSettings();
+  if (await globalUsedToday() >= settings.globalDailyLimit) {
     return {
       ok: false,
       status: 503,
@@ -64,22 +86,22 @@ export async function consumeQuota(userOrId) {
   }
   const quota = await getQuota(user);
   if (!quota.unlimited && quota.remaining <= 0) {
+    const roleName = user.role === 'guest' || user.isGuest
+      ? '游客'
+      : user.role === 'vip' || user.isVip
+        ? 'VIP'
+        : '账号';
     return {
       ok: false,
       status: 429,
-      error: `${user.role === 'guest' ? '游客' : '账号'} ${quota.limit} 首生成额度已用完，VIP 用户不限制生成`,
+      error: `${roleName} ${quota.limit} 首生成额度已用完`,
       code: 'QUOTA_EXCEEDED',
     };
   }
-  if (quota.unlimited) return { ok: true, quota };
-  await db.prepare(
-    `INSERT INTO quotas (user_id, day, used) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, day) DO UPDATE SET used = quotas.used + 1`
-  ).run(user.id, TOTAL_QUOTA_KEY);
-  await db.prepare(
-    `INSERT INTO quotas (user_id, day, used) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, day) DO UPDATE SET used = quotas.used + 1`
-  ).run(user.id, today());
+  if (!quota.unlimited) {
+    await incrementQuotaUsage(user.id, TOTAL_QUOTA_KEY);
+  }
+  await incrementQuotaUsage(user.id, today());
   return { ok: true, quota: await getQuota(user) };
 }
 

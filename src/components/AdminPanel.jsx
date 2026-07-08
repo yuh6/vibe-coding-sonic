@@ -4,10 +4,11 @@ import {
   saveConfigKeys,
   getConfigStatus,
   getProviders,
-  getQuotaSettings,
-  saveQuotaSettings,
   getAdminUsers,
   updateAdminUser,
+  getRedemptionCodes,
+  createRedemptionCode,
+  disableRedemptionCode,
   getLibrary,
   addLibraryTrack,
   deleteLibraryTrack,
@@ -48,10 +49,26 @@ const MBTI_TYPES = [
   'ISTP', 'ISFP', 'ESTP', 'ESFP',
 ];
 const ROLE_LABELS = {
-  guest: '普通用户',
-  user: '登录用户',
+  guest: '游客',
+  user: '普通用户',
   vip: 'VIP',
 };
+
+function parsePositiveField(value, label) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${label}必须是正整数`);
+  return Math.floor(parsed);
+}
+
+function parseExpiresInDays(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const days = parsePositiveField(value, '有效期');
+  return Date.now() + days * 24 * 60 * 60 * 1000;
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString() : '不过期';
+}
 
 function SecretInput({ label, placeholder, value, onChange, hint }) {
   return (
@@ -75,11 +92,11 @@ export default function AdminPanel() {
   const [status, setStatus] = useState(null);
   const [providers, setProviders] = useState([]);
   const [library, setLibrary] = useState(null);
-  const [quotaSettings, setQuotaSettings] = useState(null);
+  const [redemptionCodes, setRedemptionCodes] = useState([]);
   const [users, setUsers] = useState([]);
 
   const [form, setForm] = useState({});
-  const [quotaForm, setQuotaForm] = useState({ guestLimit: '10', userLimit: '10' });
+  const [codeForm, setCodeForm] = useState({ points: '100', maxUses: '1', expiresInDays: '30' });
   const [libMode, setLibMode] = useState('focus');
   const [newTrack, setNewTrack] = useState({ title: '', url: '', mbti: '' });
   const [toast, setToast] = useState('');
@@ -88,23 +105,19 @@ export default function AdminPanel() {
 
   const refresh = async () => {
     setLoadError('');
-    const [keys, st, prov, lib, quotaCfg, adminUsers] = await Promise.all([
+    const [keys, st, prov, lib, codes, adminUsers] = await Promise.all([
       getConfigKeys(),
       getConfigStatus(),
       getProviders(),
       getLibrary(),
-      getQuotaSettings(),
+      getRedemptionCodes(),
       getAdminUsers(),
     ]);
     setSettings(keys.settings);
     setStatus(st);
     setProviders(prov.llm || []);
     setLibrary(lib);
-    setQuotaSettings(quotaCfg);
-    setQuotaForm({
-      guestLimit: String(quotaCfg.guestLimit ?? 10),
-      userLimit: String(quotaCfg.userLimit ?? 10),
-    });
+    setRedemptionCodes(codes.codes || []);
     setUsers(adminUsers.users || []);
   };
 
@@ -144,26 +157,27 @@ export default function AdminPanel() {
     }
   };
 
-  const handleSaveQuota = async () => {
+  const handleCreateCode = async () => {
     try {
-      const guestLimit = Number(quotaForm.guestLimit);
-      const userLimit = Number(quotaForm.userLimit);
-      if (!Number.isFinite(guestLimit) || guestLimit < 0 || !Number.isFinite(userLimit) || userLimit < 0) {
-        showToast('额度必须是 0 或正整数');
-        return;
-      }
-      const next = await saveQuotaSettings({
-        guestLimit: Math.floor(guestLimit),
-        userLimit: Math.floor(userLimit),
+      await createRedemptionCode({
+        points: parsePositiveField(codeForm.points, '积分数'),
+        maxUses: parsePositiveField(codeForm.maxUses, '可兑换用户数'),
+        expiresAt: parseExpiresInDays(codeForm.expiresInDays),
       });
-      setQuotaSettings(next);
-      setQuotaForm({
-        guestLimit: String(next.guestLimit ?? 10),
-        userLimit: String(next.userLimit ?? 10),
-      });
-      showToast('生成额度已保存');
+      setRedemptionCodes((await getRedemptionCodes()).codes || []);
+      showToast('兑换码已生成');
     } catch (err) {
-      showToast(`保存额度失败: ${err.message}`);
+      showToast(`生成兑换码失败: ${err.message}`);
+    }
+  };
+
+  const handleDisableCode = async (code) => {
+    try {
+      await disableRedemptionCode(code);
+      setRedemptionCodes((await getRedemptionCodes()).codes || []);
+      showToast('兑换码已停用');
+    } catch (err) {
+      showToast(`停用失败: ${err.message}`);
     }
   };
 
@@ -353,49 +367,109 @@ export default function AdminPanel() {
             保存配置
           </button>
           <p className="text-[10px] text-faint">
-            保存到 server/data/runtime-config.json（已 gitignore），优先级高于 .env，立即生效无需重启。
+            保存到 app_settings，优先级高于非锁定环境变量，立即生效无需重启。
           </p>
         </div>
       </div>
 
-      {/* 生成额度 */}
+      {/* 兑换码 */}
       <div className="glass rounded-2xl p-4">
-        <span className="deck-label">生成额度</span>
+        <span className="deck-label">兑换码</span>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
-              普通用户总生成数
+              可兑换积分
             </label>
             <input
               type="number"
-              min="0"
+              min="1"
               step="1"
-              value={quotaForm.guestLimit}
-              onChange={(e) => setQuotaForm({ ...quotaForm, guestLimit: e.target.value })}
+              value={codeForm.points}
+              onChange={(e) => setCodeForm({ ...codeForm, points: e.target.value })}
               className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
             />
           </div>
           <div>
             <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
-              登录用户总生成数
+              可兑换用户数
             </label>
             <input
               type="number"
-              min="0"
+              min="1"
               step="1"
-              value={quotaForm.userLimit}
-              onChange={(e) => setQuotaForm({ ...quotaForm, userLimit: e.target.value })}
+              value={codeForm.maxUses}
+              onChange={(e) => setCodeForm({ ...codeForm, maxUses: e.target.value })}
               className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
             />
           </div>
+          <div>
+            <label className="mb-1 block font-mono text-[10px] tracking-widest text-subtle">
+              有效期（天）
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={codeForm.expiresInDays}
+              onChange={(e) => setCodeForm({ ...codeForm, expiresInDays: e.target.value })}
+              placeholder="留空为不过期"
+              className="bg-input w-full rounded-xl px-3 py-2 font-mono text-xs"
+            />
+          </div>
+          <div className="flex items-end">
+            <button type="button" onClick={handleCreateCode} className="pad w-full px-4 py-2 text-sm">
+              生成兑换码
+            </button>
+          </div>
         </div>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-[10px] text-faint">
-            当前：普通 {quotaSettings?.guestLimit ?? 10} 首，登录 {quotaSettings?.userLimit ?? 10} 首；VIP 不限制。
-          </p>
-          <button type="button" onClick={handleSaveQuota} className="pad px-4 py-2 text-sm">
-            保存额度
-          </button>
+
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-xs">
+            <thead className="font-mono text-[10px] uppercase tracking-widest text-faint">
+              <tr>
+                <th className="px-2 py-2">兑换码</th>
+                <th className="px-2 py-2">积分</th>
+                <th className="px-2 py-2">已兑换</th>
+                <th className="px-2 py-2">有效期</th>
+                <th className="px-2 py-2">状态</th>
+                <th className="px-2 py-2">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {redemptionCodes.map((item) => {
+                const expired = item.expiresAt && item.expiresAt < Date.now();
+                const exhausted = item.claimedCount >= item.maxUses;
+                const disabled = Boolean(item.disabledAt);
+                const state = disabled ? '已停用' : expired ? '已过期' : exhausted ? '已兑完' : '可用';
+                return (
+                  <tr key={item.code} className="border-t border-theme">
+                    <td className="px-2 py-2 font-mono text-[11px] text-theme">{item.code}</td>
+                    <td className="px-2 py-2 font-mono text-[11px]">{item.points}</td>
+                    <td className="px-2 py-2 font-mono text-[11px]">{item.claimedCount}/{item.maxUses}</td>
+                    <td className="px-2 py-2 font-mono text-[10px] text-faint">{formatDate(item.expiresAt)}</td>
+                    <td className="px-2 py-2 text-[11px] text-subtle">{state}</td>
+                    <td className="px-2 py-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDisableCode(item.code)}
+                        disabled={disabled}
+                        className="pad px-3 py-1.5 text-xs disabled:opacity-40"
+                      >
+                        停用
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {redemptionCodes.length === 0 && (
+                <tr>
+                  <td className="px-2 py-6 text-center text-faint" colSpan={6}>
+                    暂无兑换码
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -413,7 +487,7 @@ export default function AdminPanel() {
               <tr>
                 <th className="px-2 py-2">用户</th>
                 <th className="px-2 py-2">身份</th>
-                <th className="px-2 py-2">生成数</th>
+                <th className="px-2 py-2">积分</th>
                 <th className="px-2 py-2">曲目</th>
                 <th className="px-2 py-2">创建时间</th>
               </tr>
@@ -440,7 +514,7 @@ export default function AdminPanel() {
                     </select>
                   </td>
                   <td className="px-2 py-2 font-mono text-[11px]">
-                    {item.role === 'vip' ? '不限' : item.generationCount}
+                    {item.creditBalance ?? 0}
                   </td>
                   <td className="px-2 py-2 font-mono text-[11px]">{item.trackCount}</td>
                   <td className="px-2 py-2 font-mono text-[10px] text-faint">

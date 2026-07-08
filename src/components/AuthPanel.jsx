@@ -102,12 +102,13 @@ function AuthModal({ onClose, onSuccess }) {
 
 export default function AuthPanel({
   user,
-  quota,
+  credits,
   open,
   onOpenChange,
   onAuth,
   onLogout,
   onBeforeLogout,
+  onAccountOpen = () => {},
   triggerClass,
   chipClass,
   loading = false,
@@ -136,7 +137,7 @@ export default function AuthPanel({
         <div className="flex items-center gap-2" aria-busy="true">
           <div className={`${userChipClass} opacity-60`}>
             <span className="font-display text-xs font-semibold text-white/85">...</span>
-            <span className="font-mono text-[10px] text-white/45">♪ --/--</span>
+            <span className="font-mono text-[10px] text-white/45">积分 --</span>
           </div>
           <button type="button" disabled className={`${btnClass} opacity-60`} title="登录状态加载中">
             <IconGlyph name="user-login" className="h-4 w-4" />
@@ -151,20 +152,25 @@ export default function AuthPanel({
     <>
       {user ? (
         <div className="flex items-center gap-2">
-          <div className={userChipClass}>
+          <button
+            type="button"
+            onClick={isGuest ? () => onOpenChange(true) : onAccountOpen}
+            className={`${userChipClass} text-left`}
+            title={isGuest ? '登录' : '账户资料'}
+          >
             <span className="font-display text-xs font-semibold text-white/85">
               {isGuest ? '游客' : user.name}
               {user.isVip && <span className="ml-1 text-amber-300">VIP</span>}
             </span>
-            {quota && (
+            {credits && (
               <span
                 className="font-mono text-[10px] text-white/45"
-                title={quota.unlimited ? 'VIP 生成不限量' : `生成总额度：已用 ${quota.used} / ${quota.limit}`}
+                title={`每首生成消耗 ${credits.costPerTrack} 积分`}
               >
-                {quota.unlimited ? '♪ ∞' : `♪ ${quota.remaining}/${quota.limit}`}
+                积分 {credits.balance}
               </span>
             )}
-          </div>
+          </button>
           <button
             type="button"
             onClick={isGuest ? () => onOpenChange(true) : handleLogout}

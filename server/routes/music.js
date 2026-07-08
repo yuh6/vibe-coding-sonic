@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'crypto';
 import { lookup } from 'dns/promises';
 import { once } from 'events';
 import { isIP } from 'net';
@@ -18,12 +19,10 @@ import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { libraryHasTrackUrl } from '../services/libraryStore.js';
 import {
-  consumeQuota,
-  getQuota,
-  refundQuota,
   saveTrack,
   userOwnsTrackUrl,
 } from '../services/quotaService.js';
+import { chargeGenerationCredits, getCredits } from '../services/creditService.js';
 
 const router = Router();
 const AUDIO_PROXY_MAX_BYTES = positiveNumber(process.env.AUDIO_PROXY_MAX_BYTES, 50 * 1024 * 1024);
@@ -233,17 +232,17 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       return res.json({ preview: true, ...composed });
     }
 
-    // 只有真实走 TTAPI 才消耗配额；兜底曲库不限量
+    // 只有真实走 TTAPI 才消耗积分；兜底曲库不限量
     let useFallback = forceFallback;
-    let quotaNotice = null;
-    let quotaCharged = false;
+    let creditNotice = null;
+    let chargedCredits = null;
+    const jobId = randomUUID();
     if (!useFallback && isSunoConfigured()) {
-      const quota = await consumeQuota(req.identity);
-      if (!quota.ok) {
+      const charge = await chargeGenerationCredits(req.identity, jobId);
+      chargedCredits = charge.credits;
+      if (!charge.ok) {
         useFallback = true;
-        quotaNotice = quota.error;
-      } else {
-        quotaCharged = true;
+        creditNotice = charge.error;
       }
     }
 
@@ -261,6 +260,7 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       : vocals;
 
     const job = createMusicJob({
+      jobId,
       userId: req.identity.id,
       mbti,
       axes,
@@ -273,7 +273,6 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       forceFallback: useFallback,
       splitStems,
     });
-    job.quotaCharged = quotaCharged;
 
     res.json({
       jobId: job.id,
@@ -289,8 +288,8 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       vocalStyle: job.vocalStyle,
       vocalDesc: job.vocalDesc,
       splitStems: job.splitStems,
-      quota: await getQuota(req.identity),
-      quotaNotice,
+      credits: chargedCredits || await getCredits(req.identity),
+      creditNotice,
     });
   } catch (err) {
     console.error('[music/generate]', err);
@@ -311,15 +310,6 @@ router.get('/status/:id', requireIdentity, async (req, res) => {
     // 生成完成后归档到用户曲库（只存一次）
     if (job.status === 'completed' && job.userId && !job.savedToLibrary) {
       job.savedToLibrary = true;
-      // TTAPI 生成失败落到兜底：退还这次配额
-      if (job.fallback && job.quotaCharged) {
-        job.quotaCharged = false;
-        try {
-          await refundQuota(job.userId);
-        } catch (err) {
-          console.error('[music/status] refundQuota failed:', err.message);
-        }
-      }
       try {
         const playbackUrl = getPlaybackUrl(job);
         const playbackTracks = getPlaybackTracks(job);
@@ -364,6 +354,7 @@ router.get('/status/:id', requireIdentity, async (req, res) => {
       vocalStyle: job.vocalStyle,
       vocalDesc: job.vocalDesc,
       error: job.error,
+      credits: await getCredits(req.identity),
     });
   } catch (err) {
     console.error('[music/status]', err);

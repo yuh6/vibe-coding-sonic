@@ -8,6 +8,7 @@ import { composePrompt } from '../promptComposer.js';
 import { isSunoConfigured, submitGeneration, pollGeneration } from '../sunoClient.js';
 import { generateLyrics } from '../lyricsGenerator.js';
 import { pickTrack } from '../libraryStore.js';
+import { chargeGenerationCredits, refundGenerationCredits } from '../creditService.js';
 import { storage } from '../../storage/index.js';
 import * as trackPool from './trackPool.js';
 import * as sessionStore from './sessionStore.js';
@@ -143,6 +144,7 @@ export class GenerationScheduler {
     this.activeCount += 1;
     const generationPromptOpts = isSunoConfigured() ? await this.withGeneratedLyrics(promptOpts) : promptOpts;
     const composed = composePrompt(generationPromptOpts);
+    const session = await sessionStore.getSession(this.sessionId);
 
     // 曲库池先插入一条"生成中"记录（audioUrl 为 null），供 pool-status 展示进度
     const track = await trackPool.createTrack(this.sessionId, {
@@ -153,10 +155,16 @@ export class GenerationScheduler {
       instruments: generationPromptOpts.instruments || [],
       promptConfig: composed,
     });
+    const creditReferenceId = `arranger:${track.id}`;
 
     try {
       if (!isSunoConfigured()) {
         throw new Error('TTAPI_KEY not configured');
+      }
+
+      const charge = await chargeGenerationCredits(session?.userId, creditReferenceId);
+      if (!charge.ok) {
+        throw Object.assign(new Error(charge.error), { code: charge.code, status: charge.status });
       }
 
       const { taskId } = await submitGeneration({
@@ -193,9 +201,15 @@ export class GenerationScheduler {
           audioLocal: fallback.url,
           durationSec: null,
         });
+        await refundGenerationCredits(session?.userId, creditReferenceId, { fallbackSource: 'arranger' }).catch((refundErr) => {
+          console.warn('[arranger] credit refund skipped:', refundErr.message);
+        });
         this.emit('music_ready', { track: ready, fallback: true, error: err.message, phase: composed.mode });
         return ready;
       }
+      await refundGenerationCredits(session?.userId, creditReferenceId, { fallbackSource: 'arranger-empty' }).catch((refundErr) => {
+        console.warn('[arranger] credit refund skipped:', refundErr.message);
+      });
       this.emit('music_ready', { track: null, error: err.message, phase: composed.mode });
       return null;
     } finally {

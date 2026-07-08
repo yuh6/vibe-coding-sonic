@@ -55,6 +55,49 @@ CREATE TABLE IF NOT EXISTS quotas (
   PRIMARY KEY (user_id, day)
 );
 
+CREATE TABLE IF NOT EXISTS user_credits (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  balance    INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS credit_transactions (
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  delta          INTEGER NOT NULL,
+  balance_after  INTEGER NOT NULL,
+  reason         TEXT NOT NULL,
+  reference_type TEXT,
+  reference_id   TEXT,
+  metadata_json  TEXT,
+  created_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_tx_reference
+  ON credit_transactions(reference_type, reference_id)
+  WHERE reference_type IS NOT NULL AND reference_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS redemption_codes (
+  code        TEXT PRIMARY KEY,
+  points      INTEGER NOT NULL,
+  max_uses    INTEGER NOT NULL,
+  used_count  INTEGER NOT NULL DEFAULT 0,
+  expires_at  INTEGER,
+  created_by  TEXT,
+  created_at  INTEGER NOT NULL,
+  disabled_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_redemption_codes_created ON redemption_codes(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS redemption_claims (
+  code       TEXT NOT NULL REFERENCES redemption_codes(code) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  points     INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (code, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_redemption_claims_user ON redemption_claims(user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id            TEXT PRIMARY KEY,
   user_id       TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -256,6 +299,12 @@ const PG_BIGINT_TIMESTAMP_COLUMNS = [
   ['auth_sessions', 'expires_at'],
   ['auth_sessions', 'created_at'],
   ['profiles', 'updated_at'],
+  ['user_credits', 'updated_at'],
+  ['credit_transactions', 'created_at'],
+  ['redemption_codes', 'expires_at'],
+  ['redemption_codes', 'created_at'],
+  ['redemption_codes', 'disabled_at'],
+  ['redemption_claims', 'created_at'],
   ['tracks', 'created_at'],
   ['app_settings', 'updated_at'],
   ['fallback_tracks', 'created_at'],
@@ -308,6 +357,15 @@ export async function applyCompatibilityMigrations(dal, driver) {
       ALTER TABLE radio_stations ADD COLUMN IF NOT EXISTS current_track_audio_url TEXT;
       ALTER TABLE fallback_tracks ADD COLUMN IF NOT EXISTS mbti TEXT;
       ALTER TABLE sessions ADD COLUMN IF NOT EXISTS generation_params_json TEXT;
+      ALTER TABLE redemption_codes ADD COLUMN IF NOT EXISTS used_count INTEGER NOT NULL DEFAULT 0;
+      UPDATE redemption_codes rc
+      SET used_count = claims.claimed_count
+      FROM (
+        SELECT code, COUNT(*)::int AS claimed_count
+        FROM redemption_claims
+        GROUP BY code
+      ) claims
+      WHERE rc.code = claims.code AND rc.used_count < claims.claimed_count;
       CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);
     `);
     return;
@@ -336,6 +394,25 @@ export async function applyCompatibilityMigrations(dal, driver) {
       await dal.exec(`ALTER TABLE sessions ADD COLUMN ${name} ${type};`);
     }
   }
+
+  const redemptionRows = await dal.query('PRAGMA table_info(redemption_codes)');
+  const existingRedemption = new Set(redemptionRows.map((row) => row.name));
+  if (!existingRedemption.has('used_count')) {
+    await dal.exec('ALTER TABLE redemption_codes ADD COLUMN used_count INTEGER NOT NULL DEFAULT 0;');
+  }
+  await dal.exec(`
+    UPDATE redemption_codes
+    SET used_count = (
+      SELECT COUNT(*)
+      FROM redemption_claims
+      WHERE redemption_claims.code = redemption_codes.code
+    )
+    WHERE used_count < (
+      SELECT COUNT(*)
+      FROM redemption_claims
+      WHERE redemption_claims.code = redemption_codes.code
+    );
+  `);
 
   await dal.exec('CREATE INDEX IF NOT EXISTS idx_fallback_tracks_mbti ON fallback_tracks(mbti);');
 }

@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/mbtiwave.css';
 import { usePlayer, useMusicPoll } from '../hooks/usePlayer';
 import { useArranger } from '../hooks/useArranger';
-import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getHealth, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
+import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
 import { mbtiFromAxes, getTheme, MODES } from '../lib/mbti';
 import AuthPanel from './AuthPanel';
 import AudioVisualizer from './AudioVisualizer';
@@ -210,13 +210,14 @@ export default function MBTIWAVE({
   isDark = true,
   onToggleColorMode = () => {},
   user = null,
-  quota = null,
+  credits = null,
   authReady = false,
   authOpen = false,
   onAuthOpenChange = () => {},
   onAuth = () => {},
   onLogout = () => {},
-  onQuotaChange = () => {},
+  onCreditsChange = () => {},
+  onAccountOpen = () => {},
   onBeforeLogout,
   onNavigate = (path) => { window.location.href = path; },
 }) {
@@ -384,6 +385,7 @@ export default function MBTIWAVE({
   // 轮询出音频后自动播放
   useEffect(() => {
     if (!poll.audioUrl) return;
+    if (poll.meta?.credits) onCreditsChange(poll.meta.credits);
     setSoloFallback(Boolean(poll.meta?.fallback));
     player.playUrl(poll.audioUrl, {
       title: poll.meta?.title || poll.meta?.fallbackTitle || `${soloMbti} · ${activeModePad}`,
@@ -391,7 +393,7 @@ export default function MBTIWAVE({
     });
     setSoloGenerating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poll.audioUrl]);
+  }, [poll.audioUrl, poll.meta?.credits]);
 
   const playSoloFallbackNow = async (
     nextModeId,
@@ -462,8 +464,8 @@ export default function MBTIWAVE({
         forceFallback: false,
       });
       if (seq !== soloGenerationSeqRef.current) return;
-      if (job.quota) onQuotaChange(job.quota);
-      if (job.quotaNotice) setSoloNotice(job.quotaNotice);
+      if (job.credits) onCreditsChange(job.credits);
+      if (job.creditNotice) setSoloNotice(job.creditNotice);
       lastSoloSignatureRef.current = nextSignature;
       poll.startPolling(job.jobId);
     } catch (err) {
@@ -491,8 +493,7 @@ export default function MBTIWAVE({
   // 唱片旋转 / 播放态由真实播放器驱动
   const isSoloPlaying = player.playing;
 
-  // ── 顶栏：登录 / TTAPI·LLM 状态 / 主题切换（接真实接口）──
-  const [health, setHealth] = useState(null);
+  // ── 顶栏：登录 / 主题切换 / 导航 ──
 
   const applyProfile = useCallback(() => {
     getMyProfile()
@@ -520,10 +521,6 @@ export default function MBTIWAVE({
         }
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    getHealth().then(setHealth).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -682,31 +679,20 @@ export default function MBTIWAVE({
             </span>
           </div>
 
-          {/* ── 顶栏统一绿色主题（登录 / TTAPI·LLM / 主题 / 导航），接真实接口 ── */}
+          {/* ── 顶栏统一绿色主题（登录 / 主题 / 导航）── */}
           <AuthPanel
             user={user}
-            quota={quota}
+            credits={credits}
             loading={!authReady}
             open={authOpen}
             onOpenChange={onAuthOpenChange}
             onBeforeLogout={onBeforeLogout}
+            onAccountOpen={onAccountOpen}
             triggerClass="flex h-9 w-9 items-center justify-center text-base rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"
             chipClass="flex items-center gap-2 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5"
             onAuth={onAuth}
             onLogout={onLogout}
           />
-          {health && (
-            <div className="flex items-center gap-3 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 font-mono text-[10px]">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: health.ttapi ? '#00FF66' : '#f59e0b', boxShadow: `0 0 8px ${health.ttapi ? '#00FF66' : '#f59e0b'}` }} />
-                <span className="text-[#00FF66]/80">TTAPI</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: health.llm ? '#00FF66' : '#f59e0b', boxShadow: `0 0 8px ${health.llm ? '#00FF66' : '#f59e0b'}` }} />
-                <span className="text-[#00FF66]/80">LLM</span>
-              </span>
-            </div>
-          )}
           <button
             onClick={onToggleColorMode}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 text-base text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"

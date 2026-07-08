@@ -3,6 +3,7 @@ import {
   generateMusic,
   getFallback,
   getLiveRadios,
+  getRadioStation,
   getMusicStatus,
   getPublicPlaylists,
   getPlaylist,
@@ -291,6 +292,7 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   const [personalTracks, setPersonalTracks] = useState([]);
   const [personalLoading, setPersonalLoading] = useState(false);
   const genreGenerationRef = useRef({});
+  const sharedRadioRef = useRef('');
 
   const PERSONAL_TABS = ['favorites', 'history', 'for-you'];
 
@@ -429,6 +431,16 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
       console.error('[discover] handleTune failed:', err);
     }
   }, [tuned, onPlayTrack]);
+
+  useEffect(() => {
+    const radioId = new URLSearchParams(window.location.search).get('radio');
+    if (!radioId || sharedRadioRef.current === radioId) return;
+    sharedRadioRef.current = radioId;
+    setTab('radio');
+    getRadioStation(radioId)
+      .then((station) => station && handleTune(station))
+      .catch((err) => console.error('[discover] shared radio failed:', err));
+  }, [handleTune]);
 
   const handlePlayPlaylist = useCallback(async (pl) => {
     try {

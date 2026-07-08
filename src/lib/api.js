@@ -121,6 +121,31 @@ export function getMyProfile() {
   return request('/api/user/profile');
 }
 
+export function getMyAccount() {
+  return request('/api/user/account');
+}
+
+export function updateMyAccount({ name }) {
+  return request('/api/user/account', {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function changeMyPassword({ currentPassword, nextPassword }) {
+  return request('/api/user/password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, nextPassword }),
+  });
+}
+
+export function redeemCreditCode(code) {
+  return request('/api/user/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
 export function saveMyProfile({ axes, style, mode }) {
   return request('/api/user/profile', {
     method: 'PUT',
@@ -149,10 +174,10 @@ export function getQuotaSettings() {
   return request('/api/config/quota-settings');
 }
 
-export function saveQuotaSettings({ guestLimit, userLimit }) {
+export function saveQuotaSettings({ guestLimit, userLimit, vipLimit, globalDailyLimit }) {
   return request('/api/config/quota-settings', {
     method: 'POST',
-    body: JSON.stringify({ guestLimit, userLimit }),
+    body: JSON.stringify({ guestLimit, userLimit, vipLimit, globalDailyLimit }),
   });
 }
 
@@ -164,6 +189,24 @@ export function updateAdminUser(id, patch) {
   return request(`/api/config/users/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
+  });
+}
+
+export function getRedemptionCodes() {
+  return request('/api/config/redemption-codes');
+}
+
+export function createRedemptionCode({ points, maxUses, expiresAt }) {
+  return request('/api/config/redemption-codes', {
+    method: 'POST',
+    body: JSON.stringify({ points, maxUses, expiresAt }),
+  });
+}
+
+export function disableRedemptionCode(code) {
+  return request(`/api/config/redemption-codes/${encodeURIComponent(code)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'disable' }),
   });
 }
 

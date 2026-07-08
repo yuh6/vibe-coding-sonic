@@ -36,6 +36,7 @@ export function useMixer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const loopRef = useRef(null);
+  const replaceLoadRef = useRef({ id: 0, controller: null });
   const [loop, setLoopState] = useState(null);
 
   const sync = useCallback(() => {
@@ -77,6 +78,14 @@ export function useMixer() {
     async (items, { replace = false } = {}) => {
       const nextTracks = validTracks(items);
       if (nextTracks.length === 0) return;
+      let loadId = replaceLoadRef.current.id;
+      let controller = null;
+      if (replace) {
+        replaceLoadRef.current.controller?.abort();
+        controller = new AbortController();
+        loadId += 1;
+        replaceLoadRef.current = { id: loadId, controller };
+      }
       setLoading(true);
       setError('');
       try {
@@ -91,23 +100,30 @@ export function useMixer() {
           engine.listTracks().flatMap((track) => [track.url, track.sourceUrl].filter(Boolean))
         );
         for (const track of nextTracks) {
+          if (replace && replaceLoadRef.current.id !== loadId) return;
           const fetchUrl = proxiedUrl(track.url);
           if (existing.has(track.url) || existing.has(fetchUrl)) continue;
-          await engine.addTrack({
+          const info = await engine.addTrack({
             name: track.name,
             url: fetchUrl,
             sourceUrl: track.url,
             type: track.type,
+            signal: controller?.signal,
           });
+          if (replace && replaceLoadRef.current.id !== loadId) {
+            engine.removeTrack(info.id);
+            return;
+          }
           existing.add(track.url);
           existing.add(fetchUrl);
         }
-        sync();
+        if (!replace || replaceLoadRef.current.id === loadId) sync();
       } catch (err) {
+        if (err.name === 'AbortError') return;
         console.error('[mixer] addTracks', err);
-        setError(err.message);
+        if (!replace || replaceLoadRef.current.id === loadId) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!replace || replaceLoadRef.current.id === loadId) setLoading(false);
       }
     },
     [engine, sync]
@@ -215,7 +231,10 @@ export function useMixer() {
     [engine, sync]
   );
 
-  useEffect(() => () => engine.clear(), [engine]);
+  useEffect(() => () => {
+    replaceLoadRef.current.controller?.abort();
+    engine.clear();
+  }, [engine]);
 
   return {
     engine,

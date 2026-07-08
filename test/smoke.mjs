@@ -147,6 +147,10 @@ const server = spawn(process.execPath, ['server/index.js'], {
     USE_FALLBACK_ONLY: 'true',
     DISABLE_LLM: 'true',
     LLM_PROVIDER: 'none',
+    GLOBAL_DAILY_LIMIT: '100',
+    GUEST_GENERATION_LIMIT: '10',
+    USER_GENERATION_LIMIT: '10',
+    VIP_GENERATION_LIMIT: '',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -166,7 +170,8 @@ try {
 
   const guestMe = await client.request('/api/auth/me');
   assert.equal(guestMe.user.isGuest, true);
-  assert.equal(guestMe.quota.limit, 10);
+  assert.equal(guestMe.credits.balance, 0);
+  assert.equal(guestMe.credits.costPerTrack, 10);
   assert.ok(client.cookies.has('vibe_guest'));
 
   const guestNotes = await client.request('/api/notes/parse', {
@@ -182,6 +187,7 @@ try {
     body: { email, password, name: 'Smoke Test' },
   });
   assert.equal(registered.user.email, email);
+  assert.equal(registered.credits.balance, 100);
   assert.ok(client.cookies.has('vibe_session'));
 
   await client.request('/api/auth/logout', { method: 'POST' });
@@ -192,17 +198,56 @@ try {
     body: { email, password },
   });
   assert.equal(loggedIn.user.email, email);
+  assert.equal(loggedIn.credits.balance, 100);
   assert.ok(client.cookies.get('vibe_session'));
 
   const me = await client.request('/api/auth/me');
   assert.equal(me.user.email, email);
-
-  const quotaSettings = await client.request('/api/config/quota-settings');
-  assert.equal(quotaSettings.guestLimit, 10);
-  assert.equal(quotaSettings.userLimit, 10);
+  assert.equal(me.credits.balance, 100);
 
   const adminUsers = await client.request('/api/config/users');
-  assert.ok(adminUsers.users.some((user) => user.email === email));
+  const smokeUser = adminUsers.users.find((user) => user.email === email);
+  assert.ok(smokeUser);
+  assert.equal(typeof smokeUser.creditBalance, 'number');
+
+  await client.request(`/api/config/users/${smokeUser.id}`, {
+    method: 'PATCH',
+    body: { role: 'vip' },
+  });
+  const vipMe = await client.request('/api/auth/me');
+  assert.equal(vipMe.user.role, 'vip');
+  assert.equal(vipMe.credits.balance, 100);
+
+  await client.request(`/api/config/users/${smokeUser.id}`, {
+    method: 'PATCH',
+    body: { role: 'user' },
+  });
+  const regularMe = await client.request('/api/auth/me');
+  assert.equal(regularMe.user.role, 'user');
+
+  const createdCode = await client.request('/api/config/redemption-codes', {
+    method: 'POST',
+    body: { points: 40, maxUses: 2, expiresAt: Date.now() + 60_000 },
+  });
+  assert.equal(createdCode.code.points, 40);
+  assert.equal(createdCode.code.maxUses, 2);
+  const codeList = await client.request('/api/config/redemption-codes');
+  assert.ok(codeList.codes.some((item) => item.code === createdCode.code.code));
+  const redeemed = await client.request('/api/user/redeem', {
+    method: 'POST',
+    body: { code: createdCode.code.code.toLowerCase() },
+  });
+  assert.equal(redeemed.credits.balance, 140);
+  await assert.rejects(
+    () => client.request('/api/user/redeem', {
+      method: 'POST',
+      body: { code: createdCode.code.code },
+    }),
+    /已兑换/
+  );
+  const account = await client.request('/api/user/account');
+  assert.equal(account.credits.balance, 140);
+  assert.ok(account.transactions.some((item) => item.reason === 'redemption'));
 
   const sharedStats = await client.request('/api/library/shared/stats');
   assert.equal(typeof sharedStats.total, 'number');

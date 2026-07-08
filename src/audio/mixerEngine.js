@@ -102,20 +102,31 @@ export class MixerEngine {
     node.release.value = 0.25;
   }
 
-  async addTrack({ name, url, sourceUrl = url, type = 'stem' }) {
+  #throwIfAborted(signal) {
+    if (!signal?.aborted) return;
+    const err = new Error('Audio load aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  async addTrack({ name, url, sourceUrl = url, type = 'stem', signal }) {
+    this.#throwIfAborted(signal);
     const ctx = this.ensureContext();
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
+    this.#throwIfAborted(signal);
     if (!res.ok) throw new Error(`Audio download failed (HTTP ${res.status})`);
     if (!isLikelyAudioResponse(res, url)) {
       throw new Error(`Unsupported audio response (${res.headers.get('content-type') || 'unknown content type'})`);
     }
     const raw = await res.arrayBuffer();
+    this.#throwIfAborted(signal);
     let buffer;
     try {
       buffer = await ctx.decodeAudioData(raw);
     } catch {
       throw new Error('Audio decode failed: unsupported or invalid audio file');
     }
+    this.#throwIfAborted(signal);
 
     const id = `t${++uid}`;
     const gain = ctx.createGain();

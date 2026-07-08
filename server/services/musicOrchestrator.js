@@ -11,6 +11,7 @@ import {
 import { pickTrack, pickFromSharedLibrary } from './libraryStore.js';
 import { dal } from '../db.js';
 import { storage } from '../storage/index.js';
+import { refundGenerationCredits } from './creditService.js';
 
 // ═══════════════════════════════════════════════════════════════
 //  生成任务管理 — 双层架构：
@@ -264,6 +265,9 @@ async function completeWithFallback(job, delayMs = 0) {
       job.fallbackSource = 'shared_library';
       job.completedAt = Date.now();
       await saveJobToDB(job);
+      await refundGenerationCredits(job.userId, job.id, { fallbackSource: job.fallbackSource }).catch((err) => {
+        console.warn('[music] credit refund skipped:', err.message);
+      });
       return;
     }
     const track = await pickTrack(job.mode, job.mbti);
@@ -281,6 +285,9 @@ async function completeWithFallback(job, delayMs = 0) {
     job.fallbackSource = 'manifest';
     job.completedAt = Date.now();
     await saveJobToDB(job);
+    await refundGenerationCredits(job.userId, job.id, { fallbackSource: job.fallbackSource }).catch((err) => {
+      console.warn('[music] credit refund skipped:', err.message);
+    });
   };
   if (delayMs > 0) setTimeout(() => finish().catch(console.error), delayMs);
   else await finish();
@@ -291,13 +298,13 @@ async function completeWithFallback(job, delayMs = 0) {
 // ═══════════════════════════════════════════════════════════════
 
 export function createMusicJob({
+  jobId = uuidv4(),
   userId,
   mbti, axes, mode, projectAnalysis, style,
   selectedGenre, notes, vocals,
   forceFallback = false, splitStems = true,
 }) {
   const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
-  const jobId = uuidv4();
   const useSuno = isSunoConfigured() && !forceFallback;
 
   const job = {
