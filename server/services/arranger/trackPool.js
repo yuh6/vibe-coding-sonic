@@ -18,6 +18,18 @@ const updateAudioStmt = db.prepare(`
   WHERE id = @id
 `);
 
+const updateFallbackStmt = db.prepare(`
+  UPDATE track_pool
+  SET mood_tag = @moodTag,
+      genre = @genre,
+      instruments = @instruments,
+      prompt_config = @promptConfig,
+      audio_url = @audioUrl,
+      audio_local = @audioLocal,
+      duration_sec = @durationSec
+  WHERE id = @id
+`);
+
 const listByPhaseStmt = db.prepare(`
   SELECT * FROM track_pool WHERE session_id = ? AND phase = ? ORDER BY created_at ASC
 `);
@@ -127,6 +139,21 @@ export async function createTrack(sessionId, { phase, moodTag, energyLevel, genr
 /** 生成完成后回填音频地址 */
 export async function markTrackReady(trackId, { audioUrl, audioLocal = null, durationSec = null }) {
   await updateAudioStmt.run({ id: trackId, audioUrl, audioLocal, durationSec: normalizeDurationSec(durationSec) });
+  return parseTrack(await getTrackStmt.get(trackId));
+}
+
+/** 生成失败时用 fallback 音频回填原 pending 曲池条目，避免残留 pending。 */
+export async function markTrackFallback(trackId, { moodTag, genre, instruments, promptConfig, audioUrl, audioLocal = null, durationSec = null }) {
+  await updateFallbackStmt.run({
+    id: trackId,
+    moodTag,
+    genre,
+    instruments: JSON.stringify(instruments || []),
+    promptConfig: JSON.stringify(promptConfig || {}),
+    audioUrl,
+    audioLocal,
+    durationSec: normalizeDurationSec(durationSec),
+  });
   return parseTrack(await getTrackStmt.get(trackId));
 }
 

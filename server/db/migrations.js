@@ -184,6 +184,31 @@ CREATE INDEX IF NOT EXISTS idx_shared_lib_mbti  ON shared_library(mbti);
 CREATE INDEX IF NOT EXISTS idx_shared_lib_genre ON shared_library(genre);
 CREATE INDEX IF NOT EXISTS idx_shared_lib_bpm   ON shared_library(bpm);
 
+CREATE TABLE IF NOT EXISTS song_catalog (
+  id            TEXT PRIMARY KEY,
+  source        TEXT NOT NULL DEFAULT 'generated',
+  audio_url     TEXT NOT NULL,
+  audio_local   TEXT,
+  music_id      TEXT,
+  title         TEXT,
+  duration_sec  INTEGER,
+  prompt        TEXT,
+  mbti          TEXT,
+  mode          TEXT,
+  genre         TEXT,
+  bpm           INTEGER,
+  energy_score  REAL,
+  stems_json    TEXT,
+  user_id       TEXT,
+  play_count    INTEGER DEFAULT 0,
+  tags          TEXT,
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_song_catalog_match
+  ON song_catalog(mode, mbti, energy_score);
+CREATE INDEX IF NOT EXISTS idx_song_catalog_source
+  ON song_catalog(source);
+
 CREATE TABLE IF NOT EXISTS playlists (
   id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

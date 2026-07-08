@@ -183,6 +183,8 @@ export function useArranger() {
           if (payload?.state) setState(payload.state);
         } else if (type === 'pool_refill') {
           refreshPoolStatus(sessionId);
+        } else if (type === 'generation_status' || type === 'music_ready') {
+          refreshPoolStatus(sessionId);
         } else if (type === 'user_feedback') {
           // 反馈影响能量曲线，刷新一下展示
           getArrangerEnergyCurve().then((data) => setEnergyCurve(data.curve)).catch(() => {});
