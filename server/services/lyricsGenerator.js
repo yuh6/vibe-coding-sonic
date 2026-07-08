@@ -3,6 +3,7 @@
  * 按 Suno V5 手册最佳实践：结构标签带描述、中文可唱性约束、MBTI 人声推荐。
  */
 import { callLlm, isLlmConfigured } from './llm/index.js';
+import { getMbtiProfile } from './promptComposer.js';
 
 // §4.4 人声类型推荐（按 MBTI 维度细分）
 const VOCAL_STYLES = {
@@ -13,9 +14,14 @@ const VOCAL_STYLES = {
 };
 
 function suggestVocalStyle(mbtiType) {
-  if (!mbtiType || mbtiType.length < 4) return VOCAL_STYLES.IF;
-  const key = `${mbtiType[0]}${mbtiType[2]}`;
-  return VOCAL_STYLES[key] || VOCAL_STYLES.IF;
+  const fallback = !mbtiType || mbtiType.length < 4
+    ? VOCAL_STYLES.IF
+    : VOCAL_STYLES[`${mbtiType[0]}${mbtiType[2]}`] || VOCAL_STYLES.IF;
+  const profile = getMbtiProfile(mbtiType);
+  if (profile?.vocalHint) {
+    return { style: profile.vocalHint, desc: fallback.desc };
+  }
+  return fallback;
 }
 
 function buildLyricsPrompt({ mbtiType, phase, projectThemes, notes, language }) {

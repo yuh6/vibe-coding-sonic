@@ -92,6 +92,12 @@ function clampBpm(value) {
   return Math.max(60, Math.min(180, Math.round(value)));
 }
 
+function clampParam(value, min = 0, max = 100) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return min;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
 export function mbtiFromAxes(axes) {
   const { ie = 20, ns = 20, tf = 20, jp = 20 } = axes || {};
   return (
@@ -149,12 +155,132 @@ function buildProjectLayer(projectAnalysis) {
   return parts.slice(0, 4).join(', ');
 }
 
-// Style 字数限制 200 字符
-function truncateStyle(text, maxLen = 200) {
-  if (text.length <= maxLen) return text;
-  const truncated = text.slice(0, maxLen);
-  const lastComma = truncated.lastIndexOf(',');
-  return lastComma > 0 ? truncated.slice(0, lastComma).trim() : truncated.trim();
+function splitTerms(text) {
+  return String(text || '')
+    .split(/,\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function stripModifiers(term) {
+  return String(term || '')
+    .toLowerCase()
+    .replace(/\b(acoustic|electric|sampled|upright|brushed|mellow|bright|warm|deep|analog|digital|vintage|modern|live|layered|soft|hard|crisp|lush|raw|polished|smooth|punchy|dreamy)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function deduplicateInstruments(profileInstruments, genreStyle, notesKeywords = '') {
+  const profileTerms = splitTerms(profileInstruments);
+  if (!profileTerms.length) return '';
+
+  const coveredTerms = [
+    ...splitTerms(genreStyle?.tags),
+    ...(Array.isArray(genreStyle?.instruments) ? genreStyle.instruments : []),
+    ...splitTerms(notesKeywords),
+  ].map((term) => ({
+    raw: term.toLowerCase(),
+    stripped: stripModifiers(term),
+  }));
+
+  const uncovered = profileTerms.filter((term) => {
+    const raw = term.toLowerCase();
+    const stripped = stripModifiers(term);
+    return !coveredTerms.some((covered) => (
+      covered.raw.includes(raw) ||
+      raw.includes(covered.raw) ||
+      (stripped && covered.stripped && stripped === covered.stripped)
+    ));
+  });
+
+  return uncovered.join(', ');
+}
+
+function computeBpm(profile, genreStyle, phasePreset, styleAdj) {
+  const mbtiBaseBpm = (profile.bpmMin + profile.bpmMax) / 2;
+  const genreBpmMid = genreStyle?.bpmRange?.length === 2
+    ? (Number(genreStyle.bpmRange[0]) + Number(genreStyle.bpmRange[1])) / 2
+    : null;
+  const hasGenreBpm = Number.isFinite(genreBpmMid);
+  const baseBpm = hasGenreBpm
+    ? mbtiBaseBpm * 0.3 + genreBpmMid * 0.7
+    : mbtiBaseBpm;
+  const userBpmDelta = styleAdj.bpmDelta || 0;
+  const phaseBpmDelta = Math.abs(userBpmDelta) > 10
+    ? phasePreset.bpmDelta * 0.5
+    : phasePreset.bpmDelta;
+  return clampBpm(baseBpm + phaseBpmDelta + userBpmDelta);
+}
+
+function computeAdvancedParams({ phasePreset, selectedGenre, mbti }) {
+  let styleWeight = Number(phasePreset.styleWeight || 60);
+  let weirdnessConstraint = Number(phasePreset.weirdnessConstraint || 50);
+  const genreId = String(selectedGenre || '').toLowerCase();
+
+  if (selectedGenre) {
+    styleWeight = Math.min(90, styleWeight + 10);
+  }
+
+  if (/(experimental|avant-garde|noise|glitch|industrial)/i.test(genreId)) {
+    weirdnessConstraint = Math.min(80, weirdnessConstraint + 15);
+    styleWeight = Math.max(30, styleWeight - 10);
+  }
+
+  if (String(mbti || '').startsWith('I')) {
+    weirdnessConstraint = Math.min(70, weirdnessConstraint + 5);
+  }
+
+  return {
+    styleWeight: clampParam(styleWeight),
+    weirdnessConstraint: clampParam(weirdnessConstraint),
+  };
+}
+
+function promptLayer(text, priority, source, { required = false, maxTerms = null } = {}) {
+  const normalized = String(text || '').trim();
+  return normalized ? { text: normalized, priority, source, required, maxTerms } : null;
+}
+
+function appendPart(result, text, maxLen) {
+  const next = result.length ? `${result.join(', ')}, ${text}` : text;
+  if (next.length > maxLen) return false;
+  result.push(text);
+  return true;
+}
+
+function truncateStyleByPriority(parts, maxLen = 200) {
+  const ordered = parts
+    .filter(Boolean)
+    .map((part, index) => ({ ...part, index }))
+    .sort((a, b) => Number(b.required) - Number(a.required) || a.priority - b.priority || a.index - b.index);
+
+  const result = [];
+  const seen = new Set();
+
+  for (const part of ordered) {
+    const sourceTerms = Number.isFinite(part.maxTerms)
+      ? splitTerms(part.text).slice(0, part.maxTerms)
+      : splitTerms(part.text);
+    const terms = sourceTerms.filter((term) => {
+      const key = term.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!terms.length) continue;
+
+    const text = terms.join(', ');
+    if (appendPart(result, text, maxLen)) continue;
+
+    for (const term of terms) {
+      if (!appendPart(result, term, maxLen)) {
+        if (part.required) continue;
+        break;
+      }
+    }
+  }
+
+  return result.join(', ');
 }
 
 // Negative tags — 2-6 词
@@ -190,19 +316,17 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
   const remixDescriptors = buildRemixDescriptors(axes);
   const genreStyle = resolveGenreStyle(selectedGenre);
 
-  // BPM
-  let baseBpm;
-  if (genreStyle?.bpmRange?.length === 2) {
-    baseBpm = (genreStyle.bpmRange[0] + genreStyle.bpmRange[1]) / 2;
-  } else {
-    baseBpm = (profile.bpmMin + profile.bpmMax) / 2;
-  }
-  const bpm = clampBpm(baseBpm + phasePreset.bpmDelta + styleAdj.bpmDelta);
+  // 用户备注优先进入 prompt，并参与乐器去重。
+  const notesKeywords = notes?.keywords?.length ? notes.keywords.join(', ') : '';
+  const notesMood = notes?.mood?.length ? notes.mood.join(', ') : '';
 
-  // 1) 流派锚点
-  const genreAnchor = genreStyle?.tags || profile.genre;
-  // 2) 乐器
-  const instruments = profile.instruments;
+  // BPM：genre 与 MBTI 加权融合，用户 energy 推子优先于阶段偏移。
+  const bpm = computeBpm(profile, genreStyle, phasePreset, styleAdj);
+
+  // 1) 流派锚点：用户选 genre 时使用 genre tags；否则强调 MBTI 默认 genre。
+  const genreAnchor = genreStyle?.tags || profile.genre?.toUpperCase();
+  // 2) 乐器：genre 和 notes 已覆盖的乐器从 MBTI 乐器里移除。
+  const instruments = deduplicateInstruments(profile.instruments, genreStyle, notesKeywords);
   // 3) 阶段情绪
   const phaseStyle = phasePreset.styleTags;
   // 4) MBTI 情绪
@@ -213,39 +337,38 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
   const faderLayer = styleAdj.keywords.join(', ');
   // 7) 项目内容
   const projectLayer = buildProjectLayer(projectAnalysis);
-  // 8) 备注
-  const notesKeywords = notes?.keywords?.length ? notes.keywords.join(', ') : '';
-  const notesMood = notes?.mood?.length ? notes.mood.join(', ') : '';
   // 9) 人声
-  const vocalTag = vocals?.enabled ? (profile.vocalHint || 'Clear Vocals') : '';
+  const vocalTag = vocals?.enabled ? (vocals?.style || profile.vocalHint || 'Clear Vocals') : '';
   // 10) 制作质感
   const production = phasePreset.productionStyle;
 
-  // 组装
+  // 按 Suno V5 权重和 P0/P1/P2 优先级组装。
   const promptParts = [
-    genreAnchor,
-    instruments,
-    phaseStyle,
-    moodWords,
-    remixLayer,
-    faderLayer,
-    projectLayer,
-    notesKeywords,
-    notesMood,
-    `${bpm} BPM`,
-    vocalTag,
-    vocals?.enabled ? '' : 'Instrumental',
-    production,
+    promptLayer(genreAnchor, 0, genreStyle ? 'user_genre' : 'mbti_default_genre', { required: true, maxTerms: genreStyle ? 6 : 3 }),
+    promptLayer(faderLayer, 0, 'user_dj_fader'),
+    promptLayer(notesKeywords, 0, 'user_notes'),
+    promptLayer(notesMood, 0, 'user_notes'),
+    promptLayer(vocalTag, 0, vocals?.style ? 'user_vocal' : 'mbti_vocal', { required: Boolean(vocals?.enabled) }),
+
+    promptLayer(instruments, 1, 'mbti_instruments', { maxTerms: 3 }),
+    promptLayer(vocals?.enabled ? '' : 'Instrumental', 1, 'instrumental_mode', { required: !vocals?.enabled }),
+    promptLayer(phaseStyle, 1, 'phase_preset'),
+    promptLayer(`${bpm} BPM`, 1, 'computed_bpm', { required: true }),
+    promptLayer(moodWords, 1, 'mbti_mood'),
+    promptLayer(remixLayer, 1, 'mbti_axis'),
+    promptLayer(projectLayer, 1, 'project_analysis', { maxTerms: 4 }),
+
+    promptLayer(production, 2, 'phase_production', { maxTerms: 2 }),
   ].filter(Boolean);
 
-  let fullPrompt = promptParts.join(', ');
-  fullPrompt = truncateStyle(fullPrompt, 200);
+  const fullPrompt = truncateStyleByPriority(promptParts, 200);
 
   // negative_tags
   const negativeTags = buildAvoidTags(projectAnalysis, notes, vocals);
+  const advanced = computeAdvancedParams({ phasePreset, selectedGenre: genreStyle?.id || selectedGenre, mbti: resolvedMbti });
 
   // 四层预览
-  const mbtiLayer = `${profile.genre}, ${instruments}`;
+  const mbtiLayer = [genreStyle ? '' : profile.genre, instruments, moodWords].filter(Boolean).join(', ');
   const modeLayer = `${phaseStyle}, ${bpm} BPM`;
   const consoleLayer = [remixLayer, faderLayer].filter(Boolean).join(', ');
   const notesLayer = [notesKeywords, notesMood].filter(Boolean).join(', ');
@@ -262,8 +385,8 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
     },
     bpm,
     mode: phase,
-    weirdnessConstraint: phasePreset.weirdnessConstraint,
-    styleWeight: phasePreset.styleWeight,
+    weirdnessConstraint: advanced.weirdnessConstraint,
+    styleWeight: advanced.styleWeight,
     mbti: resolvedMbti,
     profile: {
       traits: profile.traits,
@@ -271,6 +394,7 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
       theme: profile.theme,
     },
     selectedGenre: genreStyle?.id || null,
+    personaId: profile.personaId || null,
     hasLyrics: Boolean(vocals?.enabled && vocals?.lyrics),
   };
 }

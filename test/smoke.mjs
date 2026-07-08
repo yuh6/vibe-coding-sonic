@@ -7,6 +7,7 @@ import { once } from 'node:events';
 import net from 'node:net';
 import Database from 'better-sqlite3';
 import { buildGenerationRequestBody } from '../server/services/sunoClient.js';
+import { suggestVocalStyle } from '../server/services/lyricsGenerator.js';
 
 async function getFreePort() {
   const server = net.createServer();
@@ -455,6 +456,7 @@ try {
   assert.equal(vocalPayload.custom, false);
   assert.equal(vocalPayload.instrumental, false);
   assert.equal(vocalPayload.negative_tags, '');
+  assert.equal(vocalPreview.audioWeight, undefined);
 
   const lyricalPayload = buildGenerationRequestBody({
     prompt: vocalPreview.fullPrompt,
@@ -468,6 +470,18 @@ try {
   assert.equal(lyricalPayload.instrumental, false);
   assert.match(lyricalPayload.prompt, /\[Chorus/);
   assert.equal(lyricalPayload.gpt_description_prompt, vocalPreview.fullPrompt);
+
+  const weightedPayload = buildGenerationRequestBody({
+    prompt: vocalPreview.fullPrompt,
+    title: 'Smoke Weighted',
+    instrumental: true,
+    audioWeight: 50,
+    personaId: 'persona-smoke',
+    modelVersion: 'chirp-v5',
+  });
+  assert.equal(weightedPayload.audioWeight, 50);
+  assert.equal(weightedPayload.persona_id, 'persona-smoke');
+  assert.equal(suggestVocalStyle('INTJ').desc, '低吟耳语');
 
   const genrePreview = await client.request('/api/music/generate', {
     method: 'POST',

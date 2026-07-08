@@ -431,6 +431,8 @@ export class GenerationPipeline extends EventEmitter {
           negativeTags: composed.negativeTags || '',
           weirdnessConstraint: composed.weirdnessConstraint,
           styleWeight: composed.styleWeight,
+          audioWeight: composed.audioWeight,
+          personaId: composed.personaId,
           instrumental: !promptOpts.vocals?.enabled,
           lyrics: promptOpts.vocals?.enabled && promptOpts.vocals?.lyrics
             ? promptOpts.vocals.lyrics
@@ -621,6 +623,7 @@ export class GenerationPipeline extends EventEmitter {
         console.warn('[pipeline] credit refund skipped:', err.message);
       });
       this.emitJob('generation:completed', job, { fallback: true });
+      this.emitJob('stem:status', job, { stemStatus: 'skipped' });
       return job;
     };
     if (delayMs > 0) {
@@ -725,6 +728,8 @@ export class GenerationPipeline extends EventEmitter {
         tags: composed.layers?.mbti || '',
         weirdnessConstraint: composed.weirdnessConstraint,
         styleWeight: composed.styleWeight,
+        audioWeight: composed.audioWeight,
+        personaId: composed.personaId,
         instrumental: !generationPromptOpts.vocals?.enabled,
         lyrics: generationPromptOpts.vocals?.enabled && generationPromptOpts.vocals?.lyrics
           ? generationPromptOpts.vocals.lyrics
@@ -760,7 +765,7 @@ export class GenerationPipeline extends EventEmitter {
       return ready;
     } catch (err) {
       console.error('[arranger] generation failed:', err.message);
-      const fallback = await this.createArrangerFallback(sessionId, composed, {
+      const fallback = await this.createArrangerFallback(sessionId, generationPromptOpts, {
         reason: err.message,
         emit,
         trackId: pending.id,
