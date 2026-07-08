@@ -5,23 +5,21 @@
 import { callLlm, isLlmConfigured } from './llm/index.js';
 import { getMbtiProfile } from './promptComposer.js';
 
-// §4.4 人声类型推荐（按 MBTI 维度细分）
-const VOCAL_STYLES = {
-  IT: { style: 'Whispered Male Vocals, Low-key, Spoken Word', desc: '低吟耳语' },
-  IF: { style: 'Breathy Female Vocals, Ethereal, Intimate', desc: '气声空灵' },
-  ET: { style: 'Confident Baritone Male Vocals, Resonant', desc: '自信共鸣' },
-  EF: { style: 'Powerful Female Vocals, Soulful, Belting', desc: '有力灵魂' },
+// §4.4 人声类型描述兜底；具体 Suno vocal style 统一读取 MBTI profile.vocalHint。
+const VOCAL_DESCRIPTIONS = {
+  IT: '低吟耳语',
+  IF: '气声空灵',
+  ET: '自信共鸣',
+  EF: '有力灵魂',
 };
 
 function suggestVocalStyle(mbtiType) {
-  const fallback = !mbtiType || mbtiType.length < 4
-    ? VOCAL_STYLES.IF
-    : VOCAL_STYLES[`${mbtiType[0]}${mbtiType[2]}`] || VOCAL_STYLES.IF;
+  const descKey = !mbtiType || mbtiType.length < 4 ? 'IF' : `${mbtiType[0]}${mbtiType[2]}`;
   const profile = getMbtiProfile(mbtiType);
-  if (profile?.vocalHint) {
-    return { style: profile.vocalHint, desc: fallback.desc };
-  }
-  return fallback;
+  return {
+    style: profile?.vocalHint || 'Clear Vocals',
+    desc: VOCAL_DESCRIPTIONS[descKey] || VOCAL_DESCRIPTIONS.IF,
+  };
 }
 
 function buildLyricsPrompt({ mbtiType, phase, projectThemes, notes, language }) {

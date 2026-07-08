@@ -252,7 +252,7 @@ function truncateStyleByPriority(parts, maxLen = 200) {
   const ordered = parts
     .filter(Boolean)
     .map((part, index) => ({ ...part, index }))
-    .sort((a, b) => Number(b.required) - Number(a.required) || a.priority - b.priority || a.index - b.index);
+    .sort((a, b) => a.priority - b.priority || a.index - b.index || Number(b.required) - Number(a.required));
 
   const result = [];
   const seen = new Set();
@@ -345,15 +345,15 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
   // 按 Suno V5 权重和 P0/P1/P2 优先级组装。
   const promptParts = [
     promptLayer(genreAnchor, 0, genreStyle ? 'user_genre' : 'mbti_default_genre', { required: true, maxTerms: genreStyle ? 6 : 3 }),
-    promptLayer(faderLayer, 0, 'user_dj_fader'),
+    promptLayer(`${bpm} BPM`, 0, 'computed_bpm', { required: true }),
+    promptLayer(vocals?.enabled ? '' : 'Instrumental', 0, 'instrumental_mode', { required: !vocals?.enabled }),
+    promptLayer(faderLayer, 0, 'user_dj_fader', { maxTerms: 3 }),
     promptLayer(notesKeywords, 0, 'user_notes'),
     promptLayer(notesMood, 0, 'user_notes'),
     promptLayer(vocalTag, 0, vocals?.style ? 'user_vocal' : 'mbti_vocal', { required: Boolean(vocals?.enabled) }),
 
     promptLayer(instruments, 1, 'mbti_instruments', { maxTerms: 3 }),
-    promptLayer(vocals?.enabled ? '' : 'Instrumental', 1, 'instrumental_mode', { required: !vocals?.enabled }),
     promptLayer(phaseStyle, 1, 'phase_preset'),
-    promptLayer(`${bpm} BPM`, 1, 'computed_bpm', { required: true }),
     promptLayer(moodWords, 1, 'mbti_mood'),
     promptLayer(remixLayer, 1, 'mbti_axis'),
     promptLayer(projectLayer, 1, 'project_analysis', { maxTerms: 4 }),
