@@ -2,7 +2,7 @@ import { db, today } from '../db.js';
 import { getSetting } from '../config/runtimeConfig.js';
 
 const TOTAL_QUOTA_KEY = 'total';
-const DEFAULT_GENERATION_LIMIT = 10;
+const DEFAULT_GENERATION_LIMIT = 30;
 const DEFAULT_GLOBAL_DAILY_LIMIT = 100;
 
 function positiveInt(value, fallback = DEFAULT_GENERATION_LIMIT) {
@@ -94,7 +94,7 @@ export async function consumeQuota(userOrId) {
     return {
       ok: false,
       status: 429,
-      error: `${roleName} ${quota.limit} 首生成额度已用完`,
+      error: `${roleName} ${quota.limit} 首生成额度已用完，已自动切换兜底曲库`,
       code: 'QUOTA_EXCEEDED',
     };
   }

@@ -149,8 +149,8 @@ const server = spawn(process.execPath, ['server/index.js'], {
     DISABLE_LLM: 'true',
     LLM_PROVIDER: 'none',
     GLOBAL_DAILY_LIMIT: '100',
-    GUEST_GENERATION_LIMIT: '10',
-    USER_GENERATION_LIMIT: '10',
+    GUEST_GENERATION_LIMIT: '30',
+    USER_GENERATION_LIMIT: '30',
     VIP_GENERATION_LIMIT: '',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -205,6 +205,10 @@ try {
   const me = await client.request('/api/auth/me');
   assert.equal(me.user.email, email);
   assert.equal(me.credits.balance, 100);
+
+  const quotaSettings = await client.request('/api/config/quota-settings');
+  assert.equal(quotaSettings.guestLimit, 30);
+  assert.equal(quotaSettings.userLimit, 30);
 
   const adminUsers = await client.request('/api/config/users');
   const smokeUser = adminUsers.users.find((user) => user.email === email);
