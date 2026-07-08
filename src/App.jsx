@@ -1,18 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MBTIRemixDeck from './components/MBTIRemixDeck';
-import StyleFaders from './components/StyleFaders';
-import VocalMode from './components/VocalMode';
 import PlayerDeck from './components/PlayerDeck';
-import ProjectDeck from './components/ProjectDeck';
-import PromptCard from './components/PromptCard';
-import Timeline from './components/Timeline';
-import ArrangerPanel from './components/ArrangerPanel';
-import GenreSelector from './components/GenreSelector';
 import AuthPanel from './components/AuthPanel';
 import ThemeToggle from './components/ThemeToggle';
 import IconGlyph from './components/IconGlyph';
-import { getTheme, mbtiFromAxes, axesFromMbti } from './lib/mbti';
+import { DJConsolePage } from './components/DJConsole';
+import { getTheme, mbtiFromAxes } from './lib/mbti';
 import { useColorMode } from './hooks/useColorMode';
+import { ROUTES, navigateTo, usePathRoute } from './hooks/useRouter';
+import { useDJConsole } from './hooks/useDJConsole';
 import {
   analyzeProject,
   analyzeGithub,
@@ -38,41 +33,6 @@ const MBTIWAVE = lazy(() => import('./components/MBTIWAVE'));
 const AccountPage = lazy(() => import('./components/AccountPage'));
 
 const STARTUP_FALLBACK_MODE = 'startup';
-const ROUTES = new Set(['/', '/mbtiwave', '/dj', '/discover', '/mixer', '/admin', '/account']);
-
-function normalizePath(path) {
-  const clean = String(path || '/').replace(/\/+$/, '') || '/';
-  return clean;
-}
-
-function legacyPathFromHash(hash) {
-  if (!hash?.startsWith('#/')) return '';
-  const legacy = hash.slice(1);
-  return legacy === '/' ? '/dj' : normalizePath(legacy);
-}
-
-function navigateTo(path, { replace = false } = {}) {
-  const nextPath = normalizePath(path);
-  if (window.location.pathname !== nextPath || window.location.hash) {
-    window.history[replace ? 'replaceState' : 'pushState']({}, '', nextPath);
-  }
-  window.dispatchEvent(new Event('popstate'));
-}
-
-function usePathRoute() {
-  const [path, setPath] = useState(() => legacyPathFromHash(window.location.hash) || normalizePath(window.location.pathname));
-  useEffect(() => {
-    const legacyPath = legacyPathFromHash(window.location.hash);
-    if (legacyPath) {
-      navigateTo(legacyPath, { replace: true });
-    }
-
-    const onChange = () => setPath(normalizePath(window.location.pathname));
-    window.addEventListener('popstate', onChange);
-    return () => window.removeEventListener('popstate', onChange);
-  }, []);
-  return path;
-}
 
 export default function App() {
   const path = usePathRoute();
@@ -83,22 +43,24 @@ export default function App() {
   const isAccount = route === '/account';
   const isHome = route === '/' || route === '/mbtiwave';
 
-  const [axes, setAxes] = useState(axesFromMbti('INTJ'));
-  const [style, setStyle] = useState({ energy: 50, texture: 35, brightness: 40 });
-  const [mode, setMode] = useState('focus');
-  const [vocalMode, setVocalMode] = useState('instrumental'); // 'vocal' | 'instrumental' | 'mixed'
-  const [genre, setGenre] = useState('');
-  const [projectName, setProjectName] = useState('');
-  const [projectDesc, setProjectDesc] = useState('');
-  const [projectAnalysis, setProjectAnalysis] = useState(null);
-  const [analysisSource, setAnalysisSource] = useState('');
-  const [promptData, setPromptData] = useState(null);
-  const [promptLoading, setPromptLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [fallback, setFallback] = useState(false);
-  const [schedule, setSchedule] = useState(null);
-  const [currentPhase, setCurrentPhase] = useState(null);
-  const [mixerImport, setMixerImport] = useState(null);
+  const {
+    axes, setAxes,
+    style, setStyle,
+    mode, setMode,
+    vocalMode, setVocalMode,
+    genre, setGenre,
+    projectName, setProjectName,
+    projectDesc, setProjectDesc,
+    projectAnalysis, setProjectAnalysis,
+    analysisSource, setAnalysisSource,
+    promptData, setPromptData,
+    promptLoading, setPromptLoading,
+    generating, setGenerating,
+    fallback, setFallback,
+    schedule, setSchedule,
+    currentPhase, setCurrentPhase,
+    mixerImport, setMixerImport,
+  } = useDJConsole();
   const [user, setUser] = useState(null);
   const [credits, setCredits] = useState(null);
   const [authReady, setAuthReady] = useState(false);
@@ -716,68 +678,35 @@ export default function App() {
             />
           </Suspense>
         ) : (
-          <>
-          <div className="grid gap-4 lg:grid-cols-12">
-            {/* 左 Deck：移动端拆开排序，桌面端保持一列堆叠 */}
-            <div className="contents lg:col-span-4 lg:block lg:space-y-4">
-              <div className="order-1 lg:order-none">
-                <MBTIRemixDeck axes={axes} onAxesChange={setAxes} theme={theme} />
-              </div>
-              <div className="order-3 lg:order-none">
-                <StyleFaders style={style} onStyleChange={setStyle} />
-              </div>
-              <div className="order-4 lg:order-none">
-                <ProjectDeck
-                  name={projectName}
-                  description={projectDesc}
-                  onNameChange={setProjectName}
-                  onDescriptionChange={setProjectDesc}
-                  onApplyPreset={handleApplyPreset}
-                  onGithubAnalyze={handleGithubAnalyze}
-                  analysisSource={analysisSource}
-                />
-              </div>
-            </div>
-
-            {/* 中 Deck：移动端 Main Deck 第二位，桌面端仍在中列顶部 */}
-            <div className="contents lg:col-span-5 lg:block lg:space-y-4">
-              <div className="order-2 lg:order-none">
-                {mainDeck}
-              </div>
-              <div className="order-5 lg:order-none">
-                <GenreSelector value={genre} onChange={setGenre} theme={theme} />
-              </div>
-            </div>
-
-            {/* 右 Deck：Arranger + Prompt 监视器 */}
-            <div className="contents lg:col-span-3 lg:block lg:space-y-4">
-              <div id="dj-arranger-anchor" className="order-6 lg:order-none">
-                <ArrangerPanel
-                  arranger={arranger}
-                  theme={theme}
-                  onStart={handleArrangerStart}
-                  onStop={handleArrangerStop}
-                  onPhaseChange={handleArrangerPhaseChange}
-                  onFeedback={handleArrangerFeedback}
-                  liveStation={liveStation}
-                  radioBusy={radioBusy}
-                  onRadioToggle={handleRadioToggle}
-                />
-              </div>
-              <div className="order-7 lg:order-none">
-                <VocalMode vocalMode={vocalMode} onVocalModeChange={handleVocalModeChange} />
-              </div>
-              <div className="order-8 lg:order-none">
-                <PromptCard
-                  layers={promptData?.layers}
-                  fullPrompt={promptData?.fullPrompt}
-                  loading={promptLoading}
-                />
-              </div>
-            </div>
-          </div>
-
-          </>
+          <DJConsolePage
+            axes={axes}
+            onAxesChange={setAxes}
+            theme={theme}
+            style={style}
+            onStyleChange={setStyle}
+            projectName={projectName}
+            projectDesc={projectDesc}
+            onProjectNameChange={setProjectName}
+            onProjectDescChange={setProjectDesc}
+            onApplyPreset={handleApplyPreset}
+            onGithubAnalyze={handleGithubAnalyze}
+            analysisSource={analysisSource}
+            mainDeck={mainDeck}
+            genre={genre}
+            onGenreChange={setGenre}
+            arranger={arranger}
+            onArrangerStart={handleArrangerStart}
+            onArrangerStop={handleArrangerStop}
+            onArrangerPhaseChange={handleArrangerPhaseChange}
+            onArrangerFeedback={handleArrangerFeedback}
+            liveStation={liveStation}
+            radioBusy={radioBusy}
+            onRadioToggle={handleRadioToggle}
+            vocalMode={vocalMode}
+            onVocalModeChange={handleVocalModeChange}
+            promptData={promptData}
+            promptLoading={promptLoading}
+          />
         )}      </div>
     </div>
   );
