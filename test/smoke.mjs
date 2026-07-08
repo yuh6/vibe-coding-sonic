@@ -480,10 +480,15 @@ try {
     title: 'Smoke Weighted',
     instrumental: true,
     audioWeight: 50,
+    weirdnessConstraint: 75,
+    styleWeight: 25,
     personaId: 'persona-smoke',
     modelVersion: 'chirp-v5',
   });
-  assert.equal(weightedPayload.audioWeight, 50);
+  assert.equal(weightedPayload.audio_weight, 0.5);
+  assert.equal(weightedPayload.weirdness_constraint, 0.75);
+  assert.equal(weightedPayload.style_weight, 0.25);
+  assert.equal(weightedPayload.audioWeight, undefined);
   assert.equal(weightedPayload.persona_id, 'persona-smoke');
   assert.equal(suggestVocalStyle('INTJ').desc, '低吟耳语');
 

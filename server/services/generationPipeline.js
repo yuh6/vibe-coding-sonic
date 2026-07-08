@@ -856,6 +856,13 @@ export async function refreshJob(jobId) {
   if (!job) return null;
   if (job.status === 'completed' || job.status === 'failed') return job;
 
+  if (job.status === 'processing' && job.sunoTaskId && isSunoConfigured()) {
+    generationPipeline.runJobToCompletion(job).catch((err) => {
+      console.warn('[pipeline] refresh recovery failed:', err.message);
+    });
+    return job;
+  }
+
   if (
     job.status === 'processing' &&
     !job.audioUrl &&
@@ -865,12 +872,6 @@ export async function refreshJob(jobId) {
     job.error = `TTAPI generation exceeded fallback window (${GENERATION_FALLBACK_AFTER_MS}ms)`;
     await generationPipeline.completeWithFallback(job, { reason: job.error });
     return job;
-  }
-
-  if (job.status === 'processing' && job.sunoTaskId && isSunoConfigured()) {
-    generationPipeline.runJobToCompletion(job).catch((err) => {
-      console.warn('[pipeline] refresh recovery failed:', err.message);
-    });
   }
 
   return job;

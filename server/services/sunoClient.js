@@ -73,6 +73,13 @@ function normalizeMusic(raw = {}) {
   };
 }
 
+function normalizeWeightParam(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = parsed > 1 ? parsed / 100 : parsed;
+  return Number(Math.max(0, Math.min(1, normalized)).toFixed(3));
+}
+
 function extractPrimaryMusic(data) {
   const musics = data.data?.musics || data.musics || data.data?.music || data.music;
   const raw = Array.isArray(musics) ? musics[0] : musics;
@@ -290,10 +297,12 @@ export function buildGenerationRequestBody({
     body.prompt = lyrics;
   }
 
-  // V5 高级参数：已用真实 TTAPI Key 验证可用（weirdnessConstraint=80, styleWeight=30 → HTTP 200）。
-  if (Number.isFinite(weirdnessConstraint)) body.weirdnessConstraint = weirdnessConstraint;
-  if (Number.isFinite(styleWeight)) body.styleWeight = styleWeight;
-  if (Number.isFinite(audioWeight)) body.audioWeight = audioWeight;
+  const normalizedWeirdness = normalizeWeightParam(weirdnessConstraint);
+  const normalizedStyle = normalizeWeightParam(styleWeight);
+  const normalizedAudio = normalizeWeightParam(audioWeight);
+  if (normalizedWeirdness !== null) body.weirdness_constraint = normalizedWeirdness;
+  if (normalizedStyle !== null) body.style_weight = normalizedStyle;
+  if (normalizedAudio !== null) body.audio_weight = normalizedAudio;
   if (personaId) body.persona_id = personaId;
   return body;
 }
