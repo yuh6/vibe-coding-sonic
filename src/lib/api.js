@@ -83,14 +83,14 @@ export function getFallback({ mode, mbti }) {
 }
 
 export function syncSchedule(phases) {
-  return request('/api/schedule/sync', {
+  return request('/api/arranger/schedule/sync', {
     method: 'POST',
     body: JSON.stringify({ phases }),
   });
 }
 
 export function getDemoSchedule() {
-  return request('/api/schedule/demo');
+  return request('/api/arranger/schedule/demo');
 }
 
 // ── 用户系统 ──
@@ -380,11 +380,11 @@ export function recordSharedTrackPlay(trackId) {
 
 export function getPopularTracks(limit = 12) {
   const params = new URLSearchParams({ limit });
-  return request(`/api/recommend/popular?${params}`);
+  return request(`/api/library/recommend/popular?${params}`);
 }
 
 export function recordRecommendedPlay({ trackId, durationSec = null, completed = false }) {
-  return request('/api/recommend/play', {
+  return request('/api/library/recommend/play', {
     method: 'POST',
     body: JSON.stringify({ trackId, durationSec, completed }),
   });
@@ -404,7 +404,7 @@ export function updateRadioNowPlaying(id, track) {
 // ── 音乐流派/风格 ──
 
 export function getStyles() {
-  return request('/api/styles');
+  return request('/api/config/styles');
 }
 
 // ── 收藏 + 评分 ──
@@ -445,12 +445,12 @@ export function getTrackRatings(trackId) {
 
 export function getForYou(limit = 12) {
   const params = new URLSearchParams({ limit });
-  return request(`/api/recommend/for-you?${params}`);
+  return request(`/api/library/recommend/for-you?${params}`);
 }
 
 export function getMyHistory({ page = 1, limit = 30 } = {}) {
   const params = new URLSearchParams({ page, limit });
-  return request(`/api/recommend/history?${params}`);
+  return request(`/api/library/recommend/history?${params}`);
 }
 
 // ── 歌单管理 ──

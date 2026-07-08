@@ -24,12 +24,13 @@ import { dal } from '../db.js';
 import { storage } from '../storage/index.js';
 import * as trackPool from './arranger/trackPool.js';
 import * as sessionStore from './arranger/sessionStore.js';
+import { positiveNumber } from '../utils/validators.js';
 
 const hotCache = new Map();
 const HOT_CACHE_TTL_MS = 30 * 60 * 1000;
-const POLL_INTERVAL_MS = positiveMs(process.env.MUSIC_GENERATION_POLL_INTERVAL_MS, 4000);
-const POLL_TIMEOUT_MS = positiveMs(process.env.MUSIC_GENERATION_POLL_TIMEOUT_MS, 5 * 60 * 1000);
-const GENERATION_FALLBACK_AFTER_MS = positiveMs(
+const POLL_INTERVAL_MS = positiveNumber(process.env.MUSIC_GENERATION_POLL_INTERVAL_MS, 4000);
+const POLL_TIMEOUT_MS = positiveNumber(process.env.MUSIC_GENERATION_POLL_TIMEOUT_MS, 5 * 60 * 1000);
+const GENERATION_FALLBACK_AFTER_MS = positiveNumber(
   process.env.MUSIC_GENERATION_FALLBACK_AFTER_MS,
   90_000
 );
@@ -38,11 +39,6 @@ export const COST_PER_TRACK = 0.08;
 export const HARD_DAILY_LIMIT = 10;
 export const SOFT_HOURLY_LIMIT = 0.5;
 export const PAUSE_BALANCE_THRESHOLD = 2;
-
-function positiveMs(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

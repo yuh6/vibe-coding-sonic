@@ -5,6 +5,8 @@ import {
   resolveTtapiConfig,
 } from '../config/providers.js';
 import { maskedSettings, updateSettings } from '../config/runtimeConfig.js';
+import { requireAdmin } from '../middleware/adminAuth.js';
+import { listGenreStyles } from '../services/genreStyles.js';
 import { isLlmConfigured } from '../services/llm/index.js';
 import { isSunoConfigured } from '../services/sunoClient.js';
 import { quotaSettings } from '../services/quotaService.js';
@@ -16,6 +18,12 @@ import {
 } from '../services/creditService.js';
 
 const router = Router();
+
+router.get('/styles', (_req, res) => {
+  res.json(listGenreStyles());
+});
+
+router.use(requireAdmin);
 
 function parseQuotaLimit(value, label) {
   const parsed = Number(value);
