@@ -9,6 +9,10 @@ export function UserPlaylistPanel({
   selectionMode = false,
   savedLists = [],
   activeSavedListId = '',
+  busy = false,
+  saveBusy = false,
+  canSave = true,
+  loadingTrackId = '',
   onAddTrack,
   onToggleSelection,
   onToggleSelectionMode,
@@ -29,10 +33,10 @@ export function UserPlaylistPanel({
           <span className="mixer-kicker">Local queue</span>
         </div>
         <div className="mixer-list-actions">
-          <button type="button" onClick={onSaveList} className="mixer-mini-button">
-            Save local
+          <button type="button" onClick={onSaveList} className="mixer-mini-button" disabled={!canSave || saveBusy}>
+            {saveBusy ? 'Saved' : 'Save local'}
           </button>
-          <button type="button" onClick={onToggleSelectionMode} className={`mixer-mini-button ${selectionMode ? 'is-active' : ''}`}>
+          <button type="button" onClick={onToggleSelectionMode} className={`mixer-mini-button ${selectionMode ? 'is-active' : ''}`} disabled={!playlistTracks.length || busy}>
             {selectionMode ? `${selectedCount} selected` : 'Select'}
           </button>
           {selectionMode && selectedCount > 0 && (
@@ -82,24 +86,29 @@ export function UserPlaylistPanel({
         <span className="font-mono text-[10px] text-white/38">{playlistTracks.length} queued</span>
       </div>
       <div className="mt-2 flex max-h-48 flex-col gap-1 overflow-y-auto">
-        {playlistTracks.map((track, index) => (
-          <button
-            key={track.id || track.name}
-            type="button"
-            onClick={() => {
-              if (selectionMode) onToggleSelection?.(track.id || track.name);
-              else onAddTrack?.(track, index);
-            }}
-            className={`mixer-row-button compact ${index === activeIndex ? 'is-active' : ''} ${selectedIds.has(track.id || track.name) ? 'is-selected' : ''}`}
-          >
-            {selectionMode && <span className="mixer-row-check">{selectedIds.has(track.id || track.name) ? '✅' : ''}</span>}
-            <span className="min-w-0 flex-1">
-              <strong>{track.name}</strong>
-              <small>{track.status || track.type || 'stem'}</small>
-            </span>
-            <span className="mixer-row-action">{selectionMode ? 'Pick' : 'Play'}</span>
-          </button>
-        ))}
+        {playlistTracks.map((track, index) => {
+          const trackKey = track.id || track.name;
+          const isLoading = loadingTrackId === trackKey;
+          return (
+            <button
+              key={trackKey}
+              type="button"
+              disabled={!selectionMode && busy}
+              onClick={() => {
+                if (selectionMode) onToggleSelection?.(trackKey);
+                else onAddTrack?.(track, index);
+              }}
+              className={`mixer-row-button compact ${index === activeIndex ? 'is-active' : ''} ${selectedIds.has(trackKey) ? 'is-selected' : ''}`}
+            >
+              {selectionMode && <span className="mixer-row-check">{selectedIds.has(trackKey) ? '✅' : ''}</span>}
+              <span className="min-w-0 flex-1">
+                <strong>{track.name}</strong>
+                <small>{track.status || track.type || 'stem'}</small>
+              </span>
+              <span className="mixer-row-action">{isLoading ? 'Loading' : selectionMode ? 'Pick' : 'Play'}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

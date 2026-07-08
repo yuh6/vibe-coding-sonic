@@ -15,6 +15,7 @@ export default function TransportBar({
   hasTracks,
   tracks = [],
   loading = false,
+  busy = false,
   master,
   playlistCount = 0,
   activePlaylistIndex = -1,
@@ -31,6 +32,7 @@ export default function TransportBar({
   const activeTrack = tracks[0];
   const title = activeTrack?.name || (loading ? 'Loading audio' : 'No track loaded');
   const canStepPlaylist = playlistCount > 0;
+  const controlsLocked = busy || loading;
   const modeMeta = {
     'list-loop': { label: '列表循环', icon: Repeat, status: 'Playlist loop' },
     'track-loop': { label: '单曲循环', icon: Repeat1, status: 'Single loop' },
@@ -59,29 +61,29 @@ export default function TransportBar({
 
       <div className="mixer-transport-center">
         <div className="flex items-center justify-center gap-2">
-          <button type="button" onClick={onPrevious} className="mixer-icon-button" disabled={!canStepPlaylist} aria-label="Previous">
+          <button type="button" onClick={onPrevious} className="mixer-icon-button" disabled={!canStepPlaylist || controlsLocked} aria-label="Previous">
             <SkipBack className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={playing ? onPause : onPlay}
-            disabled={!hasTracks && !playlistCount}
+            disabled={controlsLocked || (!hasTracks && !playlistCount)}
             className="mixer-play-button"
             aria-label={playing ? 'Pause' : 'Play'}
           >
             {playing ? <Pause className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
           </button>
-          <button type="button" onClick={onNext} className="mixer-icon-button" disabled={!canStepPlaylist} aria-label="Next">
+          <button type="button" onClick={onNext} className="mixer-icon-button" disabled={!canStepPlaylist || controlsLocked} aria-label="Next">
             <SkipForward className="h-4 w-4" />
           </button>
-          <button type="button" onClick={onStop} className="mixer-icon-button" disabled={!hasTracks} aria-label="Stop">
+          <button type="button" onClick={onStop} className="mixer-icon-button" disabled={!hasTracks || controlsLocked} aria-label="Stop">
             <Square className="h-3.5 w-3.5 fill-current" />
           </button>
           <button
             type="button"
             onClick={onCyclePlayMode}
             className={`mixer-icon-button is-active mixer-mode-button mode-${playMode}`}
-            disabled={!playlistCount}
+            disabled={!playlistCount || controlsLocked}
             title={`${modeMeta.label}${loop ? ` · region ${fmt(loop.start)}-${fmt(loop.end)}` : ''}`}
             aria-label={`Playback mode: ${modeMeta.label}`}
           >

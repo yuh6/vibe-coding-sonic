@@ -193,12 +193,24 @@ export default function MixerPage({ incomingMix = null, user }) {
   const importJobRef = useRef('');
   const playbackWasRunningRef = useRef(false);
   const selectRequestRef = useRef(0);
+  const generatedSeqRef = useRef(0);
+  const generateLockRef = useRef(false);
+  const saveLockRef = useRef(false);
+  const exportLockRef = useRef(false);
+  const broadcastLockRef = useRef(false);
+  const shareLockRef = useRef(false);
+  const aiLockRef = useRef(false);
   const [axes, setAxes] = useState({ ie: 12, ns: 12, tf: 12, jp: 12 });
   const [style, setStyle] = useState({ energy: 52, texture: 35, brightness: 44 });
   const [genre, setGenre] = useState('');
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [playlistTracks, setPlaylistTracks] = useState(SAMPLE_TRACKS);
   const [activePlaylistIndex, setActivePlaylistIndex] = useState(-1);
+  const [loadingQueueId, setLoadingQueueId] = useState('');
+  const [generateBusy, setGenerateBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedQueueIds, setSelectedQueueIds] = useState(() => new Set());
   const [playMode, setPlayMode] = useState('list-loop');
@@ -264,8 +276,9 @@ export default function MixerPage({ incomingMix = null, user }) {
   const shareUrl = broadcastStation?.id ? `${window.location.origin}/discover?radio=${encodeURIComponent(broadcastStation.id)}` : '';
   const makeLocalGeneratedTrack = (sourcePrompt = promptSummary, source = 'preview') => {
     const nextNumber = playlistTracks.length + 1;
+    generatedSeqRef.current += 1;
     return {
-      id: `generated-${Date.now()}`,
+      id: `generated-${Date.now()}-${generatedSeqRef.current}`,
       name: `${mbti} ${selectedGenreLabel} take ${String(nextNumber).padStart(2, '0')}`,
       url: style.energy > 66 ? '/samples/fallback-sprint-a.mp3' : style.brightness < 38 ? '/samples/fallback-focus-c.mp3' : '/samples/fallback-brainstorm-a.mp3',
       type: 'generated',
@@ -299,6 +312,8 @@ export default function MixerPage({ incomingMix = null, user }) {
   const handleSelectTrack = async (track, index = -1, autoplay = false) => {
     const requestId = selectRequestRef.current + 1;
     selectRequestRef.current = requestId;
+    const queueId = track.id || track.name || `${index}`;
+    setLoadingQueueId(queueId);
     const deckTracks = (Array.isArray(track.tracks) && track.tracks.length ? track.tracks : [track])
       .filter((item) => item?.url)
       .map((item, itemIndex) => ({
@@ -306,7 +321,10 @@ export default function MixerPage({ incomingMix = null, user }) {
         url: item.url,
         type: item.type || 'stem',
       }));
-    if (deckTracks.length === 0) return;
+    if (deckTracks.length === 0) {
+      setLoadingQueueId('');
+      return;
+    }
     const nextTrack = {
       name: track.title || track.name || deckTracks[0].name,
       url: deckTracks[0].url,
@@ -315,9 +333,13 @@ export default function MixerPage({ incomingMix = null, user }) {
     const shouldPlay = autoplay || mixer.playing;
     setSelectedTrack(nextTrack);
     setActivePlaylistIndex(index);
-    await mixer.addTracks(deckTracks, { replace: true });
-    if (selectRequestRef.current !== requestId) return;
-    if (shouldPlay) await mixer.play();
+    try {
+      await mixer.addTracks(deckTracks, { replace: true });
+      if (selectRequestRef.current !== requestId) return;
+      if (shouldPlay) await mixer.play();
+    } finally {
+      if (selectRequestRef.current === requestId) setLoadingQueueId('');
+    }
   };
   const handlePlaylistStep = (direction, autoplay = mixer.playing) => {
     if (!playlistTracks.length) return;
@@ -337,8 +359,16 @@ export default function MixerPage({ incomingMix = null, user }) {
     mixer.play();
   };
   const handleGenerateTrack = () => {
+    if (generateLockRef.current) return;
+    generateLockRef.current = true;
+    setGenerateBusy(true);
     setPlaylistTracks((prev) => [...prev, makeLocalGeneratedTrack()]);
     setActiveSavedListId('');
+    setActionMessage('Generated preview queued.');
+    window.setTimeout(() => {
+      generateLockRef.current = false;
+      setGenerateBusy(false);
+    }, 450);
   };
   const toggleSelectionMode = () => {
     setSelectionMode((enabled) => {
@@ -374,7 +404,9 @@ export default function MixerPage({ incomingMix = null, user }) {
     setActionMessage('Selected tracks removed from this queue. Source files were kept.');
   };
   const handleSaveList = () => {
-    if (!playlistTracks.length) return;
+    if (!playlistTracks.length || saveLockRef.current) return;
+    saveLockRef.current = true;
+    setSaveBusy(true);
     const fallbackName = `${mbti} ${selectedGenreLabel} list`;
     const existingNames = new Set(savedLists.map((list) => list.name));
     let name = `${fallbackName} ${String(savedLists.length + 1).padStart(2, '0')}`;
@@ -392,6 +424,11 @@ export default function MixerPage({ incomingMix = null, user }) {
     };
     setSavedLists((prev) => [savedList, ...prev].slice(0, 12));
     setActiveSavedListId(savedList.id);
+    setActionMessage(`Saved local list: ${savedList.name}`);
+    window.setTimeout(() => {
+      saveLockRef.current = false;
+      setSaveBusy(false);
+    }, 600);
   };
   const handleLoadList = (list) => {
     setPlaylistTracks(list.tracks || []);
@@ -407,6 +444,7 @@ export default function MixerPage({ incomingMix = null, user }) {
     if (activeSavedListId === listId) setActiveSavedListId('');
   };
   const handleExportSelected = () => {
+    if (exportLockRef.current) return;
     if (!exportTargets.length) {
       setActionMessage('Select up to 10 queue tracks before exporting.');
       return;
@@ -415,6 +453,8 @@ export default function MixerPage({ incomingMix = null, user }) {
       setActionMessage('Export is limited to 10 tracks at a time.');
       return;
     }
+    exportLockRef.current = true;
+    setExportBusy(true);
     let downloaded = 0;
     exportTargets.forEach((track, index) => {
       const exportUrl = track?.url || track?.tracks?.find((item) => item?.url)?.url;
@@ -424,9 +464,14 @@ export default function MixerPage({ incomingMix = null, user }) {
       downloaded += 1;
     });
     setActionMessage(downloaded ? `Downloading ${downloaded} track${downloaded === 1 ? '' : 's'}.` : 'Selected tracks have no downloadable audio.');
+    window.setTimeout(() => {
+      exportLockRef.current = false;
+      setExportBusy(false);
+    }, 900);
   };
   const handleBroadcast = async () => {
-    if (!playlistTracks.length) return;
+    if (!playlistTracks.length || broadcastLockRef.current) return;
+    broadcastLockRef.current = true;
     if (broadcastStation?.id) {
       setBroadcastBusy(true);
       try {
@@ -437,6 +482,7 @@ export default function MixerPage({ incomingMix = null, user }) {
         setActionMessage(err.message || 'Failed to stop broadcast.');
       } finally {
         setBroadcastBusy(false);
+        broadcastLockRef.current = false;
       }
       return;
     }
@@ -444,6 +490,7 @@ export default function MixerPage({ incomingMix = null, user }) {
     const audioUrl = track?.url || track?.tracks?.find((item) => item?.url)?.url;
     if (!audioUrl) {
       setActionMessage('Current queue has no playable audio to broadcast.');
+      broadcastLockRef.current = false;
       return;
     }
     setBroadcastBusy(true);
@@ -471,20 +518,28 @@ export default function MixerPage({ incomingMix = null, user }) {
       }
     } finally {
       setBroadcastBusy(false);
+      broadcastLockRef.current = false;
     }
   };
   const handleShareBroadcast = async () => {
-    if (!shareUrl) return;
+    if (!shareUrl || shareLockRef.current) return;
+    shareLockRef.current = true;
+    setShareBusy(true);
     if (await copyText(shareUrl)) {
       setActionMessage('Room link copied.');
     } else {
       setActionMessage(shareUrl);
     }
+    window.setTimeout(() => {
+      shareLockRef.current = false;
+      setShareBusy(false);
+    }, 650);
   };
   const handleAiSubmit = async (event) => {
     event.preventDefault();
     const request = aiInput.trim();
-    if (!request || aiBusy) return;
+    if (!request || aiBusy || aiLockRef.current) return;
+    aiLockRef.current = true;
     setAiInput('');
     setAiMessages((prev) => [...prev, { role: 'user', text: request }, { role: 'assistant', text: '收到，正在按当前人格、流派和 FX 参数编排生成...' }]);
     setAiBusy(true);
@@ -530,6 +585,7 @@ export default function MixerPage({ incomingMix = null, user }) {
       ]);
     } finally {
       setAiBusy(false);
+      aiLockRef.current = false;
     }
   };
 
@@ -595,9 +651,9 @@ export default function MixerPage({ incomingMix = null, user }) {
               {incomingMix && <span className="mixer-pill accent">{importStatusText(incomingMix)}</span>}
             </div>
           </div>
-          <button type="button" onClick={handleGenerateTrack} className="mixer-generate-button">
-            <span>Generate</span>
-            <small>queue to playlist</small>
+          <button type="button" onClick={handleGenerateTrack} disabled={generateBusy} className="mixer-generate-button">
+            <span>{generateBusy ? 'Queued' : 'Generate'}</span>
+            <small>{generateBusy ? 'ready in list' : 'queue to playlist'}</small>
           </button>
         </section>
 
@@ -639,7 +695,7 @@ export default function MixerPage({ incomingMix = null, user }) {
           </div>
           <div className="mixer-collection-rail">
             {COLLECTIONS.map((item) => (
-              <button key={item.title} type="button" onClick={() => handleSelectTrack(item)} className="mixer-collection-card">
+              <button key={item.title} type="button" onClick={() => handleSelectTrack(item)} disabled={Boolean(loadingQueueId)} className="mixer-collection-card">
                 <img src={item.cover} alt={`${item.title} cover`} />
                 <strong>{item.title}</strong>
                 <span>{item.tag} · {item.count}</span>
@@ -653,7 +709,7 @@ export default function MixerPage({ incomingMix = null, user }) {
         tracks={mixer.tracks}
         error={mixer.error}
         actionMessage={actionMessage}
-        actionBusy={broadcastBusy}
+        actionBusy={broadcastBusy || exportBusy || shareBusy}
         canExport={exportTargets.length > 0}
         canBroadcast={playlistTracks.length > 0}
         broadcastLabel={broadcastStation ? 'Live' : 'Broadcast'}
@@ -671,6 +727,10 @@ export default function MixerPage({ incomingMix = null, user }) {
           selectionMode={selectionMode}
           savedLists={savedLists}
           activeSavedListId={activeSavedListId}
+          busy={Boolean(loadingQueueId)}
+          saveBusy={saveBusy}
+          canSave={playlistTracks.length > 0}
+          loadingTrackId={loadingQueueId}
           onAddTrack={handleSelectTrack}
           onToggleSelection={toggleQueueSelection}
           onToggleSelectionMode={toggleSelectionMode}
@@ -690,6 +750,7 @@ export default function MixerPage({ incomingMix = null, user }) {
           hasTracks={mixer.tracks.length > 0}
           tracks={mixer.tracks}
           loading={mixer.loading}
+          busy={mixer.loading || Boolean(loadingQueueId)}
           master={mixer.master}
           playlistCount={playlistTracks.length}
           activePlaylistIndex={activePlaylistIndex}

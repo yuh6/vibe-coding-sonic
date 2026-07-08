@@ -114,7 +114,10 @@ export default function AuthPanel({
   loading = false,
 }) {
   const isGuest = user?.isGuest || user?.role === 'guest';
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const handleLogout = async () => {
+    if (logoutBusy) return;
+    setLogoutBusy(true);
     try {
       await onBeforeLogout?.();
     } catch (err) {
@@ -124,6 +127,7 @@ export default function AuthPanel({
       await authLogout();
     } finally {
       onLogout();
+      setLogoutBusy(false);
     }
   };
 
@@ -139,7 +143,7 @@ export default function AuthPanel({
             <span className="font-display text-xs font-semibold text-white/85">...</span>
             <span className="font-mono text-[10px] text-white/45">积分 --</span>
           </div>
-          <button type="button" disabled className={`${btnClass} opacity-60`} title="登录状态加载中">
+          <button type="button" disabled className={`${btnClass} opacity-60`} title="登录状态加载中" aria-label="登录状态加载中">
             <IconGlyph name="user-login" className="h-4 w-4" />
           </button>
         </div>
@@ -157,6 +161,7 @@ export default function AuthPanel({
             onClick={isGuest ? () => onOpenChange(true) : onAccountOpen}
             className={`${userChipClass} text-left`}
             title={isGuest ? '登录' : '账户资料'}
+            aria-label={isGuest ? '登录' : '打开账户资料'}
           >
             <span className="font-display text-xs font-semibold text-white/85">
               {isGuest ? '游客' : user.name}
@@ -174,14 +179,16 @@ export default function AuthPanel({
           <button
             type="button"
             onClick={isGuest ? () => onOpenChange(true) : handleLogout}
+            disabled={logoutBusy}
             className={btnClass}
-            title={isGuest ? '登录' : '登出'}
+            title={isGuest ? '登录' : logoutBusy ? '正在登出' : '登出'}
+            aria-label={isGuest ? '登录' : logoutBusy ? '正在登出' : '登出'}
           >
             <IconGlyph name={isGuest ? 'user-login' : 'close'} className="h-4 w-4" />
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => onOpenChange(true)} className={btnClass} title="登录">
+        <button type="button" onClick={() => onOpenChange(true)} className={btnClass} title="登录" aria-label="登录">
           <IconGlyph name="user-login" className="h-4 w-4" />
         </button>
       )}
