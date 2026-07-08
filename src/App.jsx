@@ -23,7 +23,7 @@ import {
   syncSchedule,
   updateRadioNowPlaying,
 } from './lib/api';
-import { useMusicPoll, usePlayer } from './hooks/usePlayer';
+import { useMusicStatusStream, usePlayer } from './hooks/usePlayer';
 import { useArranger } from './hooks/useArranger';
 
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
@@ -73,7 +73,7 @@ export default function App() {
   const theme = getTheme(mbti);
   const { isDark, toggle: toggleColorMode } = useColorMode();
   const player = usePlayer();
-  const poll = useMusicPoll();
+  const poll = useMusicStatusStream();
   const arranger = useArranger();
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);

@@ -5,7 +5,7 @@ import { getMusicStatus } from '../lib/api';
 const FADE_MS = 2000;
 const POLL_MS = 3000;
 
-export function useMusicPoll() {
+export function useMusicStatusStream() {
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState('idle');
   const [audioUrl, setAudioUrl] = useState(null);
@@ -107,6 +107,8 @@ export function useMusicPoll() {
 
   return { jobId, status, audioUrl, meta, startPolling, stopPolling, setStatus };
 }
+
+export const useMusicPoll = useMusicStatusStream;
 
 export function usePlayer() {
   const howlRef = useRef(null);

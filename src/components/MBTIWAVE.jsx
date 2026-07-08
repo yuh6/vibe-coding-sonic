@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/mbtiwave.css';
-import { usePlayer, useMusicPoll } from '../hooks/usePlayer';
+import { usePlayer, useMusicStatusStream } from '../hooks/usePlayer';
 import { useArranger } from '../hooks/useArranger';
 import { generateMusic, getFallback, analyzeProject, analyzeGithub, previewPrompt, getMyProfile, getDemoSchedule, syncSchedule } from '../lib/api';
 import { mbtiFromAxes, getTheme, MODES } from '../lib/mbti';
@@ -121,7 +121,7 @@ export default function MBTIWAVE({
 
   // ── Solo 页真实化：复用 DJ 控制台的后端接口，不改后端 ──
   const player = usePlayer();
-  const poll = useMusicPoll();
+  const poll = useMusicStatusStream();
   const [soloGenerating, setSoloGenerating] = useState(false);
   const [soloFallback, setSoloFallback] = useState(false);
   const [soloNotice, setSoloNotice] = useState('');
