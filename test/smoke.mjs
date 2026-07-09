@@ -499,6 +499,38 @@ try {
   assert.equal(genrePreview.selectedGenre, 'city-pop');
   assert.match(genrePreview.fullPrompt, /city pop/i);
 
+  const structuredPreview = await client.request('/api/music/generate', {
+    method: 'POST',
+    body: {
+      previewOnly: true,
+      generationForm: {
+        mode: 'instrumental',
+        title: 'Smoke Loop',
+        model: 'chirp-v5-5',
+        language: 'en',
+        theme: 'steady neon warmup loop',
+        genre: { primary: 'synthwave', sub: ['retrowave'] },
+        mood: ['focused', 'energetic'],
+        bpm: { target: 124 },
+        instruments: {
+          drums: ['gated snare'],
+          bass: ['synth bass'],
+          lead: ['retro synth lead'],
+        },
+        structure: { template: ['Intro', 'Loop', 'Outro'], ending: 'loopable' },
+        negativeTags: ['trap'],
+        dj: { loopFriendly: true, barAligned: true, loopReady: true },
+      },
+    },
+  });
+  assert.equal(structuredPreview.preview, true);
+  assert.equal(structuredPreview.generationMode, 'instrumental');
+  assert.equal(structuredPreview.model, 'chirp-v5-5');
+  assert.equal(structuredPreview.requestedBpm, 124);
+  assert.match(structuredPreview.fullPrompt, /Instrumental only, no vocals/);
+  assert.match(structuredPreview.tags, /124 bpm/);
+  assert.match(structuredPreview.negativeTags, /trap/);
+
   const generated = await client.request('/api/music/generate', {
     method: 'POST',
     body: {

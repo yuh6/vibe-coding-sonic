@@ -205,24 +205,38 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       selectedGenre,
       notes,
       vocals,
+      generationForm,
+      form,
       previewOnly = false,
       forceFallback = false,
       splitStems = true,
     } = req.body || {};
+    const structuredForm = generationForm || form;
 
-    if (!mbti && !axes) {
-      return res.status(400).json({ error: 'mbti or axes is required' });
+    if (!structuredForm && !mbti && !axes) {
+      return res.status(400).json({ error: 'generationForm, mbti, or axes is required' });
     }
 
     // prompt 预览免费且公开
     if (previewOnly) {
-      const composed = composePrompt({ mbti, axes, mode, projectAnalysis, style, selectedGenre, notes, vocals });
+      const composed = composePrompt({
+        generationForm: structuredForm,
+        mbti,
+        axes,
+        mode,
+        projectAnalysis,
+        style,
+        selectedGenre,
+        notes,
+        vocals,
+      });
       return res.json({ preview: true, ...composed });
     }
 
     const job = await createMusicJob({
       userId: req.identity.id,
       user: req.identity,
+      generationForm: structuredForm,
       mbti,
       axes,
       mode,
@@ -248,6 +262,10 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
       lyrics: job.lyrics,
       vocalStyle: job.vocalStyle,
       vocalDesc: job.vocalDesc,
+      generationMode: job.generationMode,
+      model: job.model,
+      tags: job.tags,
+      requestedBpm: job.requestedBpm,
       splitStems: job.splitStems,
       streamUrl: `/api/music/stream/${job.id}`,
       credits: job.credits || await getCredits(req.identity),

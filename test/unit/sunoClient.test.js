@@ -42,3 +42,34 @@ test('buildGenerationRequestBody uses lyrics in custom prompt without losing sty
   assert.equal(body.gpt_description_prompt, 'dream pop, intimate vocals, 88 BPM');
   assert.equal(body.negative_tags, 'noise');
 });
+
+test('buildGenerationRequestBody maps structured custom lyrics controls to TTAPI fields', () => {
+  const body = buildGenerationRequestBody({
+    custom: true,
+    prompt: 'synth rock, 124 bpm, raspy male vocal',
+    gptDescriptionPrompt: null,
+    lyrics: '[Verse]\nNeon on the road',
+    title: 'Neon Highway',
+    tags: 'synth rock, 124 bpm, raspy male vocal',
+    negativeTags: 'trap, acoustic folk',
+    instrumental: false,
+    vocalGender: 'Male',
+    autoLyrics: false,
+    isStorage: true,
+    hookUrl: 'https://example.com/hook',
+    modelVersion: 'chirp-v5-5',
+  });
+
+  assert.equal(body.custom, true);
+  assert.equal(body.instrumental, false);
+  assert.equal(body.mv, 'chirp-v5-5');
+  assert.equal(body.title, 'Neon Highway');
+  assert.equal(body.prompt, '[Verse]\nNeon on the road');
+  assert.equal(body.gpt_description_prompt, undefined);
+  assert.equal(body.tags, 'synth rock, 124 bpm, raspy male vocal');
+  assert.equal(body.negative_tags, 'trap, acoustic folk');
+  assert.equal(body.vocal_gender, 'Male');
+  assert.equal(body.auto_lyrics, false);
+  assert.equal(body.isStorage, true);
+  assert.equal(body.hookUrl, 'https://example.com/hook');
+});

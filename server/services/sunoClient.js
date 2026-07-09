@@ -80,6 +80,10 @@ function normalizeWeightParam(value) {
   return Number(Math.max(0, Math.min(1, normalized)).toFixed(3));
 }
 
+function compactBodyText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 function extractPrimaryMusic(data) {
   const musics = data.data?.musics || data.musics || data.data?.music || data.music;
   const raw = Array.isArray(musics) ? musics[0] : musics;
@@ -212,12 +216,19 @@ export async function submitGeneration({
   title = 'Vibe Coding BGM',
   tags = '',
   lyrics = null,
+  custom,
+  gptDescriptionPrompt,
   instrumental,
   weirdnessConstraint,
   styleWeight,
   audioWeight,
   negativeTags,
   personaId,
+  modelVersion,
+  vocalGender,
+  autoLyrics,
+  isStorage,
+  hookUrl,
 }) {
   const cfg = resolveTtapiRuntime();
   if (!cfg) {
@@ -230,13 +241,19 @@ export async function submitGeneration({
     title,
     tags,
     lyrics,
+    custom,
+    gptDescriptionPrompt,
     instrumental,
     weirdnessConstraint,
     styleWeight,
     audioWeight,
     negativeTags,
     personaId,
-    modelVersion: cfg.modelVersion,
+    modelVersion: modelVersion || cfg.modelVersion,
+    vocalGender,
+    autoLyrics,
+    isStorage,
+    hookUrl,
   });
 
   const res = await fetch(url, {
@@ -270,6 +287,8 @@ export function buildGenerationRequestBody({
   title = 'Vibe Coding BGM',
   tags = '',
   lyrics = null,
+  custom: customOverride,
+  gptDescriptionPrompt,
   instrumental,
   weirdnessConstraint,
   styleWeight,
@@ -277,24 +296,32 @@ export function buildGenerationRequestBody({
   negativeTags,
   personaId,
   modelVersion,
+  vocalGender,
+  autoLyrics,
+  isStorage,
+  hookUrl,
 }) {
-  const custom = Boolean(lyrics);
+  const custom = customOverride ?? Boolean(lyrics);
   const useInstrumental = custom ? false : instrumental ?? true;
+  const descriptionPrompt = gptDescriptionPrompt === undefined ? prompt : gptDescriptionPrompt;
+  const fallbackTags = tags || compactBodyText(prompt || descriptionPrompt).slice(0, 200);
   const body = {
     custom,
     instrumental: useInstrumental,
     mv: modelVersion,
     title,
-    tags: tags || prompt.slice(0, 200),
-    // custom:false 时 TTAPI 强制要求该字段（400: "gpt_description_prompt is required
-    // when generate audio and custom is false."，已用真实 Key 验证）；custom:true 时可忽略。
-    gpt_description_prompt: prompt,
+    tags: fallbackTags,
     negative_tags: negativeTags ?? (useInstrumental ? 'vocals, lyrics, speech, singing' : ''),
   };
 
+  if (descriptionPrompt) {
+    // custom:false 时 TTAPI 强制要求该字段；custom:true 时保留旧兼容行为用于风格描述。
+    body.gpt_description_prompt = descriptionPrompt;
+  }
+
   if (custom) {
     // Custom 模式：prompt 字段承载歌词文本（含 [Verse]/[Chorus] 等结构标签）。
-    body.prompt = lyrics;
+    body.prompt = lyrics || prompt || '';
   }
 
   const normalizedWeirdness = normalizeWeightParam(weirdnessConstraint);
@@ -304,6 +331,10 @@ export function buildGenerationRequestBody({
   if (normalizedStyle !== null) body.style_weight = normalizedStyle;
   if (normalizedAudio !== null) body.audio_weight = normalizedAudio;
   if (personaId) body.persona_id = personaId;
+  if (vocalGender === 'Male' || vocalGender === 'Female') body.vocal_gender = vocalGender;
+  if (autoLyrics !== undefined) body.auto_lyrics = Boolean(autoLyrics);
+  if (isStorage !== undefined) body.isStorage = Boolean(isStorage);
+  if (hookUrl) body.hookUrl = hookUrl;
   return body;
 }
 

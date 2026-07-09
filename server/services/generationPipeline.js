@@ -95,6 +95,10 @@ function publicJob(job) {
     lyrics: job.lyrics,
     vocalStyle: job.vocalStyle,
     vocalDesc: job.vocalDesc,
+    generationMode: job.generationMode,
+    model: job.model,
+    tags: job.tags,
+    requestedBpm: job.requestedBpm,
     error: job.error,
     splitStems: job.splitStems,
   };
@@ -287,6 +291,7 @@ async function saveUserTrack(job) {
 }
 
 async function withGeneratedLyrics(promptOpts) {
+  if (promptOpts.generationForm || promptOpts.form) return promptOpts;
   if (!promptOpts.vocals?.enabled || promptOpts.vocals.lyrics) return promptOpts;
 
   const composed = composePrompt(promptOpts);
@@ -315,6 +320,36 @@ async function withGeneratedLyrics(promptOpts) {
   }
 }
 
+function buildGenerationSubmitArgs(composed, promptOpts = {}) {
+  const ttapi = composed.ttapi || {};
+  const hasTtapi = Boolean(composed.ttapi);
+  const lyrics = promptOpts.vocals?.enabled && promptOpts.vocals?.lyrics
+    ? promptOpts.vocals.lyrics
+    : undefined;
+
+  return {
+    prompt: hasTtapi
+      ? (ttapi.gptDescriptionPrompt ?? composed.fullPrompt)
+      : composed.fullPrompt,
+    title: ttapi.title || composed.title || `${composed.mbti}-${composed.mode}`,
+    tags: ttapi.tags ?? composed.tags ?? composed.layers?.mbti ?? '',
+    negativeTags: ttapi.negativeTags ?? composed.negativeTags ?? '',
+    weirdnessConstraint: ttapi.weirdnessConstraint ?? composed.weirdnessConstraint,
+    styleWeight: ttapi.styleWeight ?? composed.styleWeight,
+    audioWeight: ttapi.audioWeight ?? composed.audioWeight,
+    personaId: ttapi.personaId ?? composed.personaId,
+    instrumental: ttapi.instrumental ?? !promptOpts.vocals?.enabled,
+    lyrics: ttapi.lyrics ?? lyrics,
+    custom: ttapi.custom,
+    gptDescriptionPrompt: hasTtapi ? ttapi.gptDescriptionPrompt : undefined,
+    modelVersion: ttapi.model ?? composed.model,
+    vocalGender: ttapi.vocalGender,
+    autoLyrics: ttapi.autoLyrics,
+    isStorage: ttapi.isStorage,
+    hookUrl: ttapi.hookUrl,
+  };
+}
+
 function createJobFromComposed({
   jobId,
   userId,
@@ -327,6 +362,11 @@ function createJobFromComposed({
     userId: userId || null,
     status: 'processing',
     ...composed,
+    generationForm: composed.form || null,
+    generationMode: composed.generationMode || null,
+    model: composed.model || null,
+    tags: composed.tags || null,
+    requestedBpm: composed.requestedBpm || composed.analysis?.requestedBpm || null,
     audioUrl: null,
     audioLocal: null,
     tracks: [],
@@ -424,20 +464,7 @@ export class GenerationPipeline extends EventEmitter {
           return current || job;
         }
 
-        const { taskId } = await submitGeneration({
-          prompt: composed.fullPrompt,
-          title: `${composed.mbti}-${composed.mode}`,
-          tags: composed.layers?.mbti || '',
-          negativeTags: composed.negativeTags || '',
-          weirdnessConstraint: composed.weirdnessConstraint,
-          styleWeight: composed.styleWeight,
-          audioWeight: composed.audioWeight,
-          personaId: composed.personaId,
-          instrumental: !promptOpts.vocals?.enabled,
-          lyrics: promptOpts.vocals?.enabled && promptOpts.vocals?.lyrics
-            ? promptOpts.vocals.lyrics
-            : undefined,
-        });
+        const { taskId } = await submitGeneration(buildGenerationSubmitArgs(composed, promptOpts));
         current.sunoTaskId = taskId;
         await saveJobToDB(current);
         this.emitJob('generation:status', current, { status: 'processing', taskId });
@@ -722,20 +749,7 @@ export class GenerationPipeline extends EventEmitter {
       if (!charge.ok) {
         throw Object.assign(new Error(charge.error), { code: charge.code, status: charge.status });
       }
-      const { taskId } = await submitGeneration({
-        prompt: composed.fullPrompt,
-        title: `${composed.mbti}-${composed.mode}`,
-        tags: composed.layers?.mbti || '',
-        weirdnessConstraint: composed.weirdnessConstraint,
-        styleWeight: composed.styleWeight,
-        audioWeight: composed.audioWeight,
-        personaId: composed.personaId,
-        instrumental: !generationPromptOpts.vocals?.enabled,
-        lyrics: generationPromptOpts.vocals?.enabled && generationPromptOpts.vocals?.lyrics
-          ? generationPromptOpts.vocals.lyrics
-          : undefined,
-        negativeTags: composed.negativeTags || '',
-      });
+      const { taskId } = await submitGeneration(buildGenerationSubmitArgs(composed, generationPromptOpts));
       emit('generation_status', { trackId: pending.id, taskId, status: 'processing', phase: composed.mode });
       const result = await this.waitForCompletion(taskId);
       const audioLocal = await this.persistArrangerAudio(result.audioUrl, sessionId, pending.id);

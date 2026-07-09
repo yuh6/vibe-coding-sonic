@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { resolveGenreStyle } from './genreStyles.js';
+import { compileMusicGenerationForm } from './musicFormCompiler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const profiles = JSON.parse(readFileSync(join(__dirname, '../data/mbti-profiles.json'), 'utf-8'));
@@ -303,7 +304,11 @@ function buildAvoidTags(projectAnalysis, notes, vocals) {
 //  流派 → 乐器 → 情绪 → BPM → 制作质感
 // ════════════��══════════════════════════════════════════════════
 
-export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, style, selectedGenre, notes, vocals }) {
+export function composePrompt({ generationForm, form, mbti, axes, mode = 'focus', projectAnalysis, style, selectedGenre, notes, vocals }) {
+  if (generationForm || form) {
+    return compileMusicGenerationForm(generationForm || form);
+  }
+
   const resolvedMbti = axes ? mbtiFromAxes(axes) : mbti;
   const profile = profiles[resolvedMbti];
   if (!profile) {
