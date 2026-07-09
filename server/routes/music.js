@@ -12,8 +12,9 @@ import {
   getPlaybackUrl,
   getPlaybackTracks,
   generationPipeline,
-} from '../services/musicOrchestrator.js';
+} from '../services/generationPipeline.js';
 import { composePrompt } from '../services/promptComposer.js';
+import { generateLyrics } from '../services/lyricsGenerator.js';
 import { requireIdentity } from '../middleware/userAuth.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { libraryHasTrackUrl } from '../services/libraryStore.js';
@@ -22,6 +23,7 @@ import {
   userOwnsTrackUrl,
 } from '../services/quotaService.js';
 import { getCredits } from '../services/creditService.js';
+import { positiveNumber, parseCsv } from '../utils/validators.js';
 
 const router = Router();
 const AUDIO_PROXY_MAX_BYTES = positiveNumber(process.env.AUDIO_PROXY_MAX_BYTES, 50 * 1024 * 1024);
@@ -33,17 +35,14 @@ const paidGenerateLimit = createRateLimit({
   max: Number(process.env.MUSIC_GENERATE_RATE_LIMIT || 10),
   keyPrefix: 'music-generate',
 });
-
-function positiveNumber(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
+const lyricsLimit = createRateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.LYRICS_RATE_LIMIT || 10),
+  keyPrefix: 'lyrics-generate',
+});
 
 function parseAllowedHosts(value = process.env.AUDIO_PROXY_ALLOWED_HOSTS || '') {
-  const configured = String(value)
-    .split(',')
-    .map((host) => host.trim().toLowerCase())
-    .filter(Boolean);
+  const configured = parseCsv(value).map((host) => host.toLowerCase());
   return [...new Set([...DEFAULT_AUDIO_PROXY_ALLOWED_HOSTS, ...configured])];
 }
 
@@ -274,6 +273,19 @@ router.post('/generate', requireGenerateUser, limitPaidGeneration, async (req, r
   } catch (err) {
     console.error('[music/generate]', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/lyrics/generate', requireIdentity, lyricsLimit, async (req, res) => {
+  const { mbtiType, mode, projectAnalysis, notes, language } = req.body || {};
+  try {
+    const result = await generateLyrics({ mbtiType, mode, projectAnalysis, notes, language });
+    if (!result) {
+      return res.status(503).json({ error: 'LLM 未配置，无法生成歌词' });
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

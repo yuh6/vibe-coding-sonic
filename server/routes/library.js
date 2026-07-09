@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { requireAdmin } from '../middleware/adminAuth.js';
+import { requireIdentity } from '../middleware/userAuth.js';
 import {
   getLibrary, addTrack, removeTrack,
   listSharedLibrary, getSharedLibraryStats,
 } from '../services/libraryStore.js';
-import { paginationFromQuery } from '../utils/pagination.js';
+import { recordPlay, getUserHistory, getRecommendations, getPopularTracks } from '../services/recommendService.js';
+import { clampInt, paginationFromQuery } from '../utils/pagination.js';
 
 const router = Router();
 
@@ -73,6 +75,33 @@ router.post('/shared/:id/play', async (req, res) => {
     'UPDATE shared_library SET play_count = play_count + 1 WHERE id = ?'
   ).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Track not found' });
+  res.json({ ok: true });
+});
+
+// ── 推荐与播放历史 ──
+
+router.get('/recommend/popular', async (req, res) => {
+  const limit = clampInt(req.query.limit, { defaultValue: 10, min: 1, max: 50 });
+  const tracks = await getPopularTracks(limit);
+  res.json({ tracks });
+});
+
+router.get('/recommend/for-you', requireIdentity, async (req, res) => {
+  const limit = clampInt(req.query.limit, { defaultValue: 10, min: 1, max: 50 });
+  const tracks = await getRecommendations(req.identity.id, { limit });
+  res.json({ tracks });
+});
+
+router.get('/recommend/history', requireIdentity, async (req, res) => {
+  const { page, limit } = paginationFromQuery(req.query, { defaultLimit: 30, maxLimit: 100 });
+  const result = await getUserHistory(req.identity.id, { page, limit });
+  res.json(result);
+});
+
+router.post('/recommend/play', requireIdentity, async (req, res) => {
+  const { trackId, durationSec, completed } = req.body || {};
+  if (!trackId) return res.status(400).json({ error: 'trackId is required' });
+  await recordPlay({ userId: req.identity.id, trackId, durationSec, completed });
   res.json({ ok: true });
 });
 
