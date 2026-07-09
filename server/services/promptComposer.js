@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { resolveGenreStyle } from './genreStyles.js';
+import { compileMusicGenerationForm } from './musicFormCompiler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const profiles = JSON.parse(readFileSync(join(__dirname, '../data/mbti-profiles.json'), 'utf-8'));
@@ -252,7 +253,7 @@ function truncateStyleByPriority(parts, maxLen = 200) {
   const ordered = parts
     .filter(Boolean)
     .map((part, index) => ({ ...part, index }))
-    .sort((a, b) => Number(b.required) - Number(a.required) || a.priority - b.priority || a.index - b.index);
+    .sort((a, b) => a.priority - b.priority || a.index - b.index || Number(b.required) - Number(a.required));
 
   const result = [];
   const seen = new Set();
@@ -303,7 +304,11 @@ function buildAvoidTags(projectAnalysis, notes, vocals) {
 //  流派 → 乐器 → 情绪 → BPM → 制作质感
 // ════════════��══════════════════════════════════════════════════
 
-export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, style, selectedGenre, notes, vocals }) {
+export function composePrompt({ generationForm, form, mbti, axes, mode = 'focus', projectAnalysis, style, selectedGenre, notes, vocals }) {
+  if (generationForm || form) {
+    return compileMusicGenerationForm(generationForm || form);
+  }
+
   const resolvedMbti = axes ? mbtiFromAxes(axes) : mbti;
   const profile = profiles[resolvedMbti];
   if (!profile) {
@@ -345,15 +350,15 @@ export function composePrompt({ mbti, axes, mode = 'focus', projectAnalysis, sty
   // 按 Suno V5 权重和 P0/P1/P2 优先级组装。
   const promptParts = [
     promptLayer(genreAnchor, 0, genreStyle ? 'user_genre' : 'mbti_default_genre', { required: true, maxTerms: genreStyle ? 6 : 3 }),
-    promptLayer(faderLayer, 0, 'user_dj_fader'),
+    promptLayer(`${bpm} BPM`, 0, 'computed_bpm', { required: true }),
+    promptLayer(vocals?.enabled ? '' : 'Instrumental', 0, 'instrumental_mode', { required: !vocals?.enabled }),
+    promptLayer(faderLayer, 0, 'user_dj_fader', { maxTerms: 3 }),
     promptLayer(notesKeywords, 0, 'user_notes'),
     promptLayer(notesMood, 0, 'user_notes'),
     promptLayer(vocalTag, 0, vocals?.style ? 'user_vocal' : 'mbti_vocal', { required: Boolean(vocals?.enabled) }),
 
     promptLayer(instruments, 1, 'mbti_instruments', { maxTerms: 3 }),
-    promptLayer(vocals?.enabled ? '' : 'Instrumental', 1, 'instrumental_mode', { required: !vocals?.enabled }),
     promptLayer(phaseStyle, 1, 'phase_preset'),
-    promptLayer(`${bpm} BPM`, 1, 'computed_bpm', { required: true }),
     promptLayer(moodWords, 1, 'mbti_mood'),
     promptLayer(remixLayer, 1, 'mbti_axis'),
     promptLayer(projectLayer, 1, 'project_analysis', { maxTerms: 4 }),
