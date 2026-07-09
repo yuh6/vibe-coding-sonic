@@ -56,6 +56,7 @@ export function useArranger() {
   const stateRef = useRef(state);
   const playbackEnabledRef = useRef(true);
   const startPromiseRef = useRef(null);
+  const runIdRef = useRef(0);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -82,8 +83,10 @@ export function useArranger() {
   }, []);
 
   /** 决策引擎给出新曲目后：还没有 current → 直接播；已有 current → 只 preload，等 95% 再切 */
-  const handleDecision = useCallback(async (decision, { playback = playbackEnabledRef.current } = {}) => {
+  const handleDecision = useCallback(async (decision, { playback = playbackEnabledRef.current, runId = null } = {}) => {
     if (!decision?.track) return;
+    const shouldStart = () => runId == null || runIdRef.current === runId;
+    if (!shouldStart()) return;
     if (!playback) {
       applyTrack(decision.track);
       return;
@@ -91,10 +94,10 @@ export function useArranger() {
     const url = proxiedUrl(decision.track.audioLocal || decision.track.audioUrl);
     if (!deckRef.current.current) {
       applyTrack(decision.track);
-      await deckRef.current.playFirst(url, decision.track);
+      await deckRef.current.playFirst(url, decision.track, { shouldStart });
     } else {
       // preload 完成不等于切歌：track 元数据随 next 一起存，等 95% transition() 触发后再展示
-      await deckRef.current.preload(url, decision.track);
+      await deckRef.current.preload(url, decision.track, { shouldStart });
     }
   }, [applyTrack]);
 
@@ -216,8 +219,10 @@ export function useArranger() {
 
   const start = useCallback(
     async ({ name, mbtiType, mbtiSliders, schedule, budgetLimit, generationParams, playback = true } = {}) => {
-      playbackEnabledRef.current = playback;
       if (startPromiseRef.current) return startPromiseRef.current;
+      const runId = runIdRef.current + 1;
+      runIdRef.current = runId;
+      playbackEnabledRef.current = playback;
       setStarting(true);
       setError('');
       startPromiseRef.current = (async () => {
@@ -234,24 +239,34 @@ export function useArranger() {
           sid = created.id || created.sessionId;
           setSessionId(sid);
           sessionIdRef.current = sid;
+          if (runIdRef.current !== runId) return sid;
         } else if (generationParams) {
           await updateArrangerGenerationParams(sid, generationParams);
+          if (runIdRef.current !== runId) return sid;
         }
 
         if (stateRef.current !== 'IDLE') {
           refreshPoolStatus(sid);
           refreshHistory(sid);
-          if (playback && !deckRef.current.current) {
+          if (playback && runIdRef.current === runId && !deckRef.current.current) {
             const result = await advanceArranger(sid);
-            if (result?.decision) await handleDecision(result.decision, { playback: true });
+            if (runIdRef.current === runId && result?.decision) {
+              await handleDecision(result.decision, { playback: true, runId });
+            }
           }
           return sid;
         }
 
         const result = await startArranger(sid);
+        if (runIdRef.current !== runId) {
+          stopArranger(sid).catch((err) => {
+            console.error('[arranger] stop after cancelled start', err);
+          });
+          return sid;
+        }
         setState('PLAYING');
         stateRef.current = 'PLAYING';
-        if (result?.decision) await handleDecision(result.decision, { playback });
+        if (result?.decision) await handleDecision(result.decision, { playback, runId });
         refreshPoolStatus(sid);
         refreshHistory(sid);
         getArrangerEnergyCurve().then((data) => setEnergyCurve(data.curve)).catch(() => {});
@@ -278,6 +293,13 @@ export function useArranger() {
   }, []);
 
   const stop = useCallback(async () => {
+    runIdRef.current += 1;
+    playbackEnabledRef.current = false;
+    deckRef.current.stop();
+    setState('IDLE');
+    stateRef.current = 'IDLE';
+    applyTrack(null);
+
     const sid = sessionIdRef.current;
     if (!sid) return;
     try {
@@ -285,9 +307,6 @@ export function useArranger() {
     } catch (err) {
       console.error('[arranger] stop', err);
     }
-    deckRef.current.stop();
-    setState('IDLE');
-    applyTrack(null);
   }, [applyTrack]);
 
   const changePhase = useCallback(

@@ -75,7 +75,7 @@ export class CrossfadeDeck {
   }
 
   /** 预加载下一首（不影响当前播放）；track 为业务层元数据（曲目信息），随 next 一起保存供 UI 展示 */
-  async preload(url, track = null) {
+  async preload(url, track = null, { shouldStart } = {}) {
     // 清理之前未使用的预加载（避免 source/gain 泄漏）
     if (this.next) {
       try { this.next.source.disconnect(); } catch { /* ignored */ }
@@ -83,6 +83,7 @@ export class CrossfadeDeck {
       this.next = null;
     }
     const buffer = await this.decode(url);
+    if (shouldStart && !shouldStart()) return null;
     const { source, gain } = connectChain(this.ctx, buffer, this.destination);
     gain.gain.setValueAtTime(0, this.ctx.currentTime);
     this.next = { source, gain, buffer, url, track, started: false };
@@ -90,8 +91,9 @@ export class CrossfadeDeck {
   }
 
   /** 直接播放第一首（BOOTSTRAP 阶段，没有"上一首"可淡出） */
-  async playFirst(url, track = null) {
+  async playFirst(url, track = null, { shouldStart } = {}) {
     const buffer = await this.decode(url);
+    if (shouldStart && !shouldStart()) return null;
     const { source, gain } = connectChain(this.ctx, buffer, this.destination);
     const t = this.ctx.currentTime;
     gain.gain.setValueAtTime(1, t);

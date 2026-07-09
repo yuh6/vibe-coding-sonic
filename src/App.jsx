@@ -78,6 +78,7 @@ export default function App() {
   const analyzeTimer = useRef(null);
   const promptTimer = useRef(null);
   const profileTimer = useRef(null);
+  const previousRouteRef = useRef(route);
   const profileLoadedRef = useRef(false);
   const skipAnalyzeRef = useRef(false);
   const generationSeqRef = useRef(0);
@@ -249,6 +250,20 @@ export default function App() {
   }, [arranger.sessionId, arrangerGenerationParams, arranger.syncGenerationParams]);
 
   useEffect(() => {
+    const previousRoute = previousRouteRef.current;
+    previousRouteRef.current = route;
+    if (previousRoute !== '/dj' || route === '/dj') return;
+
+    generationSeqRef.current += 1;
+    poll.stopPolling();
+    poll.setStatus('idle');
+    setGenerating(false);
+    player.unload();
+    arranger.stop();
+  }, [route, poll.stopPolling, poll.setStatus, player.unload, arranger.stop]);
+
+  useEffect(() => {
+    if (route !== '/dj') return;
     if (poll.audioUrl) {
       if (poll.meta?.credits) setCredits(poll.meta.credits);
       setFallback(Boolean(poll.meta?.fallback));
@@ -258,7 +273,17 @@ export default function App() {
       });
       setGenerating(false);
     }
-  }, [poll.audioUrl, poll.meta?.credits]);
+  }, [
+    route,
+    poll.audioUrl,
+    poll.meta?.credits,
+    poll.meta?.fallback,
+    poll.meta?.title,
+    poll.meta?.fallbackTitle,
+    mbti,
+    mode,
+    player.playUrl,
+  ]);
 
   useEffect(() => {
     const tracks = Array.isArray(poll.meta?.tracks)
