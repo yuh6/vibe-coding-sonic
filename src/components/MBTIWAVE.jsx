@@ -3,7 +3,7 @@ import {
   Users, Send, Volume2, VolumeX, Play, Pause,
   Music,
   Activity, Disc, Headphones, Radio, Zap, MessageSquare,
-  Compass, SlidersHorizontal
+  Compass, SlidersHorizontal, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/mbtiwave.css';
