@@ -103,6 +103,8 @@ export default function MBTIWAVE({
   onAccountOpen = () => {},
   onBeforeLogout,
   onNavigate = (path) => { window.location.href = path; },
+  appRoutes = [],
+  currentRoute = '/mbtiwave',
 }) {
   const [currentView, setCurrentView] = useState('home'); // "home" | "room" | "mbti-hub" | "solo"
   const [selectedMBTI, setSelectedMBTI] = useState(mbtiData[0]);
@@ -551,7 +553,7 @@ export default function MBTIWAVE({
             </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap justify-end">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-3 overflow-x-auto pb-1 xl:w-auto xl:justify-end xl:overflow-visible xl:pb-0">
           <div className="hidden xl:flex items-center gap-6 text-xs text-zinc-400 mono-font">
             <span className="hover:text-[#00FF66] transition-colors cursor-pointer" onClick={() => setCurrentView('home')}>[ 探索首页 ]</span>
             <span className="hover:text-[#00FF66] transition-colors cursor-pointer" onClick={() => setCurrentView('mbti-hub')}>[ MBTI 星系 ]</span>
@@ -561,6 +563,30 @@ export default function MBTIWAVE({
               12,042 ONLINE
             </span>
           </div>
+
+          {appRoutes.length > 0 && (
+            <nav className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-[#00FF66]/20 bg-black/35 p-1" aria-label="主功能导航">
+              {appRoutes.map((item) => {
+                const active = currentRoute === item.path;
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => onNavigate(item.path)}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                      active
+                        ? 'bg-[#00FF66] text-black'
+                        : 'text-[#00FF66] hover:bg-[#00FF66]/10 hover:text-white'
+                    }`}
+                    title={`${item.label} · ${item.hint || ''}`}
+                  >
+                    <IconGlyph name={item.icon} className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
 
           {/* ── 顶栏统一绿色主题（登录 / 主题 / 导航）── */}
           <AuthPanel
@@ -593,9 +619,6 @@ export default function MBTIWAVE({
               <span>MBTIWAVE</span>
             </button>
           )}
-          {/* <a href="/discover" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">发现</a> */}
-          {/* <a href="/mixer" className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]">调音台</a> */}
-          {/* <a href="/admin" className="rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 px-3 py-1.5 text-xs text-[#00FF66] no-underline hover:bg-[#00FF66] hover:text-black transition-colors">管理后台</a> */}
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="w-9 h-9 rounded-full border border-[#00FF66]/40 bg-[#00FF66]/10 flex items-center justify-center text-[#00FF66] hover:bg-[#00FF66] hover:text-black transition-colors"

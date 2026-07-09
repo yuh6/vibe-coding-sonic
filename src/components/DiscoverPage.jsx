@@ -287,6 +287,9 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   const [playlistDetail, setPlaylistDetail] = useState(null);
   const [tuned, setTuned] = useState(null); // 当前收听的电台
   const [loading, setLoading] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loadError, setLoadError] = useState('');
+  const [wheelError, setWheelError] = useState('');
   const [wheelTracks, setWheelTracks] = useState([]);
   const [selectedLibraryTrack, setSelectedLibraryTrack] = useState(null);
   const [personalTracks, setPersonalTracks] = useState([]);
@@ -318,19 +321,38 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
   }, [tab, user]);
 
   useEffect(() => {
+    setLoadError('');
     if (tab === 'radio') {
       setLoading(true);
-      getLiveRadios().then((d) => setRadios(d.stations || [])).catch(() => {}).finally(() => setLoading(false));
+      getLiveRadios()
+        .then((d) => setRadios(d.stations || []))
+        .catch((err) => {
+          setRadios([]);
+          setLoadError(err?.message || '电台列表加载失败');
+        })
+        .finally(() => setLoading(false));
     } else if (tab === 'playlists') {
       setLoading(true);
-      getPublicPlaylists().then((d) => setPlaylists(d.playlists || [])).catch(() => {}).finally(() => setLoading(false));
+      getPublicPlaylists()
+        .then((d) => setPlaylists(d.playlists || []))
+        .catch((err) => {
+          setPlaylists([]);
+          setLoadError(err?.message || '播放列表加载失败');
+        })
+        .finally(() => setLoading(false));
     }
-  }, [tab]);
+  }, [tab, reloadKey]);
 
   useEffect(() => {
     getPopularTracks(36)
-      .then((data) => setWheelTracks(data.tracks || []))
-      .catch(() => setWheelTracks([]));
+      .then((data) => {
+        setWheelTracks(data.tracks || []);
+        setWheelError('');
+      })
+      .catch((err) => {
+        setWheelTracks([]);
+        setWheelError(err?.message || '热门曲库暂时不可用，转盘将使用本地推荐');
+      });
   }, []);
 
   const refreshGenreTracks = useCallback(async (genre) => {
@@ -429,6 +451,7 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
       }
     } catch (err) {
       console.error('[discover] handleTune failed:', err);
+      setLoadError(err?.message || '接入电台失败，请稍后重试');
     }
   }, [tuned, onPlayTrack]);
 
@@ -475,6 +498,12 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
         />
       </div>
 
+      {wheelError && (
+        <div className="mx-auto max-w-5xl rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-xs text-amber-100">
+          {wheelError}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold text-white/90">
@@ -520,7 +549,24 @@ export default function DiscoverPage({ user, onPlayTrack, onTogglePlayback, onSt
       )}
 
       {/* Content */}
-      {loading ? (
+      {loadError ? (
+        <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-6 text-center">
+          <div className="text-sm font-bold text-red-100">当前列表加载失败</div>
+          <div className="mt-2 text-xs text-red-100/70">{loadError}</div>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReloadKey((value) => value + 1)}
+              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs text-white/80 hover:bg-white/15"
+            >
+              重试
+            </button>
+            <a href="/dj" className="rounded-full bg-emerald-400 px-4 py-2 text-xs font-bold text-black no-underline hover:bg-emerald-300">
+              去生成音乐
+            </a>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="text-center text-white/30 text-sm py-8">加载中...</div>
       ) : tab === 'radio' ? (
         radios.length === 0 ? (

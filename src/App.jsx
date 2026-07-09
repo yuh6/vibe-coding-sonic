@@ -33,6 +33,107 @@ const MBTIWAVE = lazy(() => import('./components/MBTIWAVE'));
 const AccountPage = lazy(() => import('./components/AccountPage'));
 
 const STARTUP_FALLBACK_MODE = 'startup';
+const APP_ROUTES = [
+  { path: '/dj', label: '生成', icon: 'dj-console', hint: 'AI DJ' },
+  { path: '/discover', label: '发现', icon: 'discover', hint: 'Library' },
+  { path: '/mixer', label: '混音', icon: 'mixer', hint: 'Mixer' },
+];
+
+function AppRouteNav({ route, onNavigate, compact = false }) {
+  return (
+    <nav
+      className={`flex min-w-0 items-center gap-1 rounded-full border border-[var(--border)] bg-black/20 p-1 ${
+        compact ? 'max-w-full overflow-x-auto' : ''
+      }`}
+      aria-label="主功能导航"
+    >
+      {APP_ROUTES.map((item) => {
+        const active = route === item.path || (route === '/' && item.path === '/dj');
+        return (
+          <a
+            key={item.path}
+            href={item.path}
+            onClick={(event) => {
+              event.preventDefault();
+              onNavigate(item.path);
+            }}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold no-underline transition ${
+              active
+                ? 'bg-white/10 text-[var(--text-primary)] shadow-[0_0_18px_rgba(255,255,255,0.08)]'
+                : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+            }`}
+            aria-current={active ? 'page' : undefined}
+            title={`${item.label} · ${item.hint}`}
+          >
+            <IconGlyph name={item.icon} className="h-4 w-4" />
+            <span>{item.label}</span>
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+function RouteLoadingFallback({ label = '正在载入页面' }) {
+  return (
+    <div className="glass rounded-2xl p-6 text-sm text-subtle">
+      <div className="mb-3 flex items-center gap-2 text-theme">
+        <span className="led-dot animate-pulse" />
+        <span className="font-display font-bold">{label}</span>
+      </div>
+      <div className="space-y-2">
+        <div className="h-3 w-3/4 rounded-full bg-white/10" />
+        <div className="h-3 w-1/2 rounded-full bg-white/10 opacity-75" />
+      </div>
+    </div>
+  );
+}
+
+function DiscoverPlaybackBar({
+  playing,
+  currentTitle,
+  hasAudio,
+  muted,
+  volume,
+  onTogglePlay,
+  onToggleMute,
+  onVolumeChange,
+  onStop,
+}) {
+  if (!hasAudio && !currentTitle) return null;
+  return (
+    <div className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-3xl rounded-2xl border border-white/10 bg-black/85 p-3 text-white shadow-2xl backdrop-blur md:bottom-5">
+      <div className="flex items-center gap-3">
+        <div className={`vinyl-disc flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${playing ? 'spin-vinyl' : ''}`}>
+          <div className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold">{currentTitle || '准备播放'}</div>
+          <div className="text-[10px] text-white/40">Discover playback queue</div>
+        </div>
+        <button type="button" onClick={onTogglePlay} className="pad flex h-10 w-10 items-center justify-center" aria-label={playing ? '暂停' : '播放'}>
+          <IconGlyph name={playing ? 'pause' : 'play'} className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={onToggleMute} className="pad hidden h-10 w-10 items-center justify-center sm:flex" aria-label={muted ? '取消静音' : '静音'}>
+          <IconGlyph name={muted ? 'volume-muted' : 'volume-on'} className="h-4 w-4" />
+        </button>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={(event) => onVolumeChange(Number(event.target.value))}
+          className="fader hidden w-28 sm:block"
+          aria-label="发现页播放音量"
+        />
+        <button type="button" onClick={onStop} className="pad flex h-10 w-10 items-center justify-center" aria-label="停止播放">
+          <IconGlyph name="stop" className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const path = usePathRoute();
@@ -541,7 +642,7 @@ export default function App() {
   // MBTIWAVE 整页接管（自带页头/页脚），单独渲染，不套用 DJ 控制台的外层布局。
   if (isHome) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteLoadingFallback label="正在载入 MBTIWAVE" />}>
         <MBTIWAVE
           isDark={isDark}
           onToggleColorMode={toggleColorMode}
@@ -556,6 +657,8 @@ export default function App() {
           onAccountOpen={() => navigateTo('/account')}
           onBeforeLogout={() => stopLiveStation('登出前电台已下线')}
           onNavigate={navigateTo}
+          appRoutes={APP_ROUTES}
+          currentRoute={route}
         />
       </Suspense>
     );
@@ -613,7 +716,8 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <AppRouteNav route={route} onNavigate={navigateTo} compact />
             <AuthPanel
               user={user}
               credits={credits}
@@ -637,39 +741,15 @@ export default function App() {
               <IconGlyph name="roomwave" className="h-4 w-4" />
               <span>MBTIWAVE</span>
             </a>
-            {/* {!isDiscover && (
-              <a
-                href="/discover"
-                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-              >
-                🌍 发现
-              </a>
-            )} */}
-            {/* {!isMixer && (
-              <a
-                href="/mixer"
-                className="pad px-3 py-1.5 text-xs font-bold no-underline hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-              >
-                🎚 调音台
-              </a>
-            )} */}
-            {/* {!isAdmin && (
-              <a
-                href="/admin"
-                className="pad px-3.5 py-2 text-xs text-muted no-underline"
-              >
-                ⚙️ 管理后台
-              </a>
-            )} */}
           </div>
         </header>
 
         {isAdmin ? (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RouteLoadingFallback label="正在载入管理后台" />}>
             <AdminPanel />
           </Suspense>
         ) : isAccount ? (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RouteLoadingFallback label="正在载入账户资料" />}>
             <AccountPage
               user={user}
               credits={credits}
@@ -679,7 +759,7 @@ export default function App() {
             />
           </Suspense>
         ) : isMixer ? (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RouteLoadingFallback label="正在载入混音台" />}>
             <MixerPage
               incomingMix={mixerImport}
               user={user}
@@ -690,7 +770,7 @@ export default function App() {
             />
           </Suspense>
         ) : isDiscover ? (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RouteLoadingFallback label="正在载入发现页" />}>
             <DiscoverPage
               user={user}
               onPlayTrack={(track) => player.playUrl(track.audioUrl, { title: track.title || '' })}
@@ -732,7 +812,21 @@ export default function App() {
             promptData={promptData}
             promptLoading={promptLoading}
           />
-        )}      </div>
+        )}
+        {isDiscover && (
+          <DiscoverPlaybackBar
+            playing={player.playing}
+            currentTitle={player.currentTitle}
+            hasAudio={player.hasAudio}
+            muted={player.muted}
+            volume={player.volume}
+            onTogglePlay={player.togglePlay}
+            onToggleMute={player.toggleMute}
+            onVolumeChange={player.setVolume}
+            onStop={player.unload}
+          />
+        )}
+      </div>
     </div>
   );
 }
