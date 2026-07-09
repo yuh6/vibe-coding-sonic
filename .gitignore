@@ -20,4 +20,5 @@ server/data/audio-cache/*
 graphify-out
 .playwright-cli
 docs/music-generation-chain.md
+docs/v2.0/
 .worktrees/
